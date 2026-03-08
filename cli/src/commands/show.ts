@@ -86,7 +86,7 @@ export async function showCommand(moduleName: string, options: ShowOptions): Pro
         });
       }
 
-      console.log(chalk.gray('\nUse "augx list" to see all available modules.'));
+      console.log(chalk.gray('\nUse "filmbuff list" to see all available modules.'));
       process.exit(1);
     }
 
@@ -163,9 +163,9 @@ export async function showModuleCommand(
     // Validate module name
     if (!moduleName || moduleName.trim() === '') {
       console.error(chalk.red('Error: Module name is required'));
-      console.log(chalk.gray('\nUsage: augx show module <module-name> [file-path] [options]'));
-      console.log(chalk.gray('Example: augx show module php-standards'));
-      console.log(chalk.gray('         augx show module php-standards rules/psr-standards.md'));
+      console.log(chalk.gray('\nUsage: filmbuff show module <module-name> [file-path] [options]'));
+      console.log(chalk.gray('Example: filmbuff show module php-standards'));
+      console.log(chalk.gray('         filmbuff show module php-standards rules/psr-standards.md'));
       process.exit(1);
     }
 
@@ -189,7 +189,7 @@ export async function showModuleCommand(
         });
       }
 
-      console.log(chalk.gray('\nUse "augx list" to see all available modules.'));
+      console.log(chalk.gray('\nUse "filmbuff list" to see all available modules.'));
       process.exit(1);
     }
 
@@ -425,9 +425,9 @@ async function showModuleOverview(module: Module, options: ShowModuleOptions): P
 
   // Helpful commands
   console.log(chalk.bold('Commands:'));
-  console.log(chalk.gray(`  View content:     augx show module ${module.fullName} --content`));
-  console.log(chalk.gray(`  List files:       augx show module ${module.fullName} --filter "*.md"`));
-  console.log(chalk.gray(`  Search content:   augx show module ${module.fullName} --search "keyword"`));
+  console.log(chalk.gray(`  View content:     filmbuff show module ${module.fullName} --content`));
+  console.log(chalk.gray(`  List files:       filmbuff show module ${module.fullName} --filter "*.md"`));
+  console.log(chalk.gray(`  Search content:   filmbuff show module ${module.fullName} --search "keyword"`));
   console.log();
 }
 
@@ -665,10 +665,10 @@ async function showModuleContent(module: Module, options: ShowModuleOptions): Pr
     console.log(chalk.gray(`  Current page: ${currentPage} of ${totalPages}`));
 
     if (currentPage < totalPages) {
-      console.log(chalk.cyan(`  Next page:    augx show module ${module.fullName} --content --page ${currentPage + 1}`));
+      console.log(chalk.cyan(`  Next page:    filmbuff show module ${module.fullName} --content --page ${currentPage + 1}`));
     }
     if (currentPage > 1) {
-      console.log(chalk.cyan(`  Prev page:    augx show module ${module.fullName} --content --page ${currentPage - 1}`));
+      console.log(chalk.cyan(`  Prev page:    filmbuff show module ${module.fullName} --content --page ${currentPage - 1}`));
     }
   }
 
@@ -1206,8 +1206,8 @@ export async function showLinkedCommand(options: ShowListOptions): Promise<void>
 
     if (linkedModules.length === 0) {
       console.log(chalk.yellow('No linked modules found.'));
-      console.log(chalk.gray('\nUse "augx link <module>" to link modules.'));
-      console.log(chalk.gray('Use "augx list" to see all available modules.'));
+      console.log(chalk.gray('\nUse "filmbuff link <module>" to link modules.'));
+      console.log(chalk.gray('Use "filmbuff list" to see all available modules.'));
       return;
     }
 
@@ -1294,7 +1294,7 @@ async function getAllModules(): Promise<ModuleListItem[]> {
   const linkedModules = getLinkedModules();
 
   // Get all available modules from repository
-  const modulesDir = path.join(__dirname, '../../../augment-extensions');
+  const modulesDir = path.join(__dirname, '../../../filmbuff');
 
   if (!fs.existsSync(modulesDir)) {
     return linkedModules;

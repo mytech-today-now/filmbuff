@@ -34,13 +34,13 @@ This module provides detailed guidelines and examples for understanding and writ
 ### Link the Module
 
 ```bash
-augx link writing-standards/literature/shakespeare
+filmbuff link writing-standards/literature/shakespeare
 ```
 
 ### View Module Contents
 
 ```bash
-augx show shakespeare
+filmbuff show shakespeare
 ```
 
 ### Example Usage
@@ -48,13 +48,13 @@ augx show shakespeare
 Study a specific topic:
 ```bash
 # Learn about sonnets
-augx show shakespeare rules/poetry/sonnets.md
+filmbuff show shakespeare rules/poetry/sonnets.md
 
 # Understand iambic pentameter
-augx show shakespeare rules/poetry/iambic-pentameter.md
+filmbuff show shakespeare rules/poetry/iambic-pentameter.md
 
 # Explore tragedy structure
-augx show shakespeare rules/drama/tragedy.md
+filmbuff show shakespeare rules/drama/tragedy.md
 ```
 
 ## Module Structure

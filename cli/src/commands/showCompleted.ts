@@ -144,7 +144,7 @@ export function showCompletedCommand(options: ShowCompletedOptions): void {
     console.log(chalk.cyan('  2. Initialize Beads:'));
     console.log(chalk.gray('     bd init'));
     console.log(chalk.gray('\nAlternatively, you can work with Beads files manually.'));
-    console.log(chalk.gray('See: augx show workflows/beads for more information.'));
+    console.log(chalk.gray('See: filmbuff show workflows/beads for more information.'));
     return;
   }
 
@@ -152,7 +152,7 @@ export function showCompletedCommand(options: ShowCompletedOptions): void {
   if (!fs.existsSync(completedPath)) {
     console.log(chalk.yellow('No completed tasks file found.'));
     console.log(chalk.gray('\nThe completed tasks file will be created automatically when you:'));
-    console.log(chalk.cyan('  • Run: augx init'));
+    console.log(chalk.cyan('  • Run: filmbuff init'));
     console.log(chalk.cyan('  • Close your first task with: bd close <task-id>'));
     console.log(chalk.gray('\nCompleted tasks are stored in: scripts/completed.jsonl'));
     return;

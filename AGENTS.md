@@ -1,30 +1,30 @@
-# Augment Extensions - AI Agent Integration
+# FilmBuff - AI Agent Integration
 
-This repository provides extension modules for Augment Code AI that exceed the standard `.augment/` character limit.
+This repository provides AI-powered writing and screenplay tools with extension modules for Augment Code AI.
 
 ## For AI Agents
 
 ### Discovery
 
-You can discover and use extension modules through the `augx` CLI:
+You can discover and use extension modules through the `filmbuff` CLI:
 
 ```bash
 # List all available modules
-augx list
+filmbuff list
 
 # Show module details
-augx show <module-name>
+filmbuff show <module-name>
 
 # Search for modules
-augx search <keyword>
+filmbuff search <keyword>
 ```
 
 ### Usage in Projects
 
-When working on a project that has Augment Extensions linked:
+When working on a project that has FilmBuff linked:
 
-1. **Check linked modules**: `augx list --linked`
-2. **View module content**: `augx show <module-name>`
+1. **Check linked modules**: `filmbuff list --linked`
+2. **View module content**: `filmbuff show <module-name>`
 3. **Apply module rules**: Follow the guidelines in the module's rules/ directory
 
 ### Module Structure
@@ -37,25 +37,25 @@ Each module contains:
 
 ### Integration Workflow
 
-1. Human initializes: `augx init`
-2. Human links modules: `augx link coding-standards/typescript`
-3. AI agent queries: `augx show typescript-standards`
+1. Human initializes: `filmbuff init`
+2. Human links modules: `filmbuff link writing-standards/screenplay`
+3. AI agent queries: `filmbuff show screenplay-standards`
 4. AI agent applies rules from module content
 
 ### CLI Commands Reference
 
-- `augx list` - List all available modules
-- `augx list --linked` - List modules linked to current project
-- `augx show <module>` - Display module content
-- `augx show linked` - Show all linked modules
-- `augx show all` - Show all available modules
-- `augx search <term>` - Search for modules
-- `augx update` - Update all linked modules
-- `augx version` - Show CLI version
+- `filmbuff list` - List all available modules
+- `filmbuff list --linked` - List modules linked to current project
+- `filmbuff show <module>` - Display module content
+- `filmbuff show linked` - Show all linked modules
+- `filmbuff show all` - Show all available modules
+- `filmbuff search <term>` - Search for modules
+- `filmbuff update` - Update all linked modules
+- `filmbuff version` - Show CLI version
 
 ### Command Help Reference
 
-When `augx init` is run, the CLI automatically generates `.augment/COMMAND_HELP.md` containing comprehensive help documentation for all detected workflow tools (Beads, OpenSpec, Augx).
+When `filmbuff init` is run, the CLI automatically generates `.augment/COMMAND_HELP.md` containing comprehensive help documentation for all detected workflow tools (Beads, OpenSpec, filmbuff).
 
 **For AI Agents:**
 
@@ -79,7 +79,7 @@ bd create "Implement feature X" -p 1
 
 **Benefits:**
 - **No trial-and-error**: AI agents know exact command syntax before execution
-- **Always current**: Regenerated on `augx init` to reflect latest tool versions
+- **Always current**: Regenerated on `filmbuff init` to reflect latest tool versions
 - **Comprehensive**: Includes main commands and all subcommands (up to 3 levels deep)
 - **Multi-tool**: Single reference for all workflow tools in the project
 
@@ -106,12 +106,12 @@ bd create "Implement feature X" -p 1
 ## Example Usage
 
 ```bash
-# AI agent working on TypeScript project
-$ augx list --linked
-typescript-standards (v1.0.0)
-react-patterns (v2.1.0)
+# AI agent working on screenplay project
+$ filmbuff list --linked
+screenplay-standards (v1.0.0)
+literature-shakespeare (v1.0.0)
 
-$ augx show typescript-standards
+$ filmbuff show screenplay-standards
 # Returns full module content including all rules and examples
 ```
 
@@ -143,7 +143,7 @@ When making architectural changes:
 3. Break down into tasks
 4. Implement and archive when complete
 
-**Learn More**: See `augment-extensions/workflows/openspec/` for comprehensive workflow documentation.
+**Learn More**: See `filmbuff/workflows/openspec/` for comprehensive workflow documentation.
 
 ---
 
@@ -213,7 +213,7 @@ When tracking work:
 
 **Naming Convention**: All issue IDs MUST use "bd-" prefix. See `openspec/specs/beads/naming-convention.md` for complete specification.
 
-**Learn More**: See `augment-extensions/workflows/beads/` for comprehensive workflow documentation.
+**Learn More**: See `filmbuff/workflows/beads/` for comprehensive workflow documentation.
 
 ---
 
@@ -289,7 +289,7 @@ MCP servers are configured in two locations:
    - Configures context budget and priorities
 
 2. **CLI Integration**: `.augment/mcp/servers.json`
-   - Used by `augx mcp` commands
+   - Used by `filmbuff mcp` commands
    - Enables manual MCP server management
 
 ### For AI Agents
@@ -330,13 +330,13 @@ The MCP server runs automatically when Augment Code starts. No manual interventi
 
 ```bash
 # List MCP servers
-augx mcp list
+filmbuff mcp list
 
 # Execute MCP tool
-augx mcp exec beads tasks/list
+filmbuff mcp exec beads tasks/list
 
 # Discover available tools
-augx mcp discover beads
+filmbuff mcp discover beads
 ```
 
 **Learn More**: See `.vscode/MCP_SETUP.md` for detailed configuration and troubleshooting.
@@ -371,3 +371,4 @@ augx mcp discover beads
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
+

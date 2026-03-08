@@ -36,7 +36,7 @@ export interface HelpNode {
 const DEFAULT_TOOLS: Tool[] = [
   { name: 'Beads', command: 'bd', directory: '.beads' },
   { name: 'OpenSpec', command: 'openspec', directory: 'openspec' },
-  { name: 'Augx', command: 'augx', directory: '.augment' }
+  { name: 'filmbuff', command: 'filmbuff', directory: '.augment' }
 ];
 
 /**

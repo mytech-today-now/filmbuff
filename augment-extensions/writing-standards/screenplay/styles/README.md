@@ -20,7 +20,7 @@ This module provides comprehensive narrative style rules and techniques for scre
 
 ### With CLI (Recommended)
 ```bash
-augx link writing-standards/screenplay/styles
+filmbuff link writing-standards/screenplay/styles
 ```
 
 ### Manual Setup

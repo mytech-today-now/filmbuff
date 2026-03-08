@@ -5,7 +5,7 @@
   "description": "Comprehensive guide to Shakespearean writing including poetry (sonnets, iambic pentameter), drama (tragedy, comedy, history), Elizabethan English, rhetoric, character development, and thematic elements",
   "type": "writing-standards",
   "category": "literature",
-  "author": "Augment Extensions",
+  "author": "Filmbuff",
   "license": "MIT",
   "tags": [
     "shakespeare",
@@ -42,7 +42,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module using: augx link writing-standards/literature/shakespeare",
+      "Link module using: filmbuff link writing-standards/literature/shakespeare",
       "Or manually copy contents to project's .augment/ folder"
     ]
   },

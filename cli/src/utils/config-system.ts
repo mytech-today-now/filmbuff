@@ -70,7 +70,7 @@ export const DEFAULT_CONFIG: AugmentConfig = {
     maxDepth: 5
   },
   modules: {
-    searchPaths: ['augment-extensions'],
+    searchPaths: ['filmbuff'],
     autoDiscover: true
   },
   hooks: {

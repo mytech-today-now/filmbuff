@@ -15,7 +15,7 @@ export async function unlinkCommand(moduleName: string, options: UnlinkOptions =
     const configPath = path.join(process.cwd(), '.augment', 'extensions.json');
     
     if (!fs.existsSync(configPath)) {
-      console.error(chalk.red('Augment Extensions not initialized. Run: augx init'));
+      console.error(chalk.red('Filmbuff not initialized. Run: filmbuff init'));
       process.exit(1);
     }
 

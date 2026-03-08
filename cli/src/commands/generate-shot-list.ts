@@ -35,8 +35,8 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
     // Validate required arguments
     if (!options.path) {
       console.error(chalk.red('Error: Missing required argument: --path'));
-      console.log(chalk.gray('Usage: augx generate-shot-list --path <screenplay-file> [options]'));
-      console.log(chalk.gray("Run 'augx generate-shot-list --help' for more information."));
+      console.log(chalk.gray('Usage: filmbuff generate-shot-list --path <screenplay-file> [options]'));
+      console.log(chalk.gray("Run 'filmbuff generate-shot-list --help' for more information."));
       exitWithCode(ExitCode.INVALID_ARGUMENTS);
     }
 
@@ -111,8 +111,8 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
       const stylePaths = Array.isArray(options.style) ? options.style : [options.style];
       console.log(chalk.gray(`🎨 Loading cinematic styles...`));
 
-      // Extensions root is the augment-extensions directory in the parent of the CLI
-      const extensionsRoot = path.join(__dirname, '../../../augment-extensions');
+      // Extensions root is the filmbuff directory in the parent of the CLI
+      const extensionsRoot = path.join(__dirname, '../../../filmbuff');
       const styleSystem = createStyleSystem(extensionsRoot);
 
       // Validate all style paths

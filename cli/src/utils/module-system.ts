@@ -52,7 +52,7 @@ export interface ValidationResult {
  * Get the modules directory path
  */
 export function getModulesDir(): string {
-  return path.join(__dirname, '../../../augment-extensions');
+  return path.join(__dirname, '../../../filmbuff');
 }
 
 /**

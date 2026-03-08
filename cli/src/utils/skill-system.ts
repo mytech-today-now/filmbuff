@@ -192,7 +192,7 @@ export function registerSkillInCoordination(skill: Skill, taskId?: string): void
   coordination.files[relativePath] = {
     createdBy: taskId || 'skill-system',
     modifiedBy: [],
-    governedBy: ['augment-extensions/spec'],
+    governedBy: ['filmbuff/spec'],
     rulesApplied: ['module-development.md']
   };
 

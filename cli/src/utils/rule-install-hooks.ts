@@ -42,7 +42,7 @@ export async function createRuleInstallGitHook(
       existingContent = await fs.readFile(hookPath, 'utf-8');
 
       // Check if rule installation is already in the hook
-      if (existingContent.includes('augx install-rules')) {
+      if (existingContent.includes('filmbuff install-rules')) {
         console.log(chalk.gray(`Rule installation already configured in ${hookType} hook`));
         return;
       }
@@ -54,7 +54,7 @@ export async function createRuleInstallGitHook(
 # Auto-install character count management rule
 if [ -d .augment ]; then
   echo "Installing character count management rule..."
-  augx install-rules --quiet
+  filmbuff install-rules --quiet
 fi
 `;
 
@@ -133,19 +133,19 @@ export async function createNpmPostInstallHook(packageJsonPath: string = 'packag
 
     // Check if postinstall script already exists
     if (packageJson.scripts && packageJson.scripts.postinstall) {
-      if (packageJson.scripts.postinstall.includes('augx install-rules')) {
+      if (packageJson.scripts.postinstall.includes('filmbuff install-rules')) {
         console.log(chalk.gray('Rule installation already configured in package.json postinstall'));
         return;
       }
 
       // Append to existing postinstall
-      packageJson.scripts.postinstall += ' && augx install-rules --quiet';
+      packageJson.scripts.postinstall += ' && filmbuff install-rules --quiet';
     } else {
       // Create new postinstall script
       if (!packageJson.scripts) {
         packageJson.scripts = {};
       }
-      packageJson.scripts.postinstall = 'augx install-rules --quiet';
+      packageJson.scripts.postinstall = 'filmbuff install-rules --quiet';
     }
 
     await fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n', 'utf-8');
@@ -175,9 +175,9 @@ export async function removeNpmPostInstallHook(packageJsonPath: string = 'packag
       return;
     }
 
-    // Remove augx install-rules from postinstall
+    // Remove filmbuff install-rules from postinstall
     const updatedPostinstall = packageJson.scripts.postinstall
-      .replace(/\s*&&\s*augx install-rules --quiet/g, '')
+      .replace(/\s*&&\s*filmbuff install-rules --quiet/g, '')
       .replace(/augx install-rules --quiet\s*&&\s*/g, '')
       .replace(/augx install-rules --quiet/g, '')
       .trim();

@@ -32,7 +32,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module: augx link writing-standards/screenplay/styles",
+      "Link module: filmbuff link writing-standards/screenplay/styles",
       "Configure styles in .augment/screenplay-config.json",
       "Select specific narrative style to apply"
     ]

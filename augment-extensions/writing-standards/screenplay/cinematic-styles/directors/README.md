@@ -19,13 +19,13 @@ This module provides comprehensive screenplay style guides for 60 iconic film di
 
 ### Link Entire Directors Module
 ```bash
-augx link writing-standards/screenplay/cinematic-styles/directors
+filmbuff link writing-standards/screenplay/cinematic-styles/directors
 ```
 
 ### Link Specific Director
 ```bash
-augx link writing-standards/screenplay/cinematic-styles/directors/christopher-nolan
-augx link writing-standards/screenplay/cinematic-styles/directors/wes-anderson
+filmbuff link writing-standards/screenplay/cinematic-styles/directors/christopher-nolan
+filmbuff link writing-standards/screenplay/cinematic-styles/directors/wes-anderson
 ```
 
 ## Available Directors
@@ -95,10 +95,10 @@ Configure in `.augment/screenplay-config.json`:
 
 ```bash
 # Show all directors
-augx show writing-standards/screenplay/cinematic-styles/directors
+filmbuff show writing-standards/screenplay/cinematic-styles/directors
 
 # Show specific director
-augx show writing-standards/screenplay/cinematic-styles/directors/christopher-nolan
+filmbuff show writing-standards/screenplay/cinematic-styles/directors/christopher-nolan
 ```
 
 ## Directory Structure

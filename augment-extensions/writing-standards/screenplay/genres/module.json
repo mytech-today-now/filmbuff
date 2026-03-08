@@ -32,7 +32,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module: augx link writing-standards/screenplay/genres",
+      "Link module: filmbuff link writing-standards/screenplay/genres",
       "Configure genres in .augment/screenplay-config.json",
       "Select specific genres to activate"
     ]

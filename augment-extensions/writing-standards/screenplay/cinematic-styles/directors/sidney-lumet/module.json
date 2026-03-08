@@ -38,7 +38,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module: augx link writing-standards/screenplay/cinematic-styles/directors/sidney-lumet",
+      "Link module: filmbuff link writing-standards/screenplay/cinematic-styles/directors/sidney-lumet",
       "Configure active style in .augment/screenplay-config.json"
     ]
   },

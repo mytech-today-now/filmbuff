@@ -23,7 +23,7 @@ export function createCatalogGitHook(
     existingContent = fs.readFileSync(hookPath, 'utf-8');
     
     // Check if catalog sync is already in the hook
-    if (existingContent.includes('augx catalog')) {
+    if (existingContent.includes('filmbuff catalog')) {
       console.log(`Catalog sync already configured in ${hookType} hook`);
       return;
     }
@@ -31,9 +31,9 @@ export function createCatalogGitHook(
   
   const catalogHookContent = `
 # Auto-update MODULES.md catalog
-if [ -d augment-extensions ]; then
+if [ -d filmbuff ]; then
   echo "Updating MODULES.md catalog..."
-  augx catalog
+  filmbuff catalog
   
   # Add catalog to commit if changed
   if [ -f MODULES.md ]; then
@@ -96,7 +96,7 @@ export function isCatalogOutOfDate(catalogPath: string = 'MODULES.md'): boolean 
   }
   
   const catalogStat = fs.statSync(catalogPath);
-  const modulesDir = path.join(__dirname, '../../../augment-extensions');
+  const modulesDir = path.join(__dirname, '../../../filmbuff');
   
   if (!fs.existsSync(modulesDir)) {
     return false;

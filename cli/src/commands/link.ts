@@ -15,7 +15,7 @@ export async function linkCommand(moduleName: string, options: LinkOptions): Pro
     const configPath = path.join(process.cwd(), '.augment', 'extensions.json');
     
     if (!fs.existsSync(configPath)) {
-      console.error(chalk.red('Augment Extensions not initialized. Run: augx init'));
+      console.error(chalk.red('Filmbuff not initialized. Run: filmbuff init'));
       process.exit(1);
     }
 
@@ -34,7 +34,7 @@ export async function linkCommand(moduleName: string, options: LinkOptions): Pro
     
     if (existingIndex >= 0) {
       console.log(chalk.yellow(`Module already linked: ${moduleName}`));
-      console.log(chalk.gray('Use "augx update" to update to latest version'));
+      console.log(chalk.gray('Use "filmbuff update" to update to latest version'));
       return;
     }
 
@@ -49,7 +49,7 @@ export async function linkCommand(moduleName: string, options: LinkOptions): Pro
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
     console.log(chalk.green(`✓ Linked ${module.fullName} (v${options.version || module.metadata.version})`));
-    console.log(chalk.gray(`\nUse "augx show ${module.fullName}" to view module details`));
+    console.log(chalk.gray(`\nUse "filmbuff show ${module.fullName}" to view module details`));
 
   } catch (error) {
     console.error(chalk.red('Error linking module:'), error);

@@ -4,7 +4,7 @@
   "displayName": "Beads Workflow",
   "description": "Distributed, git-backed graph issue tracker for AI agents. Provides persistent, structured memory for coding agents with dependency tracking.",
   "type": "workflows",
-  "author": "Augment Extensions",
+  "author": "Filmbuff",
   "license": "MIT",
   "keywords": [
     "beads",

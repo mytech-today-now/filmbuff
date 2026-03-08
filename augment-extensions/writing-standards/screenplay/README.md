@@ -25,7 +25,7 @@ Comprehensive screenplay writing and crafting standards for AI-driven content cr
 ### With CLI (Recommended)
 
 ```bash
-augx link writing-standards/screenplay
+filmbuff link writing-standards/screenplay
 ```
 
 ### Manual Setup
@@ -63,7 +63,7 @@ Projects are automatically named using:
 
 The `screenplays/` directory is **preserved during cleanup operations**:
 - ✅ Tracked in git (not ignored)
-- ✅ Preserved during `augx self-remove`
+- ✅ Preserved during `filmbuff self-remove`
 - ✅ User-generated creative content protected
 
 See `rules/file-organization.md` for complete details.
@@ -163,17 +163,17 @@ This module is organized into several sub-modules for selective loading:
 ### 1. Core Screenplay Standards (Main Module)
 Universal formatting, narrative structures, character development, dialogue, and category-specific rules.
 
-**Link**: `augx link writing-standards/screenplay`
+**Link**: `filmbuff link writing-standards/screenplay`
 
 ### 2. Narrative Styles
 Narrative style techniques (linear, non-linear, ensemble, minimalist, epic, etc.)
 
-**Link**: `augx link writing-standards/screenplay/styles`
+**Link**: `filmbuff link writing-standards/screenplay/styles`
 
 ### 3. Cinematic Style Guides (NEW)
 Film and franchise-specific style guides capturing the unique voice and techniques of iconic films.
 
-**Link**: `augx link writing-standards/screenplay/cinematic-styles`
+**Link**: `filmbuff link writing-standards/screenplay/cinematic-styles`
 
 **Available Styles**:
 - **MCU/Avengers** - Ensemble superhero epic with heart and humor

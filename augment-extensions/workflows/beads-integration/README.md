@@ -17,7 +17,7 @@ The **Beads Integration Workflow** module provides comprehensive guidelines and 
 ### With CLI (Future)
 
 ```bash
-augx link workflows/beads-integration
+filmbuff link workflows/beads-integration
 ```
 
 ### Without CLI (Current)

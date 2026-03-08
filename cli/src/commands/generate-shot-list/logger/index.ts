@@ -18,9 +18,9 @@ export { ShotListLogger } from './shot-list-logger';
  * Default log file path
  */
 function getDefaultLogPath(): string {
-  // Use .augment-extensions/logs directory in user's home
+  // Use .filmbuff/logs directory in user's home
   const homeDir = os.homedir();
-  const logDir = path.join(homeDir, '.augment-extensions', 'logs');
+  const logDir = path.join(homeDir, '.filmbuff', 'logs');
   const logFile = path.join(logDir, 'shot-list-generator.jsonl');
   return logFile;
 }

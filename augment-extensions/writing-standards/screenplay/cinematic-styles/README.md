@@ -136,7 +136,7 @@ This module provides film and franchise-specific screenplay style guides that ca
 
 ### With CLI (Recommended)
 ```bash
-augx link writing-standards/screenplay/cinematic-styles
+filmbuff link writing-standards/screenplay/cinematic-styles
 ```
 
 ### Manual Setup

@@ -25,7 +25,7 @@ export async function searchCommand(keyword: string, options: SearchOptions): Pr
       console.log(chalk.gray('\nTry:'));
       console.log(chalk.gray('  • Using different keywords'));
       console.log(chalk.gray('  • Removing the --type filter'));
-      console.log(chalk.gray('  • Running "augx list" to see all modules\n'));
+      console.log(chalk.gray('  • Running "filmbuff list" to see all modules\n'));
       return;
     }
 
@@ -39,8 +39,8 @@ export async function searchCommand(keyword: string, options: SearchOptions): Pr
       console.log(chalk.gray(`  Description: ${module.description}\n`));
     });
 
-    console.log(chalk.gray(`Use "augx show <module>" to view details`));
-    console.log(chalk.gray(`Use "augx link <module>" to link a module\n`));
+    console.log(chalk.gray(`Use "filmbuff show <module>" to view details`));
+    console.log(chalk.gray(`Use "filmbuff link <module>" to link a module\n`));
 
   } catch (error) {
     console.error(chalk.red('Error searching modules:'), error);
@@ -50,7 +50,7 @@ export async function searchCommand(keyword: string, options: SearchOptions): Pr
 
 async function searchModules(keyword: string, typeFilter?: string): Promise<Module[]> {
   const modules: Module[] = [];
-  const modulesDir = path.join(__dirname, '../../../augment-extensions');
+  const modulesDir = path.join(__dirname, '../../../filmbuff');
 
   if (!fs.existsSync(modulesDir)) {
     return modules;

@@ -20,7 +20,7 @@ This module provides comprehensive thematic integration rules and guidelines for
 
 ### With CLI (Recommended)
 ```bash
-augx link writing-standards/screenplay/themes
+filmbuff link writing-standards/screenplay/themes
 ```
 
 ### Manual Setup

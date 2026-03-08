@@ -38,7 +38,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module: augx link writing-standards/screenplay/cinematic-styles/directors/sydney-pollack",
+      "Link module: filmbuff link writing-standards/screenplay/cinematic-styles/directors/sydney-pollack",
       "Configure active style in .augment/screenplay-config.json"
     ]
   },

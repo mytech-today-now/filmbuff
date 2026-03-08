@@ -79,7 +79,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module using: augx link writing-standards/screenplay",
+      "Link module using: filmbuff link writing-standards/screenplay",
       "Configure category in .augment/screenplay-config.json",
       "Install VS Code extension: Better Fountain (optional)",
       "Use Fountain format (.fountain) for screenplay files"

@@ -38,7 +38,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module: augx link writing-standards/screenplay/cinematic-styles/directors/steve-martin",
+      "Link module: filmbuff link writing-standards/screenplay/cinematic-styles/directors/steve-martin",
       "Configure active style in .augment/screenplay-config.json"
     ]
   },

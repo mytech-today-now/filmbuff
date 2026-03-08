@@ -34,14 +34,14 @@ export async function updateCommand(options: UpdateOptions): Promise<void> {
     const configPath = path.join(process.cwd(), '.augment', 'extensions.json');
 
     if (!fs.existsSync(configPath)) {
-      console.error(chalk.red('Augment Extensions not initialized. Run: augx init'));
+      console.error(chalk.red('Filmbuff not initialized. Run: filmbuff init'));
       process.exit(1);
     }
 
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 
     if (!config.modules || config.modules.length === 0) {
-      console.log(chalk.yellow('No modules linked. Use "augx link <module>" to link modules.'));
+      console.log(chalk.yellow('No modules linked. Use "filmbuff link <module>" to link modules.'));
       return;
     }
 
@@ -103,7 +103,7 @@ async function updateCLI(): Promise<void> {
 
     let latestVersion: string;
     try {
-      const npmViewOutput = execSync('npm view @mytechtoday/augment-extensions version', {
+      const npmViewOutput = execSync('npm view @mytechtoday/filmbuff version', {
         encoding: 'utf-8',
         stdio: ['pipe', 'pipe', 'pipe']
       }).trim();
@@ -132,7 +132,7 @@ async function updateCLI(): Promise<void> {
     console.log(chalk.gray('Installing update...'));
 
     try {
-      execSync('npm install -g @mytechtoday/augment-extensions@latest', {
+      execSync('npm install -g @mytechtoday/filmbuff@latest', {
         encoding: 'utf-8',
         stdio: 'inherit'
       });
@@ -142,7 +142,7 @@ async function updateCLI(): Promise<void> {
     } catch (error) {
       console.error(chalk.red('\n✗ Failed to update CLI'));
       console.error(chalk.gray('You may need to run with elevated permissions (sudo/administrator)'));
-      console.error(chalk.gray('Or try: npm install -g @mytechtoday/augment-extensions@latest'));
+      console.error(chalk.gray('Or try: npm install -g @mytechtoday/filmbuff@latest'));
       throw error;
     }
 
@@ -154,7 +154,7 @@ async function updateCLI(): Promise<void> {
 
 async function updateModule(linkedModule: LinkedModule, config: any): Promise<'updated' | 'up-to-date' | 'error'> {
   try {
-    const modulesDir = path.join(__dirname, '../../../augment-extensions');
+    const modulesDir = path.join(__dirname, '../../../filmbuff');
     const modulePath = path.join(modulesDir, linkedModule.name);
     const moduleJsonPath = path.join(modulePath, 'module.json');
 

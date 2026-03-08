@@ -42,8 +42,8 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link parent module: augx link writing-standards/screenplay",
-      "Link commercials module: augx link writing-standards/screenplay/commercials",
+      "Link parent module: filmbuff link writing-standards/screenplay",
+      "Link commercials module: filmbuff link writing-standards/screenplay/commercials",
       "Configure in .augment/screenplay-config.json with 'commercials' category",
       "Use Fountain format (.fountain) for commercial scripts"
     ]

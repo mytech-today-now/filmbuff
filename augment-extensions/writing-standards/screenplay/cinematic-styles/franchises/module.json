@@ -84,8 +84,8 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link all franchises: augx link writing-standards/screenplay/cinematic-styles/franchises",
-      "Or link specific franchise: augx link writing-standards/screenplay/cinematic-styles/franchises/mcu",
+      "Link all franchises: filmbuff link writing-standards/screenplay/cinematic-styles/franchises",
+      "Or link specific franchise: filmbuff link writing-standards/screenplay/cinematic-styles/franchises/mcu",
       "Configure active style in .augment/screenplay-config.json"
     ]
   }

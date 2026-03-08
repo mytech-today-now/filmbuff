@@ -24,7 +24,7 @@ export async function validateCommand(moduleName: string, options: ValidateOptio
     
     if (!module) {
       console.error(chalk.red(`✗ Module not found: ${moduleName}`));
-      console.log(chalk.gray('\nUse "augx list" to see all available modules.'));
+      console.log(chalk.gray('\nUse "filmbuff list" to see all available modules.'));
       process.exit(1);
     }
 

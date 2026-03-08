@@ -141,13 +141,13 @@ export function createGitHook(
 # Sync Beads tasks
 if [ -f .beads/issues.jsonl ]; then
   echo "Syncing Beads tasks to coordination manifest..."
-  augx sync beads
+  filmbuff sync beads
 fi
 
 # Sync OpenSpec specs
 if [ -d openspec ]; then
   echo "Syncing OpenSpec specs to coordination manifest..."
-  augx sync openspec
+  filmbuff sync openspec
 fi
 
 # Add coordination manifest to commit if changed

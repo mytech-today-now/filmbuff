@@ -33,17 +33,17 @@ This module provides comprehensive commercial writing standards for creating eff
 
 ## Installation
 
-### Using augx CLI (Recommended)
+### Using filmbuff CLI (Recommended)
 
 ```bash
 # Link parent screenplay module first
-augx link writing-standards/screenplay
+filmbuff link writing-standards/screenplay
 
 # Link commercials sub-module
-augx link writing-standards/screenplay/commercials
+filmbuff link writing-standards/screenplay/commercials
 
 # Verify installation
-augx list --linked
+filmbuff list --linked
 ```
 
 ### Manual Installation
@@ -58,12 +58,12 @@ augx list --linked
 
 ```bash
 # Query the commercials module
-augx show commercials
+filmbuff show commercials
 
 # Search for specific topics
-augx search "30 second commercial"
-augx search "FTC compliance"
-augx search "call to action"
+filmbuff search "30 second commercial"
+filmbuff search "FTC compliance"
+filmbuff search "call to action"
 ```
 
 ### For Developers

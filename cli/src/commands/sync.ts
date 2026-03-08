@@ -2,10 +2,10 @@
  * Sync Commands
  * 
  * Commands for syncing Beads and OpenSpec with coordination manifest:
- * - augx sync beads
- * - augx sync openspec
- * - augx sync all
- * - augx sync watch
+ * - filmbuff sync beads
+ * - filmbuff sync openspec
+ * - filmbuff sync all
+ * - filmbuff sync watch
  */
 
 import chalk from 'chalk';

@@ -10,7 +10,7 @@ interface InitOptions {
 }
 
 export async function initCommand(options: InitOptions): Promise<void> {
-  console.log(chalk.bold.blue('\n🚀 Initializing Augment Extensions\n'));
+  console.log(chalk.bold.blue('\n🚀 Initializing Filmbuff\n'));
 
   try {
     // Check if already initialized
@@ -22,7 +22,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
         {
           type: 'confirm',
           name: 'overwrite',
-          message: 'Augment Extensions already initialized. Overwrite?',
+          message: 'Filmbuff already initialized. Overwrite?',
           default: false
         }
       ]);
@@ -55,23 +55,23 @@ export async function initCommand(options: InitOptions): Promise<void> {
     // Update or create AGENTS.md
     const agentsPath = path.join(process.cwd(), 'AGENTS.md');
     const agentsContent = `
-# Augment Extensions Integration
+# Filmbuff Integration
 
-This project uses Augment Extensions for additional AI coding guidelines.
+This project uses Filmbuff for additional AI coding guidelines.
 
 ## For AI Agents
 
-Use the \`augx\` CLI to discover and apply extension modules:
+Use the \`filmbuff\` CLI to discover and apply extension modules:
 
 \`\`\`bash
 # List linked modules
-augx list --linked
+filmbuff list --linked
 
 # Show module details
-augx show <module-name>
+filmbuff show <module-name>
 
 # Search for modules
-augx search <keyword>
+filmbuff search <keyword>
 \`\`\`
 
 ## Linked Modules
@@ -81,7 +81,7 @@ Check \`.augment/extensions.json\` for currently linked modules.
 
     if (fs.existsSync(agentsPath)) {
       const existing = fs.readFileSync(agentsPath, 'utf-8');
-      if (!existing.includes('Augment Extensions')) {
+      if (!existing.includes('Filmbuff')) {
         fs.appendFileSync(agentsPath, '\n' + agentsContent);
         console.log(chalk.green('✓ Updated AGENTS.md'));
       }
@@ -95,7 +95,7 @@ Check \`.augment/extensions.json\` for currently linked modules.
     if (fs.existsSync(gitignorePath)) {
       const gitignore = fs.readFileSync(gitignorePath, 'utf-8');
       if (!gitignore.includes('.augment/extensions.json')) {
-        fs.appendFileSync(gitignorePath, '\n# Augment Extensions\n.augment/extensions.json\n');
+        fs.appendFileSync(gitignorePath, '\n# Filmbuff\n.augment/extensions.json\n');
         console.log(chalk.green('✓ Updated .gitignore'));
       }
     }
@@ -121,7 +121,7 @@ Check \`.augment/extensions.json\` for currently linked modules.
       console.log(chalk.green('✓ Command help reference generated'));
     } catch (error: any) {
       console.log(chalk.yellow(`⚠ Warning: Could not extract command help: ${error.message}`));
-      console.log(chalk.gray('You can manually run: augx extract-help'));
+      console.log(chalk.gray('You can manually run: filmbuff extract-help'));
     }
 
     // Initialize .beads directory and completed.jsonl
@@ -173,11 +173,11 @@ Check \`.augment/extensions.json\` for currently linked modules.
       }
     }
 
-    console.log(chalk.bold.green('\n✨ Augment Extensions initialized successfully!\n'));
+    console.log(chalk.bold.green('\n✨ Filmbuff initialized successfully!\n'));
     console.log(chalk.gray('Next steps:'));
-    console.log(chalk.gray('  1. Link modules: augx link coding-standards/typescript'));
-    console.log(chalk.gray('  2. View modules: augx list'));
-    console.log(chalk.gray('  3. Show details: augx show <module-name>\n'));
+    console.log(chalk.gray('  1. Link modules: filmbuff link coding-standards/typescript'));
+    console.log(chalk.gray('  2. View modules: filmbuff list'));
+    console.log(chalk.gray('  3. Show details: filmbuff show <module-name>\n'));
 
   } catch (error) {
     console.error(chalk.red('Error during initialization:'), error);

@@ -20,7 +20,7 @@ This module provides comprehensive genre-specific rules and guidelines for scree
 
 ### With CLI (Recommended)
 ```bash
-augx link writing-standards/screenplay/genres
+filmbuff link writing-standards/screenplay/genres
 ```
 
 ### Manual Setup

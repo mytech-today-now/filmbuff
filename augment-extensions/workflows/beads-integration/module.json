@@ -33,7 +33,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module: augx link workflows/beads-integration",
+      "Link module: filmbuff link workflows/beads-integration",
       "Configure mode in config/defaults.json (basic, advanced, or custom)",
       "Enable desired features in configuration"
     ]

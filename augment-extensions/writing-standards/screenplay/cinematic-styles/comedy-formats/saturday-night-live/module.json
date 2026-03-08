@@ -38,7 +38,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module: augx link writing-standards/screenplay/cinematic-styles/comedy-formats/saturday-night-live",
+      "Link module: filmbuff link writing-standards/screenplay/cinematic-styles/comedy-formats/saturday-night-live",
       "Configure active style in .augment/screenplay-config.json"
     ]
   },

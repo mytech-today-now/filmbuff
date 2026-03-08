@@ -62,7 +62,7 @@ export function generateCatalogMarkdown(entry: ModuleCatalogEntry): string {
   
   markdown += `\n**Usage**:\n`;
   markdown += `\`\`\`bash\n`;
-  markdown += `augx link ${entry.module.fullName}\n`;
+  markdown += `filmbuff link ${entry.module.fullName}\n`;
   markdown += `\`\`\`\n`;
   
   return markdown;
@@ -102,11 +102,11 @@ export function generateModulesCatalog(): string {
   catalog += `## Quick Start\n\n`;
   catalog += `\`\`\`bash\n`;
   catalog += `# List all modules\n`;
-  catalog += `augx list\n\n`;
+  catalog += `filmbuff list\n\n`;
   catalog += `# Show module details\n`;
-  catalog += `augx show <module-name>\n\n`;
+  catalog += `filmbuff show <module-name>\n\n`;
   catalog += `# Link a module to your project\n`;
-  catalog += `augx link <module-name>\n`;
+  catalog += `filmbuff link <module-name>\n`;
   catalog += `\`\`\`\n\n`;
 
   // Category order

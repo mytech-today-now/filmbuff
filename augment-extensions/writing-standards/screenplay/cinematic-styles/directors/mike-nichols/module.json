@@ -38,7 +38,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module: augx link writing-standards/screenplay/cinematic-styles/directors/mike-nichols",
+      "Link module: filmbuff link writing-standards/screenplay/cinematic-styles/directors/mike-nichols",
       "Configure active style in .augment/screenplay-config.json"
     ]
   },

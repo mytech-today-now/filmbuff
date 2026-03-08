@@ -38,7 +38,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module: augx link writing-standards/screenplay/cinematic-styles/directors/michael-mann",
+      "Link module: filmbuff link writing-standards/screenplay/cinematic-styles/directors/michael-mann",
       "Configure active style in .augment/screenplay-config.json"
     ]
   },

@@ -237,7 +237,7 @@ tags: [mcp, ${serverName}, ${toolName}]
 tokenBudget: 1500
 priority: medium
 dependencies: []
-cliCommand: augx mcp exec ${serverName} ${toolName}
+cliCommand: filmbuff mcp exec ${serverName} ${toolName}
 mcpServer: ${serverName}
 autoLoad: false
 ---
@@ -253,13 +253,13 @@ This skill wraps the \`${toolName}\` tool from the \`${serverName}\` MCP server.
 Execute this skill using the MCP integration:
 
 \`\`\`bash
-augx mcp exec ${serverName} ${toolName} --args '{"key": "value"}'
+filmbuff mcp exec ${serverName} ${toolName} --args '{"key": "value"}'
 \`\`\`
 
 Or inject into context:
 
 \`\`\`bash
-augx skill inject ${skillId}
+filmbuff skill inject ${skillId}
 \`\`\`
 
 ## MCP Server Configuration

@@ -41,7 +41,7 @@
   "installation": {
     "required": false,
     "steps": [
-      "Link module: augx link writing-standards/screenplay/cinematic-styles",
+      "Link module: filmbuff link writing-standards/screenplay/cinematic-styles",
       "Configure active style in .augment/screenplay-config.json",
       "Select specific film/franchise/director style to apply"
     ]
