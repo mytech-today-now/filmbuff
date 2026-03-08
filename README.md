@@ -37,10 +37,22 @@ FilmBuff extends Augment Code AI with **1M+ characters** of writing guidelines, 
 
 ```bash
 npm install -g @mytechtoday/filmbuff
+filmbuff --version
 filmbuff init
 filmbuff link writing-standards/screenplay
 filmbuff generate-shot-list script.fountain
 ```
+
+## 📥 Installation
+
+Install FilmBuff globally with npm so the `filmbuff` command is added to your shell path:
+
+```bash
+npm install -g @mytechtoday/filmbuff
+filmbuff --help
+```
+
+If your shell still does not recognize `filmbuff` immediately after install, open a new terminal so it reloads the global npm bin path.
 
 ## 🔧 CLI Commands
 

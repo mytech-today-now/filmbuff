@@ -4,9 +4,10 @@
     "description":  "CLI tool for managing writing, prose, and screenplay extension modules",
     "main":  "cli/dist/index.js",
     "bin":  {
-                "filmbuff":  "cli/dist/cli.js"
+                "filmbuff":  "bin/filmbuff.js"
             },
     "files":  [
+                  "bin/",
                   "cli/dist/",
                   "augment-extensions/writing-standards/",
                   "augment-extensions/workflows/openspec/",

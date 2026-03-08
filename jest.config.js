@@ -1,8 +1,10 @@
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/cli/src', '<rootDir>/augment-extensions', '<rootDir>/__tests__'],
   testMatch: ['**/__tests__/**/*.test.ts'],
+  transform: {
+    '^.+\\.tsx?$': [require.resolve('ts-jest'), {}]
+  },
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   moduleNameMapper: {
     '^uuid$': '<rootDir>/__mocks__/uuid.js',  // Mock uuid module
