@@ -12,11 +12,14 @@ import { ConfigManager } from '../utils/config-system';
 import {
   DEFAULT_AI_MODEL,
   DEFAULT_AI_PROVIDER,
-  IMPLEMENTED_AI_PROVIDERS,
-  isImplementedAIProvider,
   normalizeAIModel,
   normalizeAIProvider
 } from '../utils/ai-provider-config';
+import {
+  resolveActiveProvider,
+  resolveProviderByProfile,
+  NoActiveProviderError,
+} from '../utils/runtime-resolver';
 import type { OutputFormat } from './generate-shot-list/formatter/types';
 import type { MergedStyleGuidelines } from './generate-shot-list/style/types';
 
@@ -59,17 +62,55 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
     const maxShotLength = options.maxShotLength || 12;
     const logging = options.logging || false;
     const appConfig = new ConfigManager().load();
-    const aiProvider = normalizeAIProvider(options.aiProvider)
-      || normalizeAIProvider(appConfig.ai?.provider)
-      || DEFAULT_AI_PROVIDER;
-    const aiModel = normalizeAIModel(options.aiModel)
-      || normalizeAIModel(appConfig.ai?.model)
-      || DEFAULT_AI_MODEL;
 
-    if (!isImplementedAIProvider(aiProvider)) {
-      console.error(chalk.red(`Error: AI provider not yet implemented for shot list generation: ${aiProvider}`));
-      console.log(chalk.gray(`Currently implemented providers: ${IMPLEMENTED_AI_PROVIDERS.join(', ')}`));
-      exitWithCode(ExitCode.INVALID_ARGUMENTS);
+    // Resolve AI provider: CLI flags → active provider → legacy config fallback
+    let aiProvider: string;
+    let aiModel: string;
+
+    const explicitProvider = normalizeAIProvider(options.aiProvider);
+    const explicitProfile = (options as any).aiProfile as string | undefined;
+
+    if (explicitProvider && explicitProfile) {
+      // Explicit --ai-provider + --ai-profile: resolve named profile
+      try {
+        const resolved = resolveProviderByProfile(explicitProvider, explicitProfile, 'generate-shot-list');
+        aiProvider = resolved.providerId;
+        aiModel = resolved.profile.model
+          || resolved.profile.settings['model']
+          || normalizeAIModel(options.aiModel)
+          || DEFAULT_AI_MODEL;
+        console.log(chalk.gray(`Using provider: ${resolved.providerId} / profile: ${resolved.profileName}`));
+      } catch (err: any) {
+        console.error(chalk.red(`Provider error: ${err.message}`));
+        exitWithCode(ExitCode.INVALID_ARGUMENTS);
+        return;
+      }
+    } else {
+      // Try active provider from profileStore; fall back to legacy config/defaults
+      try {
+        const resolved = resolveActiveProvider('generate-shot-list');
+        aiProvider = resolved.providerId;
+        aiModel = resolved.profile.model
+          || resolved.profile.settings['model']
+          || normalizeAIModel(options.aiModel)
+          || DEFAULT_AI_MODEL;
+        console.log(chalk.gray(`Using active provider: ${resolved.providerId} / profile: ${resolved.profileName}`));
+      } catch (err: any) {
+        if (err instanceof NoActiveProviderError) {
+          // No active provider configured – fall back to legacy defaults
+          aiProvider = explicitProvider
+            || normalizeAIProvider(appConfig.ai?.provider)
+            || DEFAULT_AI_PROVIDER;
+          aiModel = normalizeAIModel(options.aiModel)
+            || normalizeAIModel(appConfig.ai?.model)
+            || DEFAULT_AI_MODEL;
+          console.log(chalk.gray(`No active provider configured. Using default: ${aiProvider}`));
+        } else {
+          console.error(chalk.red(`Provider error: ${err.message}`));
+          exitWithCode(ExitCode.GENERAL_ERROR);
+          return;
+        }
+      }
     }
 
     // Validate format

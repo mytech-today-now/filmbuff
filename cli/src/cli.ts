@@ -19,6 +19,17 @@ import { validateCommand } from './commands/validate';
 import { catalogCommand, catalogHookCommand } from './commands/catalog';
 import { unlinkCommand } from './commands/unlink';
 import { generateShotListCommand } from './commands/generate-shot-list';
+import {
+  providerListCommand,
+  providerShowCommand,
+  providerCreateCommand,
+  providerEditCommand,
+  providerValidateCommand,
+  providerDeleteCommand,
+  providerActivateCommand,
+  providerStatusCommand,
+  configureCommand,
+} from './commands/provider';
 
 // Read version from package.json
 const packageJson = JSON.parse(
@@ -347,6 +358,65 @@ program
 
 
 
+
+// Provider management command
+const providerCmd = program
+  .command('provider')
+  .description('Manage AI provider profiles (list, create, edit, validate, delete, activate)');
+
+providerCmd
+  .command('list')
+  .description('List registered providers and saved profiles')
+  .option('--profiles', 'Show saved profiles instead of registered providers')
+  .option('--json', 'Output as JSON')
+  .action((options) => providerListCommand(options));
+
+providerCmd
+  .command('show <providerId> <profileName>')
+  .description('Show details of a saved profile (secrets redacted)')
+  .option('--json', 'Output as JSON')
+  .action((providerId, profileName, options) => providerShowCommand(providerId, profileName, options));
+
+providerCmd
+  .command('create <providerId> <profileName>')
+  .description('Create a new provider profile (interactive)')
+  .option('--model <model>', 'Model override for this profile')
+  .option('--endpoint <url>', 'Endpoint URL override for this profile')
+  .action((providerId, profileName, options) => providerCreateCommand(providerId, profileName, options));
+
+providerCmd
+  .command('edit <providerId> <profileName>')
+  .description('Edit an existing provider profile (interactive)')
+  .option('--model <model>', 'Model override for this profile')
+  .option('--endpoint <url>', 'Endpoint URL override for this profile')
+  .action((providerId, profileName, options) => providerEditCommand(providerId, profileName, options));
+
+providerCmd
+  .command('validate <providerId> <profileName>')
+  .description('Validate a provider profile (checks credentials and settings)')
+  .action((providerId, profileName) => providerValidateCommand(providerId, profileName));
+
+providerCmd
+  .command('activate <providerId> <profileName>')
+  .description('Set a profile as the active AI provider')
+  .action((providerId, profileName) => providerActivateCommand(providerId, profileName));
+
+providerCmd
+  .command('delete <providerId> <profileName>')
+  .description('Delete a saved profile')
+  .action((providerId, profileName) => providerDeleteCommand(providerId, profileName));
+
+providerCmd
+  .command('status')
+  .description('Show provider management panel (GUI overview of providers and profiles)')
+  .option('--json', 'Output as JSON')
+  .action((options) => providerStatusCommand(options));
+
+// Guided configure command (shortcut to provider setup flow)
+program
+  .command('configure')
+  .description('Guided AI provider setup wizard')
+  .action(() => configureCommand());
 
 // Generate Shot List command
 program

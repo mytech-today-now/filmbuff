@@ -102,9 +102,9 @@ daemon.log
 daemon.lock
 
 # RAHA (Repository Analysis HTML Generator) - Work in Progress
-src/
-src/analyzers/
-src/types/
+/src/
+/src/analyzers/
+/src/types/
 
 # Development files (internal use only)
 dev/
