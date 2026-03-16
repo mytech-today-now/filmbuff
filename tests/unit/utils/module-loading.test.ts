@@ -1,180 +1,129 @@
-/**
- * Unit tests for modular architecture - module loading and discovery
- * Tests HTML, CSS, JS module loading, collection loading, and module discovery
- */
-
 import * as fs from 'fs';
 import * as path from 'path';
-import { loadModule, discoverModules, discoverCollections } from '../module-system';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock fs module
-jest.mock('fs');
-const mockFs = fs as jest.Mocked<typeof fs>;
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs');
+  return {
+    ...actual,
+    existsSync: vi.fn(),
+    readFileSync: vi.fn(),
+    readdirSync: vi.fn()
+  };
+});
 
-describe('Module Loading', () => {
+import { discoverCollections, discoverModules, loadModule } from '@cli/utils/module-system';
+
+const normalize = (value: fs.PathLike) => String(value).replace(/\\/g, '/');
+const mockExistsSync = vi.mocked(fs.existsSync);
+const mockReadFileSync = vi.mocked(fs.readFileSync);
+const mockReaddirSync = vi.mocked(fs.readdirSync);
+
+function mockModuleFilesystem(modulePath: string, ruleFiles: string[], exampleFiles: string[]) {
+  const moduleJsonPath = path.join(modulePath, 'module.json');
+  const rulesDir = path.join(modulePath, 'rules');
+  const examplesDir = path.join(modulePath, 'examples');
+  const metadata = {
+    name: 'html-standards',
+    version: '1.0.0',
+    displayName: 'HTML Standards',
+    description: 'HTML coding standards',
+    type: 'coding-standards',
+    augment: { subModules: [] }
+  };
+
+  mockExistsSync.mockImplementation((target) => {
+    const current = normalize(target);
+    return current === normalize(moduleJsonPath)
+      || current === normalize(rulesDir)
+      || current === normalize(examplesDir);
+  });
+
+  mockReadFileSync.mockImplementation((target) => {
+    if (normalize(target) === normalize(moduleJsonPath)) {
+      return JSON.stringify(metadata);
+    }
+
+    return '';
+  });
+
+  mockReaddirSync.mockImplementation((target, options?: any) => {
+    const current = normalize(target);
+
+    if (current === normalize(rulesDir)) {
+      return ruleFiles as any;
+    }
+
+    if (current === normalize(examplesDir)) {
+      return exampleFiles as any;
+    }
+
+    if (current === normalize(modulePath) && options?.withFileTypes) {
+      return [] as any;
+    }
+
+    return [] as any;
+  });
+}
+
+describe('module-system legacy compatibility', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockExistsSync.mockReset();
+    mockReadFileSync.mockReset();
+    mockReaddirSync.mockReset();
+    mockExistsSync.mockReturnValue(false);
+    mockReadFileSync.mockReturnValue('');
+    mockReaddirSync.mockReturnValue([] as any);
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
   });
 
   describe('loadModule', () => {
-    it('should load HTML module successfully', () => {
-      const modulePath = '/test/coding-standards/html';
-      const moduleJson = {
-        name: 'html-standards',
-        version: '1.0.0',
-        displayName: 'HTML Standards',
-        description: 'HTML coding standards',
-        type: 'coding-standards'
-      };
-
-      mockFs.existsSync.mockImplementation((p: any) => {
-        if (p === path.join(modulePath, 'module.json')) return true;
-        if (p === path.join(modulePath, 'rules')) return true;
-        if (p === path.join(modulePath, 'examples')) return true;
-        return false;
-      });
-
-      mockFs.readFileSync.mockImplementation((p: any) => {
-        if (p === path.join(modulePath, 'module.json')) {
-          return JSON.stringify(moduleJson);
-        }
-        return '';
-      });
-
-      mockFs.readdirSync.mockImplementation((p: any) => {
-        if (p === path.join(modulePath, 'rules')) {
-          return ['html-standards.md'] as any;
-        }
-        if (p === path.join(modulePath, 'examples')) {
-          return ['html-examples.html'] as any;
-        }
-        return [] as any;
-      });
+    it('loads rules and examples from a valid module', () => {
+      const modulePath = '/virtual/coding-standards/html';
+      mockModuleFilesystem(modulePath, ['html-standards.md'], ['html-examples.html']);
 
       const module = loadModule(modulePath);
 
       expect(module).not.toBeNull();
       expect(module?.metadata.name).toBe('html-standards');
       expect(module?.metadata.type).toBe('coding-standards');
-      expect(module?.rules).toContain('html-standards.md');
-      expect(module?.examples).toContain('html-examples.html');
+      expect(module?.rules).toEqual(['html-standards.md']);
+      expect(module?.examples).toEqual(['html-examples.html']);
+      expect(module?.subModules).toEqual([]);
     });
 
-    it('should load CSS module successfully', () => {
-      const modulePath = '/test/coding-standards/css';
-      const moduleJson = {
-        name: 'css-standards',
-        version: '1.0.0',
-        displayName: 'CSS Standards',
-        description: 'CSS coding standards',
-        type: 'coding-standards'
-      };
+    it('returns null when module.json is missing', () => {
+      mockExistsSync.mockReturnValue(false);
 
-      mockFs.existsSync.mockImplementation((p: any) => {
-        if (p === path.join(modulePath, 'module.json')) return true;
-        if (p === path.join(modulePath, 'rules')) return true;
-        if (p === path.join(modulePath, 'examples')) return true;
-        return false;
-      });
+      expect(loadModule('/virtual/missing/module')).toBeNull();
+    });
 
-      mockFs.readFileSync.mockImplementation((p: any) => {
-        if (p === path.join(modulePath, 'module.json')) {
-          return JSON.stringify(moduleJson);
+    it('falls back to empty rules and examples when optional directories are absent', () => {
+      const modulePath = '/virtual/coding-standards/minimal';
+      const moduleJsonPath = path.join(modulePath, 'module.json');
+
+      mockExistsSync.mockImplementation((target) =>
+        normalize(target) === normalize(moduleJsonPath));
+
+      mockReadFileSync.mockImplementation((target) => {
+        if (normalize(target) === normalize(moduleJsonPath)) {
+          return JSON.stringify({
+            name: 'minimal-module',
+            version: '1.0.0',
+            displayName: 'Minimal Module',
+            description: 'A minimal module',
+            type: 'coding-standards',
+            augment: { subModules: [] }
+          });
         }
+
         return '';
       });
 
-      mockFs.readdirSync.mockImplementation((p: any) => {
-        if (p === path.join(modulePath, 'rules')) {
-          return ['css-standards.md', 'css-modern-features.md'] as any;
-        }
-        if (p === path.join(modulePath, 'examples')) {
-          return ['css-examples.css'] as any;
-        }
-        return [] as any;
-      });
-
-      const module = loadModule(modulePath);
-
-      expect(module).not.toBeNull();
-      expect(module?.metadata.name).toBe('css-standards');
-      expect(module?.rules).toHaveLength(2);
-      expect(module?.rules).toContain('css-standards.md');
-      expect(module?.rules).toContain('css-modern-features.md');
-    });
-
-    it('should load JS module successfully', () => {
-      const modulePath = '/test/coding-standards/js';
-      const moduleJson = {
-        name: 'js-standards',
-        version: '1.0.0',
-        displayName: 'JavaScript Standards',
-        description: 'JavaScript coding standards',
-        type: 'coding-standards'
-      };
-
-      mockFs.existsSync.mockImplementation((p: any) => {
-        if (p === path.join(modulePath, 'module.json')) return true;
-        if (p === path.join(modulePath, 'rules')) return true;
-        if (p === path.join(modulePath, 'examples')) return true;
-        return false;
-      });
-
-      mockFs.readFileSync.mockImplementation((p: any) => {
-        if (p === path.join(modulePath, 'module.json')) {
-          return JSON.stringify(moduleJson);
-        }
-        return '';
-      });
-
-      mockFs.readdirSync.mockImplementation((p: any) => {
-        if (p === path.join(modulePath, 'rules')) {
-          return ['javascript-standards.md', 'dom-manipulation.md', 'async-patterns.md'] as any;
-        }
-        if (p === path.join(modulePath, 'examples')) {
-          return ['javascript-examples.js'] as any;
-        }
-        return [] as any;
-      });
-
-      const module = loadModule(modulePath);
-
-      expect(module).not.toBeNull();
-      expect(module?.metadata.name).toBe('js-standards');
-      expect(module?.rules).toHaveLength(3);
-    });
-
-    it('should return null for missing module.json', () => {
-      const modulePath = '/test/invalid/module';
-
-      mockFs.existsSync.mockReturnValue(false);
-
-      const module = loadModule(modulePath);
-
-      expect(module).toBeNull();
-    });
-
-    it('should handle module without rules directory', () => {
-      const modulePath = '/test/minimal/module';
-      const moduleJson = {
-        name: 'minimal-module',
-        version: '1.0.0',
-        displayName: 'Minimal Module',
-        description: 'A minimal module',
-        type: 'coding-standards'
-      };
-
-      mockFs.existsSync.mockImplementation((p: any) => {
-        if (p === path.join(modulePath, 'module.json')) return true;
-        return false;
-      });
-
-      mockFs.readFileSync.mockImplementation((p: any) => {
-        if (p === path.join(modulePath, 'module.json')) {
-          return JSON.stringify(moduleJson);
-        }
-        return '';
-      });
+      mockReaddirSync.mockImplementation(() => [] as any);
 
       const module = loadModule(modulePath);
 
@@ -185,45 +134,39 @@ describe('Module Loading', () => {
   });
 
   describe('discoverCollections', () => {
-    it('should discover html-css-js collection', () => {
-      const collectionsDir = '/test/augment-extensions/collections';
-      const collectionPath = path.join(collectionsDir, 'html-css-js');
-      const collectionJson = {
-        name: 'html-css-js',
-        version: '1.0.0',
-        displayName: 'HTML, CSS, and JavaScript',
-        description: 'Complete web development standards',
-        type: 'collection',
-        modules: [
-          { id: 'coding-standards/html', version: '1.0.0' },
-          { id: 'coding-standards/css', version: '1.0.0' },
-          { id: 'coding-standards/js', version: '1.0.0' }
-        ]
-      };
-
-      mockFs.existsSync.mockImplementation((p: any) => {
-        if (p === collectionsDir) return true;
-        if (p === path.join(collectionPath, 'collection.json')) return true;
-        return false;
+    it('discovers collections from the collections directory', () => {
+      mockExistsSync.mockImplementation((target) => {
+        const current = normalize(target);
+        return current.endsWith('/collections')
+          || current.endsWith('/collections/html-css-js/collection.json');
       });
 
-      mockFs.readdirSync.mockImplementation((p: any, options?: any) => {
-        if (p === collectionsDir) {
+      mockReaddirSync.mockImplementation((target, options?: any) => {
+        const current = normalize(target);
+        if (current.endsWith('/collections') && options?.withFileTypes) {
           return [{ name: 'html-css-js', isDirectory: () => true }] as any;
         }
+
         return [] as any;
       });
 
-      mockFs.readFileSync.mockImplementation((p: any) => {
-        if (p === path.join(collectionPath, 'collection.json')) {
-          return JSON.stringify(collectionJson);
+      mockReadFileSync.mockImplementation((target) => {
+        if (normalize(target).endsWith('/collections/html-css-js/collection.json')) {
+          return JSON.stringify({
+            name: 'html-css-js',
+            version: '1.0.0',
+            displayName: 'HTML, CSS, and JavaScript',
+            description: 'Complete web development standards',
+            type: 'collection',
+            modules: [
+              { id: 'coding-standards/html', version: '1.0.0', required: true },
+              { id: 'coding-standards/css', version: '1.0.0', required: true },
+              { id: 'coding-standards/js', version: '1.0.0', required: true }
+            ]
+          });
         }
-        return '';
-      });
 
-      // Mock getModulesDir
-      jest.spyOn(path, 'join').mockImplementation((...args: string[]) => {
-        return args.join('/');
+        return '';
       });
 
       const collections = discoverCollections();
@@ -231,26 +174,75 @@ describe('Module Loading', () => {
       expect(collections).toHaveLength(1);
       expect(collections[0].metadata.name).toBe('html-css-js');
       expect(collections[0].metadata.modules).toHaveLength(3);
+      expect(collections[0].fullName).toBe('collections/html-css-js');
     });
 
-    it('should return empty array when collections directory does not exist', () => {
-      mockFs.existsSync.mockReturnValue(false);
+    it('returns an empty array when no collections directory exists', () => {
+      mockExistsSync.mockReturnValue(false);
 
-      const collections = discoverCollections();
-
-      expect(collections).toEqual([]);
+      expect(discoverCollections()).toEqual([]);
     });
   });
 
   describe('discoverModules', () => {
-    it('should discover all modules excluding collections', () => {
-      // This test would require more complex mocking
-      // For now, we'll test that it filters out collections directory
-      mockFs.existsSync.mockReturnValue(false);
+    it('discovers modules and filters out collection directories', () => {
+      mockExistsSync.mockImplementation((target) => {
+        const current = normalize(target);
+        return current.includes('augment-extensions');
+      });
+
+      mockReadFileSync.mockImplementation((target) => {
+        if (normalize(target).endsWith('/coding-standards/html/module.json')) {
+          return JSON.stringify({
+            name: 'html-standards',
+            version: '1.0.0',
+            displayName: 'HTML Standards',
+            description: 'HTML coding standards',
+            type: 'coding-standards',
+            augment: { subModules: [] }
+          });
+        }
+
+        return '';
+      });
+
+      mockReaddirSync.mockImplementation((target, options?: any) => {
+        const current = normalize(target);
+        if (!options?.withFileTypes) {
+          return [] as any;
+        }
+
+        if (current.endsWith('/augment-extensions')) {
+          return [
+            { name: 'coding-standards', isDirectory: () => true, isFile: () => false },
+            { name: 'collections', isDirectory: () => true, isFile: () => false }
+          ] as any;
+        }
+
+        if (current.endsWith('/augment-extensions/coding-standards')) {
+          return [{ name: 'html', isDirectory: () => true, isFile: () => false }] as any;
+        }
+
+        if (current.endsWith('/augment-extensions/coding-standards/html')) {
+          return [{ name: 'module.json', isDirectory: () => false, isFile: () => true }] as any;
+        }
+
+        if (current.endsWith('/augment-extensions/collections')) {
+          return [{ name: 'starter-kit', isDirectory: () => true, isFile: () => false }] as any;
+        }
+
+        if (current.endsWith('/augment-extensions/collections/starter-kit')) {
+          return [{ name: 'module.json', isDirectory: () => false, isFile: () => true }] as any;
+        }
+
+        return [] as any;
+      });
 
       const modules = discoverModules();
 
-      expect(Array.isArray(modules)).toBe(true);
+      expect(modules).toHaveLength(1);
+      expect(modules[0].metadata.name).toBe('html-standards');
+      expect(modules[0].metadata.type).toBe('coding-standards');
     });
   });
 });

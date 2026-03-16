@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { join } from 'path';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, readFile } from 'fs/promises';
 import { existsSync } from 'fs';
 import { TestEnvironment } from '../../helpers/test-env';
 import { spawn } from 'child_process';
@@ -97,6 +97,34 @@ describe('CLI Command Execution', () => {
 
       // Should exit with error code
       expect(result.exitCode).not.toBe(0);
+    });
+
+    it('should execute init successfully in a clean project', async () => {
+      const projectPath = join(testEnv.tempDir, 'fresh-project');
+      await mkdir(projectPath, { recursive: true });
+
+      const result = await executeCommand('node', [CLI_PATH, 'init'], projectPath);
+
+      expect(result.exitCode).toBe(0);
+      expect(existsSync(join(projectPath, '.augment', 'extensions.json'))).toBe(true);
+      expect(existsSync(join(projectPath, 'AGENTS.md'))).toBe(true);
+
+      const config = JSON.parse(
+        await readFile(join(projectPath, '.augment', 'extensions.json'), 'utf-8')
+      );
+
+      expect(config.version).toBe('0.1.0');
+    });
+
+    it('should cancel re-init in a non-interactive environment without crashing', async () => {
+      const project = await testEnv.createProject();
+
+      const result = await executeCommand('node', [CLI_PATH, 'init'], project.path);
+      const output = result.stdout + result.stderr;
+
+      expect(result.exitCode).toBe(0);
+      expect(output).toContain('overwrite confirmation requires an interactive terminal');
+      expect(output).toContain('Initialization cancelled.');
     });
   });
 

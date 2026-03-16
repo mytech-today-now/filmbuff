@@ -1,10 +1,12 @@
 /**
  * AI Summary Generation Utilities
- * 
- * Generates concise summaries of modules for AI context
+ *
+ * Generates concise summaries of modules for AI context with caching and fallback metadata.
  */
 
 import { Module } from './module-system';
+import type { AugmentConfig } from './config-system';
+import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -19,6 +21,44 @@ export interface ModuleSummary {
   tags: string[];
   summary: string;
 }
+
+export type AISummaryFormat = 'json' | 'compact' | 'detailed' | 'context';
+
+export interface AISummaryResult {
+  format: AISummaryFormat;
+  content: string;
+  source: 'generated' | 'cache' | 'fallback';
+  metadata: {
+    cacheKey: string;
+    cacheHit: boolean;
+    generatedAt: string;
+    attempts: number;
+    fallbackUsed: boolean;
+    retryable: boolean;
+    errors: string[];
+  };
+}
+
+export interface AISummaryOptions {
+  format?: AISummaryFormat;
+  includeContent?: boolean;
+  retryAttempts?: number;
+  config?: Pick<AugmentConfig, 'ai'>;
+}
+
+interface CachedSummaryEntry {
+  format: AISummaryFormat;
+  content: string;
+  createdAt: string;
+  expiresAt: number;
+}
+
+const DEFAULT_CACHE_CONFIG = {
+  enabled: true,
+  ttlSeconds: 3600,
+  directory: '.augment/cache/ai-summaries',
+  retryAttempts: 1
+};
 
 /**
  * Generate a concise summary of a module
@@ -174,5 +214,166 @@ export function generateSummaryWithSuggestions(module: Module): string {
   suggestions += `Apply these standards when refactoring existing code to improve quality and maintainability.\n\n`;
 
   return summary + suggestions;
+}
+
+export function generateAISummary(module: Module, options: AISummaryOptions = {}): AISummaryResult {
+  const format = options.format || 'detailed';
+  const cacheConfig = resolveCacheConfig(options.config);
+  const cacheKey = createCacheKey(module, format, Boolean(options.includeContent));
+
+  if (cacheConfig.enabled) {
+    const cachedEntry = readCachedSummary(cacheConfig.directory, cacheKey);
+    if (cachedEntry) {
+      return {
+        format,
+        content: cachedEntry.content,
+        source: 'cache',
+        metadata: {
+          cacheKey,
+          cacheHit: true,
+          generatedAt: cachedEntry.createdAt,
+          attempts: 1,
+          fallbackUsed: false,
+          retryable: false,
+          errors: []
+        }
+      };
+    }
+  }
+
+  const attempts = Math.max(1, (options.retryAttempts ?? cacheConfig.retryAttempts) + 1);
+  const errors: string[] = [];
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const content = generateSummaryByFormat(module, format, Boolean(options.includeContent));
+      const generatedAt = new Date().toISOString();
+
+      if (cacheConfig.enabled) {
+        writeCachedSummary(cacheConfig.directory, cacheKey, {
+          format,
+          content,
+          createdAt: generatedAt,
+          expiresAt: Date.now() + cacheConfig.ttlSeconds * 1000
+        });
+      }
+
+      return {
+        format,
+        content,
+        source: 'generated',
+        metadata: {
+          cacheKey,
+          cacheHit: false,
+          generatedAt,
+          attempts: attempt,
+          fallbackUsed: false,
+          retryable: false,
+          errors
+        }
+      };
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  return {
+    format,
+    content: generateFallbackSummary(module),
+    source: 'fallback',
+    metadata: {
+      cacheKey,
+      cacheHit: false,
+      generatedAt: new Date().toISOString(),
+      attempts,
+      fallbackUsed: true,
+      retryable: true,
+      errors
+    }
+  };
+}
+
+export function clearAISummaryCache(cacheDirectory: string = DEFAULT_CACHE_CONFIG.directory): void {
+  if (fs.existsSync(cacheDirectory)) {
+    fs.rmSync(cacheDirectory, { recursive: true, force: true });
+  }
+}
+
+function generateSummaryByFormat(module: Module, format: AISummaryFormat, includeContent: boolean): string {
+  switch (format) {
+    case 'json':
+      return generateJSONSummary(module);
+    case 'compact':
+      return generateCompactSummary(module);
+    case 'context':
+      return generateAIContext(module);
+    case 'detailed':
+    default:
+      return generateDetailedSummary(module, includeContent);
+  }
+}
+
+function resolveCacheConfig(config?: Pick<AugmentConfig, 'ai'>) {
+  return {
+    enabled: config?.ai?.summaryCache?.enabled ?? DEFAULT_CACHE_CONFIG.enabled,
+    ttlSeconds: config?.ai?.summaryCache?.ttlSeconds ?? DEFAULT_CACHE_CONFIG.ttlSeconds,
+    directory: config?.ai?.summaryCache?.directory ?? DEFAULT_CACHE_CONFIG.directory,
+    retryAttempts: config?.ai?.summaryCache?.retryAttempts ?? DEFAULT_CACHE_CONFIG.retryAttempts
+  };
+}
+
+function createCacheKey(module: Module, format: AISummaryFormat, includeContent: boolean): string {
+  return crypto.createHash('sha1').update(JSON.stringify({
+    module: safeValue(() => module.fullName, 'unknown-module'),
+    version: safeValue(() => module.metadata.version, 'unknown-version'),
+    type: safeValue(() => module.metadata.type, 'unknown-type'),
+    path: safeValue(() => module.path, 'unknown-path'),
+    format,
+    includeContent,
+    rules: safeValue(() => module.rules, [] as string[]),
+    examples: safeValue(() => module.examples, [] as string[]),
+    characterCount: safeValue(() => module.metadata.augment?.characterCount || 0, 0)
+  })).digest('hex');
+}
+
+function getCacheFilePath(cacheDirectory: string, cacheKey: string): string {
+  return path.join(cacheDirectory, `${cacheKey}.json`);
+}
+
+function readCachedSummary(cacheDirectory: string, cacheKey: string): CachedSummaryEntry | null {
+  const filePath = getCacheFilePath(cacheDirectory, cacheKey);
+  if (!fs.existsSync(filePath)) {
+    return null;
+  }
+
+  try {
+    const entry = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as CachedSummaryEntry;
+    if (entry.expiresAt < Date.now()) {
+      fs.rmSync(filePath, { force: true });
+      return null;
+    }
+    return entry;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedSummary(cacheDirectory: string, cacheKey: string, entry: CachedSummaryEntry): void {
+  fs.mkdirSync(cacheDirectory, { recursive: true });
+  fs.writeFileSync(getCacheFilePath(cacheDirectory, cacheKey), JSON.stringify(entry, null, 2));
+}
+
+function generateFallbackSummary(module: Module): string {
+  const name = safeValue(() => module.fullName, 'unknown-module');
+  const version = safeValue(() => module.metadata.version, 'unknown-version');
+  return `${name} v${version}: AI summary unavailable. Retry the command to attempt regeneration.`;
+}
+
+function safeValue<T>(getter: () => T, fallback: T): T {
+  try {
+    return getter();
+  } catch {
+    return fallback;
+  }
 }
 

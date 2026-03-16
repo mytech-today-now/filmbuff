@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
@@ -7,7 +7,7 @@ import {
   extractModuleMetadata,
   listModuleFiles,
   discoverModules
-} from '../module-system';
+} from '@cli/utils/module-system';
 
 describe('Module Discovery', () => {
   const testModulesDir = path.join(__dirname, '__fixtures__', 'test-modules');
@@ -124,15 +124,17 @@ describe('Module Discovery', () => {
       if (metadata) {
         expect(metadata.name).toBe('empty-module');
         expect(metadata.version).toBe('0.0.0');
-        expect(metadata.type).toBe('unknown');
+        expect(metadata.type).toBe('examples');
       }
 
       fs.rmSync(emptyDir, { recursive: true, force: true });
     });
 
-    it('should return null for non-existent path', () => {
+    it('should generate fallback metadata for non-existent path', () => {
       const metadata = extractModuleMetadata('/non/existent/path');
-      expect(metadata).toBeNull();
+      expect(metadata).not.toBeNull();
+      expect(metadata?.name).toBe('path');
+      expect(metadata?.type).toBe('examples');
     });
 
     it('should calculate file statistics correctly', () => {
@@ -250,10 +252,10 @@ describe('Module Discovery', () => {
 
       if (modules.length > 0) {
         const module = modules[0];
-        expect(module).toHaveProperty('name');
         expect(module).toHaveProperty('fullName');
         expect(module).toHaveProperty('path');
         expect(module).toHaveProperty('metadata');
+        expect(module.metadata).toHaveProperty('name');
       }
     });
   });

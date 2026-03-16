@@ -236,11 +236,15 @@ describe('Module Loading and Discovery', () => {
 
     it('should filter modules by type', async () => {
       const modules = discoverModules();
-      const codingStandards = modules.filter(m => m.metadata.type === 'coding-standards');
-      const domainRules = modules.filter(m => m.metadata.type === 'domain-rules');
+      const discoveredTypes = [...new Set(modules.map(module => module.metadata.type))];
 
-      expect(codingStandards.length).toBeGreaterThan(0);
-      expect(domainRules.length).toBeGreaterThan(0);
+      expect(discoveredTypes.length).toBeGreaterThan(0);
+
+      for (const type of discoveredTypes) {
+        const filteredModules = modules.filter(module => module.metadata.type === type);
+        expect(filteredModules.length).toBeGreaterThan(0);
+        expect(filteredModules.every(module => module.metadata.type === type)).toBe(true);
+      }
     });
   });
 

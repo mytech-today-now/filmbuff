@@ -1,0 +1,602 @@
+*** Begin Patch
+*** Add File: cli/src/commands/generate-shot-list/parser/pdf-parser.ts
++import { Parser, Screenplay } from './types';
++import { PlainTextParser } from './plaintext-parser';
++
++/**
++ * Parser for PDF (.pdf) format
++ * 
++ * Extracts text from PDF files and delegates to PlainTextParser for screenplay parsing.
++ * Requires pdf-parse library for text extraction.
++ */
++export class PDFParser implements Parser {
++  private plainTextParser: PlainTextParser;
++  private pdfParse: any;
++
++  constructor() {
++    this.plainTextParser = new PlainTextParser();
++    
++    // Lazy load pdf-parse to avoid bundling issues
++    try {
++      this.pdfParse = require('pdf-parse');
++    } catch (error) {
++      throw new Error(
++        'pdf-parse library is required for PDF parsing. Install it with: npm install pdf-parse'
++      );
++    }
++  }
++
++  getName(): string {
++    return 'PDF';
++  }
++
++  canParse(content: string, filePath?: string): boolean {
++    // Check file extension
++    if (filePath && /\.pdf$/i.test(filePath)) {
++      return true;
++    }
++
++    // Check for PDF magic number (%PDF-)
++    return content.startsWith('%PDF-');
++  }
++
++  async parse(content: string | Buffer): Promise<Screenplay> {
++    // Convert string to Buffer if needed
++    const buffer = typeof content === 'string' 
++      ? Buffer.from(content, 'binary')
++      : content;
++
++    try {
++      // Extract text from PDF
++      const data = await this.pdfParse(buffer);
++      const text = data.text;
++
++      if (!text || text.trim().length === 0) {
++        throw new Error('PDF contains no extractable text');
++      }
++
++      // Parse extracted text as plain text screenplay
++      const screenplay = this.plainTextParser.parse(text);
++      
++      // Update format metadata
++      screenplay.format = 'pdf';
++      screenplay.metadata = {
++        ...screenplay.metadata,
++        format: 'pdf',
++        originalFormat: 'pdf',
++        extractedText: true,
++        pdfPages: data.numpages,
++        pdfInfo: data.info,
++      };
++
++      return screenplay;
++    } catch (error) {
++      if (error instanceof Error) {
++        throw new Error(`Failed to parse PDF: ${error.message}`);
++      }
++      throw error;
++    }
++  }
++
++  /**
++   * Async parse method for PDF files
++   */
++  async parseAsync(content: string | Buffer): Promise<Screenplay> {
++    return this.parse(content);
++  }
++}
++
++/**
++ * Helper function to read PDF file and parse it
++ */
++export async function parsePDFFile(filePath: string): Promise<Screenplay> {
++  const fs = require('fs').promises;
++  const buffer = await fs.readFile(filePath);
++  const parser = new PDFParser();
++  return parser.parseAsync(buffer);
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/parser/docx-parser.ts
++import { Parser, Screenplay } from './types';
++import { PlainTextParser } from './plaintext-parser';
++
++/**
++ * Parser for Microsoft Word (.doc, .docx) format
++ * 
++ * Extracts text from Word documents and delegates to PlainTextParser for screenplay parsing.
++ * Requires mammoth library for DOCX extraction.
++ */
++export class DOCXParser implements Parser {
++  private plainTextParser: PlainTextParser;
++  private mammoth: any;
++
++  constructor() {
++    this.plainTextParser = new PlainTextParser();
++    
++    // Lazy load mammoth to avoid bundling issues
++    try {
++      this.mammoth = require('mammoth');
++    } catch (error) {
++      throw new Error(
++        'mammoth library is required for DOCX parsing. Install it with: npm install mammoth'
++      );
++    }
++  }
++
++  getName(): string {
++    return 'DOCX';
++  }
++
++  canParse(content: string | Buffer, filePath?: string): boolean {
++    // Check file extension
++    if (filePath && /\.(docx?|doc)$/i.test(filePath)) {
++      return true;
++    }
++
++    // Check for DOCX magic number (PK zip archive)
++    const contentStr = typeof content === 'string' ? content : content.toString('binary');
++    return contentStr.startsWith('PK\x03\x04');
++  }
++
++  async parse(content: string | Buffer): Promise<Screenplay> {
++    // Convert string to Buffer if needed
++    const buffer = typeof content === 'string'
++      ? Buffer.from(content, 'binary')
++      : content;
++
++    try {
++      // Extract HTML with styles preserved
++      const result = await this.mammoth.convertToHtml({ buffer });
++      const html = result.value;
++
++      if (!html || html.trim().length === 0) {
++        throw new Error('DOCX contains no extractable content');
++      }
++
++      // Parse HTML to extract screenplay elements with style information
++      const text = this.convertHtmlToScreenplayText(html);
++
++      if (!text || text.trim().length === 0) {
++        throw new Error('DOCX contains no extractable text');
++      }
++
++      // Parse extracted text as plain text screenplay
++      const screenplay = this.plainTextParser.parse(text);
++
++      // Update format metadata
++      screenplay.format = 'docx';
++      screenplay.metadata = {
++        ...screenplay.metadata,
++        format: 'docx',
++        originalFormat: 'docx',
++        extractedText: true,
++        extractedHtml: true,
++        messages: result.messages,
++      };
++
++      return screenplay;
++    } catch (error) {
++      if (error instanceof Error) {
++        throw new Error(`Failed to parse DOCX: ${error.message}`);
++      }
++      throw error;
++    }
++  }
++
++  /**
++   * Convert HTML from mammoth to screenplay-formatted text
++   * Maps HTML styles to screenplay elements:
++   * - <h1>, <h2> → Scene headings
++   * - <strong>, <b> with ALL CAPS → Character names
++   * - Indented paragraphs → Dialogue
++   * - Regular paragraphs → Action
++   */
++  private convertHtmlToScreenplayText(html: string): string {
++    const lines: string[] = [];
++
++    // Simple HTML parser - extract text from tags
++    // Remove HTML tags but preserve structure
++    let text = html
++      .replace(/<h[12]>(.*?)<\/h[12]>/gi, '\n$1\n')  // Headings as scene headings
++      .replace(/<strong>(.*?)<\/strong>/gi, '$1')     // Preserve bold text
++      .replace(/<b>(.*?)<\/b>/gi, '$1')               // Preserve bold text
++      .replace(/<p[^>]*>(.*?)<\/p>/gi, '\n$1\n')      // Paragraphs
++      .replace(/<br\s*\/?>/gi, '\n')                  // Line breaks
++      .replace(/<[^>]+>/g, '')                        // Remove remaining tags
++      .replace(/&nbsp;/g, ' ')                        // Replace &nbsp;
++      .replace(/&amp;/g, '&')                         // Replace &amp;
++      .replace(/&lt;/g, '<')                          // Replace &lt;
++      .replace(/&gt;/g, '>')                          // Replace &gt;
++      .replace(/&quot;/g, '"')                        // Replace &quot;
++      .trim();
++
++    return text;
++  }
++
++}
++
++/**
++ * Helper function to read DOCX file and parse it
++ */
++export async function parseDOCXFile(filePath: string): Promise<Screenplay> {
++  const fs = require('fs').promises;
++  const buffer = await fs.readFile(filePath);
++  const parser = new DOCXParser();
++  return parser.parse(buffer);
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/parser/finaldraft-parser.ts
++import { Parser, Screenplay, Scene, SceneElement, SceneHeading, AnySceneElement } from './types';
++import { XMLParser } from 'fast-xml-parser';
++
++/**
++ * Parser for Final Draft XML (.fdx) format
++ * 
++ * Final Draft is the industry-standard professional screenwriting software.
++ * The .fdx format is XML-based with specific paragraph types for screenplay elements.
++ */
++export class FinalDraftParser implements Parser {
++  private xmlParser: XMLParser;
++
++  constructor() {
++    this.xmlParser = new XMLParser({
++      ignoreAttributes: false,
++      attributeNamePrefix: '@_',
++      textNodeName: '#text',
++      parseAttributeValue: true,
++      trimValues: true,
++    });
++  }
++
++  getName(): string {
++    return 'FinalDraft';
++  }
++
++  canParse(content: string, filePath?: string): boolean {
++    // Check file extension
++    if (filePath && /\.fdx$/i.test(filePath)) {
++      return true;
++    }
++
++    // Check for Final Draft XML structure
++    return content.includes('<FinalDraft') && content.includes('</FinalDraft>');
++  }
++
++  parse(content: string): Screenplay {
++    const parsed = this.xmlParser.parse(content);
++    
++    if (!parsed.FinalDraft) {
++      throw new Error('Invalid Final Draft XML: Missing FinalDraft root element');
++    }
++
++    const fdx = parsed.FinalDraft;
++    const content_elem = fdx.Content;
++    
++    if (!content_elem || !content_elem.Paragraph) {
++      throw new Error('Invalid Final Draft XML: Missing Content or Paragraph elements');
++    }
++
++    // Extract title and author from TitlePage if available
++    let title = 'Untitled';
++    let author: string | undefined;
++
++    if (fdx.TitlePage && fdx.TitlePage.Content && fdx.TitlePage.Content.Paragraph) {
++      const titleParas = Array.isArray(fdx.TitlePage.Content.Paragraph) 
++        ? fdx.TitlePage.Content.Paragraph 
++        : [fdx.TitlePage.Content.Paragraph];
++      
++      for (const para of titleParas) {
++        const type = para['@_Type'];
++        const text = this.extractText(para);
++        
++        if (type === 'Title' && text) {
++          title = text;
++        } else if (type === 'Authors' && text) {
++          author = text;
++        }
++      }
++    }
++
++    // Parse paragraphs into scenes
++    const paragraphs = Array.isArray(content_elem.Paragraph)
++      ? content_elem.Paragraph
++      : [content_elem.Paragraph];
++
++    const scenes: Scene[] = [];
++    let currentScene: Scene | null = null;
++    let lineNumber = 0;
++
++    for (const para of paragraphs) {
++      const type = para['@_Type'];
++      const text = this.extractText(para);
++      lineNumber++;
++
++      if (!text) continue;
++
++      if (type === 'Scene Heading') {
++        // Start new scene
++        if (currentScene) {
++          currentScene.endLine = lineNumber - 1;
++          scenes.push(currentScene);
++        }
++
++        const heading = this.parseSceneHeading(text);
++        currentScene = {
++          number: scenes.length + 1,
++          heading,
++          elements: [],
++          startLine: lineNumber,
++          endLine: lineNumber,
++        };
++      } else if (currentScene) {
++        // Add element to current scene
++        const element = this.parseElement(type, text, lineNumber);
++        if (element) {
++          currentScene.elements.push(element);
++        }
++      }
++    }
++
++    // Add final scene
++    if (currentScene) {
++      currentScene.endLine = lineNumber;
++      scenes.push(currentScene);
++    }
++
++    return {
++      title,
++      author,
++      scenes,
++      format: 'finaldraft',
++      metadata: {
++        format: 'finaldraft',
++        totalScenes: scenes.length,
++        parsedAt: new Date().toISOString(),
++      },
++    };
++  }
++
++  private extractText(para: any): string {
++    if (!para.Text) return '';
++    
++    const texts = Array.isArray(para.Text) ? para.Text : [para.Text];
++    return texts
++      .map((t: any) => {
++        if (typeof t === 'string') return t;
++        if (t['#text']) return t['#text'];
++        return '';
++      })
++      .join('')
++      .trim();
++  }
++
++  private parseSceneHeading(text: string): SceneHeading {
++    // Match INT/EXT. LOCATION - TIME
++    const match = text.match(/^(INT\.|EXT\.|INT\/EXT\.|EXT\/INT\.)\s+(.+?)(?:\s+-\s+(.+))?$/i);
++
++    if (match) {
++      const intExt = match[1].replace('.', '').toUpperCase() as 'INT' | 'EXT' | 'INT/EXT' | 'EXT/INT';
++      return {
++        intExt,
++        location: match[2].trim(),
++        timeOfDay: match[3]?.trim() || '',
++        raw: text,
++      };
++    }
++
++    // Default to INT if no match
++    return {
++      intExt: 'INT',
++      location: text,
++      timeOfDay: '',
++      raw: text,
++    };
++  }
++
++  private parseElement(type: string, text: string, line: number): AnySceneElement | null {
++    switch (type) {
++      case 'Action':
++        return { type: 'action', text, line, column: 0 };
++
++      case 'Character':
++        return {
++          type: 'dialogue',
++          dialogue: { character: { name: text }, speech: '' },
++          text: text,
++          line,
++          column: 0
++        };
++
++      case 'Dialogue':
++        return {
++          type: 'dialogue',
++          dialogue: { character: { name: '' }, speech: text },
++          text: text,
++          line,
++          column: 0
++        };
++
++      case 'Parenthetical':
++        return {
++          type: 'dialogue',
++          dialogue: { character: { name: '' }, parenthetical: text, speech: '' },
++          text: text,
++          line,
++          column: 0
++        };
++
++      case 'Transition':
++        return { type: 'transition', text, line, column: 0 };
++
++      default:
++        return null;
++    }
++  }
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/parser/rtf-parser.ts
++import { Parser, Screenplay } from './types';
++import { PlainTextParser } from './plaintext-parser';
++
++/**
++ * Parser for Rich Text Format (.rtf)
++ * 
++ * Extracts text from RTF files and delegates to PlainTextParser for screenplay parsing.
++ * Uses rtf-parser library for text extraction.
++ */
++export class RTFParser implements Parser {
++  private plainTextParser: PlainTextParser;
++  private rtfParser: any;
++
++  constructor() {
++    this.plainTextParser = new PlainTextParser();
++    
++    // Lazy load rtf-parser to avoid bundling issues
++    try {
++      this.rtfParser = require('rtf-parser');
++    } catch (error) {
++      throw new Error(
++        'rtf-parser library is required for RTF parsing. Install it with: npm install rtf-parser'
++      );
++    }
++  }
++
++  getName(): string {
++    return 'RTF';
++  }
++
++  canParse(content: string | Buffer, filePath?: string): boolean {
++    // Check file extension
++    if (filePath && /\.rtf$/i.test(filePath)) {
++      return true;
++    }
++
++    // Check for RTF magic string
++    const contentStr = typeof content === 'string' ? content : content.toString('utf-8');
++    return contentStr.startsWith('{\\rtf');
++  }
++
++  async parse(content: string | Buffer): Promise<Screenplay> {
++    // Convert Buffer to string if needed
++    const text = typeof content === 'string' 
++      ? content 
++      : content.toString('utf-8');
++
++    try {
++      // Parse RTF and extract plain text
++      const doc = await this.rtfParser.string(text);
++      const plainText = this.extractPlainText(doc);
++
++      if (!plainText || plainText.trim().length === 0) {
++        throw new Error('RTF contains no extractable text');
++      }
++
++      // Parse extracted text as plain text screenplay
++      const screenplay = this.plainTextParser.parse(plainText);
++      
++      // Update format metadata
++      screenplay.format = 'rtf';
++      screenplay.metadata = {
++        ...screenplay.metadata,
++        format: 'rtf',
++        originalFormat: 'rtf',
++        extractedText: true,
++      };
++
++      return screenplay;
++    } catch (error) {
++      if (error instanceof Error) {
++        throw new Error(`Failed to parse RTF: ${error.message}`);
++      }
++      throw error;
++    }
++  }
++
++  /**
++   * Extract plain text from RTF document tree with formatting awareness
++   * Maps RTF formatting to screenplay elements:
++   * - \b (bold) + ALL CAPS → Scene heading or Character
++   * - \li (left indent) → Dialogue
++   * - Normal text → Action
++   */
++  private extractPlainText(doc: any): string {
++    const lines: string[] = [];
++    let currentFormatting = {
++      bold: false,
++      italic: false,
++      leftIndent: 0,
++    };
++
++    const traverse = (node: any, formatting = { ...currentFormatting }) => {
++      if (!node) return;
++
++      // Update formatting state based on RTF control words
++      if (node.style) {
++        if (node.style.bold !== undefined) {
++          formatting.bold = node.style.bold;
++        }
++        if (node.style.italic !== undefined) {
++          formatting.italic = node.style.italic;
++        }
++        if (node.style.leftIndent !== undefined) {
++          formatting.leftIndent = node.style.leftIndent;
++        }
++      }
++
++      if (node.content) {
++        // Text node
++        if (typeof node.content === 'string') {
++          let text = node.content;
++
++          // Apply formatting hints
++          // If text is ALL CAPS and bold, it might be a scene heading or character
++          if (formatting.bold && /^[A-Z\s]+$/.test(text.trim()) && text.trim().length > 2) {
++            // Keep as-is, PlainTextParser will handle it
++            lines.push(text);
++          } else if (formatting.leftIndent > 0) {
++            // Indented text might be dialogue
++            lines.push(text);
++          } else {
++            lines.push(text);
++          }
++        } else if (Array.isArray(node.content)) {
++          node.content.forEach((child: any) => traverse(child, { ...formatting }));
++        }
++      }
++
++      // Handle paragraph breaks
++      if (node.type === 'paragraph' || node.type === 'par') {
++        lines.push('\n');
++      }
++
++      if (node.children && Array.isArray(node.children)) {
++        node.children.forEach((child: any) => traverse(child, { ...formatting }));
++      }
++    };
++
++    traverse(doc);
++
++    // Clean up multiple consecutive newlines
++    return lines
++      .join('')
++      .replace(/\n{3,}/g, '\n\n')
++      .trim();
++  }
++
++}
++
++/**
++ * Helper function to read RTF file and parse it
++ */
++export async function parseRTFFile(filePath: string): Promise<Screenplay> {
++  const fs = require('fs').promises;
++  const content = await fs.readFile(filePath, 'utf-8');
++  const parser = new RTFParser();
++  return parser.parse(content);
++}
++
+
+*** End Patch

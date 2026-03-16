@@ -5,6 +5,28 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
+import {
+  DEFAULT_AI_MODEL,
+  DEFAULT_AI_PROVIDER,
+  IMPLEMENTED_AI_PROVIDERS,
+  isImplementedAIProvider,
+  normalizeAIProvider
+} from './ai-provider-config';
+
+const BUILTIN_PROMPT_NAMES = ['code-review', 'module-summary', 'optimization', 'refactoring'];
+
+export interface PromptTemplateConfig {
+  name: string;
+  description: string;
+  template: string;
+}
+
+export interface AISummaryCacheConfig {
+  enabled?: boolean;
+  ttlSeconds?: number;
+  directory?: string;
+  retryAttempts?: number;
+}
 
 /**
  * Configuration interface
@@ -31,6 +53,12 @@ export interface AugmentConfig {
     cacheTTL?: number;
     /** Max depth for recursive inspection */
     maxDepth?: number;
+    /** Default page size for paginated output */
+    pageSize?: number;
+    /** Enable secure redaction mode by default */
+    secureMode?: boolean;
+    /** Enable syntax highlighting for supported outputs */
+    syntaxHighlighting?: boolean;
   };
   /** Module configuration */
   modules?: {
@@ -38,6 +66,8 @@ export interface AugmentConfig {
     searchPaths?: string[];
     /** Auto-discover modules */
     autoDiscover?: boolean;
+    /** Linked modules manifest path */
+    linkedModulesFile?: string;
   };
   /** Hook configuration */
   hooks?: {
@@ -49,7 +79,33 @@ export interface AugmentConfig {
   /** Custom handlers */
   handlers?: {
     /** Handler configurations */
-    [key: string]: any;
+    [key: string]: unknown;
+  };
+  /** VS Code integration */
+  vscode?: {
+    /** Enable clickable file links */
+    enableFileLinks?: boolean;
+    /** Open files in preview mode */
+    openInPreview?: boolean;
+    /** Enable webview features */
+    webviewEnabled?: boolean;
+  };
+  /** AI integration */
+  ai?: {
+    /** Active AI provider */
+    provider?: string;
+    /** Default AI model for the active provider */
+    model?: string;
+    /** Enable prompt generation */
+    enablePromptGeneration?: boolean;
+    /** Enable AI summaries */
+    enableSummaries?: boolean;
+    /** Default prompt template name */
+    defaultPromptTemplate?: string;
+    /** Custom prompt templates */
+    promptTemplates?: PromptTemplateConfig[];
+    /** Summary cache configuration */
+    summaryCache?: AISummaryCacheConfig;
   };
 }
 
@@ -67,17 +123,40 @@ export const DEFAULT_CONFIG: AugmentConfig = {
     defaultFormat: 'text',
     cache: true,
     cacheTTL: 3600,
-    maxDepth: 5
+    maxDepth: 5,
+    pageSize: 10,
+    secureMode: false,
+    syntaxHighlighting: true
   },
   modules: {
-    searchPaths: ['filmbuff'],
-    autoDiscover: true
+    searchPaths: ['augment-extensions'],
+    autoDiscover: true,
+    linkedModulesFile: '.augment/extensions.json'
   },
   hooks: {
     enabled: true,
     timeout: 5000
   },
-  handlers: {}
+  handlers: {},
+  vscode: {
+    enableFileLinks: true,
+    openInPreview: false,
+    webviewEnabled: true
+  },
+  ai: {
+    provider: DEFAULT_AI_PROVIDER,
+    model: DEFAULT_AI_MODEL,
+    enablePromptGeneration: true,
+    enableSummaries: true,
+    defaultPromptTemplate: 'module-summary',
+    promptTemplates: [],
+    summaryCache: {
+      enabled: true,
+      ttlSeconds: 3600,
+      directory: '.augment/cache/ai-summaries',
+      retryAttempts: 1
+    }
+  }
 };
 
 /**
@@ -200,6 +279,105 @@ export class ConfigManager {
       }
     }
 
+    if (config.vscode) {
+      for (const field of ['enableFileLinks', 'openInPreview', 'webviewEnabled'] as const) {
+        const value = config.vscode[field];
+        if (value !== undefined && typeof value !== 'boolean') {
+          errors.push(`vscode.${field} must be a boolean`);
+        }
+      }
+    }
+
+    if (config.ai) {
+      if (config.ai.provider !== undefined) {
+        if (typeof config.ai.provider !== 'string' || config.ai.provider.trim() === '') {
+          errors.push('ai.provider must be a non-empty string');
+        } else {
+          const normalizedProvider = normalizeAIProvider(config.ai.provider);
+          if (!normalizedProvider) {
+            errors.push('ai.provider must be a non-empty string');
+          } else if (!isImplementedAIProvider(normalizedProvider)) {
+            warnings.push(
+              `ai.provider "${config.ai.provider}" is not implemented for shot list generation yet. Currently implemented providers: ${IMPLEMENTED_AI_PROVIDERS.join(', ')}`
+            );
+          }
+        }
+      }
+
+      if (config.ai.model !== undefined) {
+        if (typeof config.ai.model !== 'string' || config.ai.model.trim() === '') {
+          errors.push('ai.model must be a non-empty string');
+        }
+      }
+
+      for (const field of ['enablePromptGeneration', 'enableSummaries'] as const) {
+        const value = config.ai[field];
+        if (value !== undefined && typeof value !== 'boolean') {
+          errors.push(`ai.${field} must be a boolean`);
+        }
+      }
+
+      if (config.ai.defaultPromptTemplate !== undefined) {
+        if (typeof config.ai.defaultPromptTemplate !== 'string' || config.ai.defaultPromptTemplate.trim() === '') {
+          errors.push('ai.defaultPromptTemplate must be a non-empty string');
+        }
+      }
+
+      const customTemplateNames = new Set<string>();
+      if (config.ai.promptTemplates !== undefined) {
+        if (!Array.isArray(config.ai.promptTemplates)) {
+          errors.push('ai.promptTemplates must be an array');
+        } else {
+          config.ai.promptTemplates.forEach((template, index) => {
+            const prefix = `ai.promptTemplates[${index}]`;
+            if (!template || typeof template !== 'object') {
+              errors.push(`${prefix} must be an object`);
+              return;
+            }
+
+            if (typeof template.name !== 'string' || template.name.trim() === '') {
+              errors.push(`${prefix}.name must be a non-empty string`);
+            } else if (customTemplateNames.has(template.name)) {
+              errors.push(`${prefix}.name duplicates another custom prompt template: ${template.name}`);
+            } else {
+              customTemplateNames.add(template.name);
+            }
+
+            if (typeof template.description !== 'string' || template.description.trim() === '') {
+              errors.push(`${prefix}.description must be a non-empty string`);
+            }
+
+            if (typeof template.template !== 'string' || template.template.trim() === '') {
+              errors.push(`${prefix}.template must be a non-empty string`);
+            }
+          });
+        }
+      }
+
+      if (config.ai.summaryCache) {
+        const { enabled, ttlSeconds, directory, retryAttempts } = config.ai.summaryCache;
+        if (enabled !== undefined && typeof enabled !== 'boolean') {
+          errors.push('ai.summaryCache.enabled must be a boolean');
+        }
+        if (ttlSeconds !== undefined && (!Number.isFinite(ttlSeconds) || ttlSeconds < 0)) {
+          errors.push('ai.summaryCache.ttlSeconds must be a non-negative number');
+        }
+        if (directory !== undefined && typeof directory !== 'string') {
+          errors.push('ai.summaryCache.directory must be a string');
+        }
+        if (retryAttempts !== undefined && (!Number.isInteger(retryAttempts) || retryAttempts < 0)) {
+          errors.push('ai.summaryCache.retryAttempts must be a non-negative integer');
+        }
+      }
+
+      if (config.ai.defaultPromptTemplate) {
+        const availableTemplateNames = new Set([...BUILTIN_PROMPT_NAMES, ...customTemplateNames]);
+        if (!availableTemplateNames.has(config.ai.defaultPromptTemplate)) {
+          warnings.push(`ai.defaultPromptTemplate is not a built-in or configured custom template: ${config.ai.defaultPromptTemplate}`);
+        }
+      }
+    }
+
     return {
       valid: errors.length === 0,
       errors,
@@ -240,6 +418,19 @@ export class ConfigManager {
       handlers: {
         ...base.handlers,
         ...override.handlers
+      },
+      vscode: {
+        ...base.vscode,
+        ...override.vscode
+      },
+      ai: {
+        ...base.ai,
+        ...override.ai,
+        promptTemplates: override.ai?.promptTemplates ?? base.ai?.promptTemplates,
+        summaryCache: {
+          ...base.ai?.summaryCache,
+          ...override.ai?.summaryCache
+        }
       }
     };
   }

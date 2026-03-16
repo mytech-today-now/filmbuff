@@ -134,6 +134,15 @@ program
   .option('--no-cache', 'Disable caching for this inspection')
   .option('--open', 'Open file in VS Code editor')
   .option('--preview', 'Open file in VS Code preview pane')
+  .option('--webview', 'Generate and optionally open an interactive HTML inspection report')
+  .option('--status', 'Show the latest inspection status for a module')
+  .option('--open-last-report', 'Open the last generated inspection report for a module')
+  .option('--recommendations', 'Generate prioritized refactoring recommendations for a module')
+  .option('--optimization-suggestions', 'Generate categorized optimization suggestions for a module')
+  .option('--ai-prompt <template>', 'Generate an AI prompt from a named template')
+  .option('--ai-summary', 'Generate an AI-friendly module summary')
+  .option('--ai-context', 'Generate compact AI context for a module')
+  .option('--compact', 'Use compact output for AI summary generation')
   .option('--since <date>', 'Filter completed tasks since date (ISO 8601 format, e.g., 2026-01-01)')
   .option('--until <date>', 'Filter completed tasks until date (ISO 8601 format, e.g., 2026-12-31)')
   .option('--limit <number>', 'Limit number of completed tasks shown', parseInt)
@@ -147,6 +156,28 @@ program
   .option('--verbose', 'Show detailed information for completed tasks')
   .option('--quiet', 'Only output task IDs (one per line)')
   .action((moduleName: string, filePath: string | undefined, options: any) => {
+    const usesEnhancedInspection = Boolean(
+      filePath ||
+      options.content ||
+      options.filter ||
+      options.search ||
+      options.page !== undefined ||
+      options.pageSize !== undefined ||
+      options.secure ||
+      options.noCache ||
+      options.open ||
+      options.preview ||
+      options.webview ||
+      options.status ||
+      options.openLastReport ||
+      options.recommendations ||
+      options.optimizationSuggestions ||
+      options.aiPrompt ||
+      options.aiSummary ||
+      options.aiContext ||
+      options.compact
+    );
+
     // Handle special subcommands
     if (moduleName === 'completed') {
       showCompletedCommand(options);
@@ -161,8 +192,8 @@ program
       return;
     }
 
-    // If file-path is provided, use showModuleCommand for detailed inspection
-    if (filePath) {
+    // Route advanced inspection use-cases to the enhanced module viewer
+    if (usesEnhancedInspection) {
       showModuleCommand(moduleName, filePath, options);
     } else {
       // Otherwise use the basic showCommand
@@ -321,20 +352,32 @@ program
 program
   .command('generate-shot-list')
   .description('Generate AI-optimized shot lists from screenplays')
-  .requiredOption('--path <file>', 'Path to screenplay file')
+  .requiredOption('--input <file>', 'Path to screenplay file')
   .option('--format <format>', 'Output format: md, json, jsonl, csv, txt, html', 'md')
   .option('--output <filename>', 'Custom output filename')
   .option('--max-characters <number>', 'Maximum characters per shot description', '4000')
   .option('--max-shot-length <seconds>', 'Maximum shot duration in seconds', '12')
+  .option(
+    '--style <module-path>',
+    'Apply cinematic style guidelines (can be specified multiple times)',
+    (value: string, previous: string[] = []) => [...previous, value]
+  )
+  .option('--mute-sfx', 'Remove all MUSIC and SOUND EFFECT content from the output')
+  .option('--ai-provider <provider>', 'AI provider for shot list generation')
+  .option('--ai-model <model>', 'AI model for the selected provider')
   .option('--logging', 'Enable comprehensive error logging to JSONL file')
   .action((options) => {
-    generateShotListCommand({
-      path: options.path,
+    return generateShotListCommand({
+      input: options.input,
       format: options.format,
       output: options.output,
       maxCharacters: parseInt(options.maxCharacters, 10),
       maxShotLength: parseInt(options.maxShotLength, 10),
-      logging: options.logging
+      logging: options.logging,
+      style: options.style,
+      muteSfx: options.muteSfx,
+      aiProvider: options.aiProvider,
+      aiModel: options.aiModel
     });
   });
 

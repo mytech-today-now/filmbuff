@@ -1,0 +1,25 @@
+{
+  "name": "mcp-guidelines",
+  "version": "1.0.0",
+  "displayName": "MCP Guidelines",
+  "description": "Guidance for configuring and operating Model Context Protocol integrations while keeping .augment documentation compact.",
+  "type": "domain-rules",
+  "author": "Filmbuff",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "integration",
+    "configuration"
+  ],
+  "augment": {
+    "priority": "medium",
+    "category": "domain-rules",
+    "tags": ["mcp", "integration", "configuration"],
+    "compatibleWith": [
+      "Augment Code",
+      "VS Code",
+      "CLI workflows"
+    ]
+  }
+}

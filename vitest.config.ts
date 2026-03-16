@@ -33,11 +33,7 @@ export default defineConfig({
     hookTimeout: 10000,
     isolate: true,
     pool: 'forks',
-    poolOptions: {
-      threads: {
-        singleThread: true
-      }
-    },
+    maxWorkers: 1,
     maxConcurrency: 1
   },
   resolve: {

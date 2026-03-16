@@ -8,11 +8,20 @@ import { createGenerator } from './generate-shot-list/generator';
 import { createFormatter } from './generate-shot-list/formatter';
 import { createLogger } from './generate-shot-list/logger';
 import { createStyleSystem } from './generate-shot-list/style';
+import { ConfigManager } from '../utils/config-system';
+import {
+  DEFAULT_AI_MODEL,
+  DEFAULT_AI_PROVIDER,
+  IMPLEMENTED_AI_PROVIDERS,
+  isImplementedAIProvider,
+  normalizeAIModel,
+  normalizeAIProvider
+} from '../utils/ai-provider-config';
 import type { OutputFormat } from './generate-shot-list/formatter/types';
 import type { MergedStyleGuidelines } from './generate-shot-list/style/types';
 
 interface GenerateShotListOptions {
-  path?: string;
+  input?: string;
   format?: string;
   output?: string;
   maxCharacters?: number;
@@ -20,6 +29,8 @@ interface GenerateShotListOptions {
   logging?: boolean;
   style?: string | string[];  // Can be single string or array of strings
   muteSfx?: boolean;  // Remove all MUSIC and SOUND EFFECT content from output
+  aiProvider?: string;
+  aiModel?: string;
   help?: boolean;
   h?: boolean;
 }
@@ -33,18 +44,33 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
     }
 
     // Validate required arguments
-    if (!options.path) {
-      console.error(chalk.red('Error: Missing required argument: --path'));
-      console.log(chalk.gray('Usage: filmbuff generate-shot-list --path <screenplay-file> [options]'));
+    if (!options.input) {
+      console.error(chalk.red('Error: Missing required argument: --input'));
+      console.log(chalk.gray('Usage: filmbuff generate-shot-list --input <screenplay-file> [options]'));
       console.log(chalk.gray("Run 'filmbuff generate-shot-list --help' for more information."));
       exitWithCode(ExitCode.INVALID_ARGUMENTS);
     }
+
+    const inputPath = options.input;
 
     // Set defaults
     const format = options.format || 'md';
     const maxCharacters = options.maxCharacters || 4000;
     const maxShotLength = options.maxShotLength || 12;
     const logging = options.logging || false;
+    const appConfig = new ConfigManager().load();
+    const aiProvider = normalizeAIProvider(options.aiProvider)
+      || normalizeAIProvider(appConfig.ai?.provider)
+      || DEFAULT_AI_PROVIDER;
+    const aiModel = normalizeAIModel(options.aiModel)
+      || normalizeAIModel(appConfig.ai?.model)
+      || DEFAULT_AI_MODEL;
+
+    if (!isImplementedAIProvider(aiProvider)) {
+      console.error(chalk.red(`Error: AI provider not yet implemented for shot list generation: ${aiProvider}`));
+      console.log(chalk.gray(`Currently implemented providers: ${IMPLEMENTED_AI_PROVIDERS.join(', ')}`));
+      exitWithCode(ExitCode.INVALID_ARGUMENTS);
+    }
 
     // Validate format
     const validFormats = ['md', 'json', 'jsonl', 'csv', 'txt', 'html'];
@@ -67,41 +93,45 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
     }
 
     // Validate input file
-    if (!fs.existsSync(options.path)) {
-      console.error(chalk.red(`Error: Input file not found: ${options.path}`));
+    if (!fs.existsSync(inputPath)) {
+      console.error(chalk.red(`Error: Input file not found: ${inputPath}`));
       exitWithCode(ExitCode.INPUT_FILE_ERROR);
     }
 
     // Check file is readable
     try {
-      fs.accessSync(options.path, fs.constants.R_OK);
+      fs.accessSync(inputPath, fs.constants.R_OK);
     } catch (error) {
-      console.error(chalk.red(`Error: Permission denied: ${options.path}`));
+      console.error(chalk.red(`Error: Permission denied: ${inputPath}`));
       exitWithCode(ExitCode.INPUT_FILE_ERROR);
     }
 
     // Check file size (< 50MB)
-    const stats = fs.statSync(options.path);
+    const stats = fs.statSync(inputPath);
     if (stats.size > 50 * 1024 * 1024) {
       console.error(chalk.red('Error: File size exceeds 50MB limit'));
       exitWithCode(ExitCode.INPUT_FILE_ERROR);
     }
 
     console.log(chalk.blue(`\n🎬 Generating AI Shot List...\n`));
-    console.log(chalk.gray(`Processing: ${options.path}`));
+    console.log(chalk.gray(`Processing: ${inputPath}`));
     console.log(chalk.gray(`Format: ${format}`));
     console.log(chalk.gray(`Max characters: ${maxCharacters}`));
-    console.log(chalk.gray(`Max shot length: ${maxShotLength}s\n`));
+    console.log(chalk.gray(`Max shot length: ${maxShotLength}s`));
+    console.log(chalk.gray(`AI provider: ${aiProvider}`));
+    console.log(chalk.gray(`AI model: ${aiModel}\n`));
 
     // Initialize logger if requested
     let logger;
     if (logging) {
       logger = await createLogger();
       await logger.logInfo('Shot list generation started', {
-        inputFile: options.path,
+        inputFile: inputPath,
         format,
         maxCharacters,
-        maxShotLength
+        maxShotLength,
+        aiProvider,
+        aiModel
       });
     }
 
@@ -157,11 +187,11 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
     try {
       // Step 1: Read input file
       console.log(chalk.gray('📖 Reading screenplay file...'));
-      const content = fs.readFileSync(options.path, 'utf-8');
+      const content = fs.readFileSync(inputPath, 'utf-8');
 
       // Step 2: Parse screenplay
       console.log(chalk.gray('🔍 Parsing screenplay...'));
-      const parser = createParserAuto(options.path, content);
+      const parser = createParserAuto(inputPath, content);
       const screenplay = await Promise.resolve(parser.parse(content));
       console.log(chalk.green(`✓ Parsed ${screenplay.scenes.length} scenes`));
 
@@ -175,21 +205,23 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
 
       // Step 3: Generate shot list
       console.log(chalk.gray('🎬 Generating shots...'));
-      const generator = createGenerator(styleGuidelines);
+      const generator = createGenerator(styleGuidelines, { aiProvider, aiModel });
       const shotList = await generator.generate(screenplay.scenes, {
         maxCharacters,
         maxShotLength,
         warningThreshold: 90, // 90% threshold for warnings
         includeContext: true,
         includeMetadata: true,
-        muteSfx: options.muteSfx || false
+        muteSfx: options.muteSfx || false,
+        aiProvider,
+        aiModel
       });
       console.log(chalk.green(`✓ Generated ${shotList.totalShots} shots`));
       console.log(chalk.gray(`   Total duration: ${Math.floor(shotList.totalDuration / 60)}m ${Math.floor(shotList.totalDuration % 60)}s`));
       console.log(chalk.gray(`   Total characters: ${shotList.totalCharacters}`));
 
       if (logging && logger) {
-        const inputStats = fs.statSync(options.path);
+        const inputStats = fs.statSync(inputPath);
         await logger.logSuccess(
           'Shot list generated successfully',
           {
@@ -201,7 +233,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
             inputFileSize: inputStats.size,
             outputFileSize: 0 // Will be updated when file is written
           },
-          options.path,
+          inputPath,
           options.output || 'console',
           format
         );
@@ -239,10 +271,10 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
       // Determine output path (Requirement 1: Default Output Behavior)
       let outputPath = options.output;
       if (!outputPath) {
-        // Generate default output filename: <input-filename>-ai-shot-list.<extension>
-        const inputBasename = path.basename(options.path, path.extname(options.path));
+        // Generate default output filename: <input>-ai-shot-list.<extension>
+        const inputBasename = path.basename(inputPath, path.extname(inputPath));
         const outputExtension = formatter.getExtension();
-        outputPath = path.join(path.dirname(options.path), `${inputBasename}-ai-shot-list.${outputExtension}`);
+        outputPath = path.join(path.dirname(inputPath), `${inputBasename}-ai-shot-list.${outputExtension}`);
       }
 
       // Write output file
@@ -250,7 +282,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
       console.log(chalk.green(`✓ Shot list saved to: ${outputPath}\n`));
 
       if (logging && logger) {
-        const inputStats = fs.statSync(options.path);
+        const inputStats = fs.statSync(inputPath);
         const outputStats = fs.statSync(outputPath);
         await logger.logSuccess(
           'Output file written',
@@ -263,7 +295,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
             inputFileSize: inputStats.size,
             outputFileSize: outputStats.size
           },
-          options.path,
+          inputPath,
           outputPath,
           format
         );
@@ -291,7 +323,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
         };
 
         await logger.logError(errorDef, {
-          inputFile: options.path,
+          inputFile: inputPath,
           stage: 'generation'
         }, parseError.stack);
       }

@@ -1,0 +1,637 @@
+*** Begin Patch
+*** Add File: cli/src/commands/generate-shot-list/style/index.ts
++/**
++ * Style System Entry Point
++ * 
++ * Orchestrates cinematic style loading, parsing, and merging
++ */
++
++import { StyleLoader, StyleModule, MergedStyleGuidelines } from './types';
++import { createStyleLoader } from './style-loader';
++import { createStyleMerger } from './style-merger';
++
++/**
++ * Style system orchestrator
++ */
++export class StyleSystem {
++  private loader: StyleLoader;
++  private merger: ReturnType<typeof createStyleMerger>;
++  
++  constructor(extensionsRoot?: string) {
++    this.loader = createStyleLoader(extensionsRoot);
++    this.merger = createStyleMerger();
++  }
++  
++  /**
++   * Load and merge multiple styles
++   */
++  async loadStyles(stylePaths: string[]): Promise<MergedStyleGuidelines | null> {
++    if (stylePaths.length === 0) {
++      return null;
++    }
++    
++    // Load all styles
++    const styles: StyleModule[] = [];
++    for (let i = 0; i < stylePaths.length; i++) {
++      const style = await this.loader.loadStyle(stylePaths[i]);
++      style.priority = i + 1;  // First style = priority 1 (highest)
++      styles.push(style);
++    }
++    
++    // Merge styles
++    return this.merger.mergeStyles(styles);
++  }
++  
++  /**
++   * Validate a style path
++   */
++  async validateStylePath(stylePath: string): Promise<boolean> {
++    return this.loader.validateStylePath(stylePath);
++  }
++  
++  /**
++   * Get available styles in a category
++   */
++  async getAvailableStyles(category: string): Promise<string[]> {
++    return this.loader.getAvailableStyles(category);
++  }
++  
++  /**
++   * Format merged styles for display
++   */
++  formatStylesForDisplay(merged: MergedStyleGuidelines): string {
++    return merged.appliedStyles.join(', ');
++  }
++}
++
++/**
++ * Create a style system instance
++ */
++export function createStyleSystem(extensionsRoot?: string): StyleSystem {
++  return new StyleSystem(extensionsRoot);
++}
++
++// Re-export types
++export * from './types';
++export { createStyleLoader } from './style-loader';
++export { createGuidelineParser } from './guideline-parser';
++export { createStyleMerger } from './style-merger';
++
+
+*** Add File: cli/src/commands/generate-shot-list/style/types.ts
++/**
++ * Style System Types
++ * 
++ * Type definitions for cinematic style loading and application
++ */
++
++/**
++ * Style guidelines extracted from markdown files
++ */
++export interface StyleGuidelines {
++  cameraWork: {
++    preferredFraming: string[];      // ["wide", "medium", "close-up"]
++    preferredMovement: string[];     // ["static", "dolly", "tracking"]
++    preferredAngles: string[];       // ["eye-level", "low-angle", "high-angle"]
++    techniques: string[];            // ["split-screen", "long-take", "handheld"]
++  };
++  visualCharacteristics: {
++    colorPalette: string[];          // ["desaturated", "vibrant", "monochrome"]
++    lighting: string[];              // ["natural", "high-contrast", "soft"]
++    composition: string[];           // ["symmetrical", "rule-of-thirds", "centered"]
++  };
++  pacingAndRhythm: {
++    editingStyle: string[];          // ["fast-paced", "contemplative", "rhythmic"]
++    shotDuration: string;            // "average 3-5 seconds" or "long takes 30+ seconds"
++    transitions: string[];           // ["hard-cuts", "dissolves", "match-cuts"]
++  };
++  characterBlocking: {
++    staging: string[];               // ["deep-focus", "foreground-background", "isolated"]
++    movement: string[];              // ["static", "dynamic", "choreographed"]
++  };
++  dialogueDelivery: {
++    pacing: string[];                // ["rapid-fire", "measured", "overlapping"]
++    style: string[];                 // ["naturalistic", "stylized", "improvised"]
++  };
++}
++
++/**
++ * Style module metadata
++ */
++export interface StyleModule {
++  id: string;
++  name: string;
++  category: 'directors' | 'franchises' | 'films' | 'comedy-formats';
++  path: string;
++  guidelines: StyleGuidelines;
++  priority: number;  // 1 = highest priority
++}
++
++/**
++ * Merged style guidelines with priority information
++ */
++export interface MergedStyleGuidelines extends StyleGuidelines {
++  appliedStyles: string[];  // ["Brian De Palma (Primary)", "Alfred Hitchcock (Secondary)"]
++  conflicts: StyleConflict[];
++}
++
++/**
++ * Style conflict information
++ */
++export interface StyleConflict {
++  guideline: string;
++  styles: string[];
++  resolution: string;
++  resolvedBy: string;  // Which style won
++}
++
++/**
++ * Style loader interface
++ */
++export interface StyleLoader {
++  /**
++   * Load a style module from path
++   */
++  loadStyle(modulePath: string): Promise<StyleModule>;
++  
++  /**
++   * Validate a style module path
++   */
++  validateStylePath(modulePath: string): Promise<boolean>;
++  
++  /**
++   * Get available styles in a category
++   */
++  getAvailableStyles(category: string): Promise<string[]>;
++}
++
++/**
++ * Guideline parser interface
++ */
++export interface GuidelineParser {
++  /**
++   * Parse guidelines from markdown content
++   */
++  parseGuidelines(markdown: string): StyleGuidelines;
++  
++  /**
++   * Extract specific section from markdown
++   */
++  extractSection(markdown: string, sectionName: string): string;
++}
++
++/**
++ * Style merger interface
++ */
++export interface StyleMerger {
++  /**
++   * Merge multiple styles with priority-based resolution
++   */
++  mergeStyles(styles: StyleModule[]): MergedStyleGuidelines;
++  
++  /**
++   * Resolve conflicts between styles
++   */
++  resolveConflicts(styles: StyleModule[], guideline: string): string;
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/style/guideline-parser.ts
++/**
++ * Guideline Parser
++ * 
++ * Parses cinematic style guidelines from markdown files
++ */
++
++import { StyleGuidelines, GuidelineParser as IGuidelineParser } from './types';
++
++/**
++ * Guideline parser implementation
++ */
++export class GuidelineParser implements IGuidelineParser {
++  /**
++   * Parse guidelines from markdown content
++   */
++  parseGuidelines(markdown: string): StyleGuidelines {
++    return {
++      cameraWork: {
++        preferredFraming: this.extractList(markdown, 'framing', 'camera'),
++        preferredMovement: this.extractList(markdown, 'movement', 'camera'),
++        preferredAngles: this.extractList(markdown, 'angles', 'camera'),
++        techniques: this.extractList(markdown, 'techniques', 'camera'),
++      },
++      visualCharacteristics: {
++        colorPalette: this.extractList(markdown, 'color', 'visual'),
++        lighting: this.extractList(markdown, 'lighting', 'visual'),
++        composition: this.extractList(markdown, 'composition', 'visual'),
++      },
++      pacingAndRhythm: {
++        editingStyle: this.extractList(markdown, 'editing', 'pacing'),
++        shotDuration: this.extractValue(markdown, 'shot duration', 'pacing') || 'varies',
++        transitions: this.extractList(markdown, 'transitions', 'pacing'),
++      },
++      characterBlocking: {
++        staging: this.extractList(markdown, 'staging', 'blocking'),
++        movement: this.extractList(markdown, 'movement', 'blocking'),
++      },
++      dialogueDelivery: {
++        pacing: this.extractList(markdown, 'pacing', 'dialogue'),
++        style: this.extractList(markdown, 'style', 'dialogue'),
++      },
++    };
++  }
++  
++  /**
++   * Extract a specific section from markdown
++   */
++  extractSection(markdown: string, sectionName: string): string {
++    const regex = new RegExp(`##\\s+${sectionName}[\\s\\S]*?(?=##|$)`, 'i');
++    const match = markdown.match(regex);
++    return match ? match[0] : '';
++  }
++  
++  /**
++   * Extract a list of values from markdown
++   */
++  private extractList(markdown: string, keyword: string, context: string): string[] {
++    const values: string[] = [];
++    
++    // Look for bullet points containing the keyword
++    const lines = markdown.split('\n');
++    for (const line of lines) {
++      const trimmed = line.trim();
++      if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
++        const content = trimmed.substring(1).trim();
++        if (this.matchesKeyword(content, keyword, context)) {
++          const value = this.extractValue(content, keyword, context);
++          if (value) {
++            values.push(value);
++          }
++        }
++      }
++    }
++    
++    // Also look for inline mentions
++    const inlineRegex = new RegExp(`${keyword}[:\\s]+([^.\\n]+)`, 'gi');
++    let match;
++    while ((match = inlineRegex.exec(markdown)) !== null) {
++      const value = match[1].trim();
++      if (value && !values.includes(value)) {
++        values.push(value);
++      }
++    }
++    
++    return values;
++  }
++  
++  /**
++   * Extract a single value from markdown
++   */
++  private extractValue(markdown: string, keyword: string, context: string): string | null {
++    const regex = new RegExp(`${keyword}[:\\s]+([^.\\n]+)`, 'i');
++    const match = markdown.match(regex);
++    return match ? match[1].trim() : null;
++  }
++  
++  /**
++   * Check if content matches keyword in context
++   */
++  private matchesKeyword(content: string, keyword: string, context: string): boolean {
++    const lowerContent = content.toLowerCase();
++    const lowerKeyword = keyword.toLowerCase();
++    const lowerContext = context.toLowerCase();
++    
++    return lowerContent.includes(lowerKeyword) || lowerContent.includes(lowerContext);
++  }
++}
++
++/**
++ * Create a guideline parser
++ */
++export function createGuidelineParser(): GuidelineParser {
++  return new GuidelineParser();
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/style/style-loader.ts
++/**
++ * Style Module Loader
++ * 
++ * Loads cinematic style modules from augment-extensions
++ */
++
++import * as fs from 'fs';
++import * as path from 'path';
++import { promisify } from 'util';
++import { StyleLoader, StyleModule, StyleGuidelines } from './types';
++import { GuidelineParser } from './guideline-parser';
++
++const readFile = promisify(fs.readFile);
++const readdir = promisify(fs.readdir);
++const stat = promisify(fs.stat);
++const access = promisify(fs.access);
++
++/**
++ * Style loader implementation
++ */
++export class CinematicStyleLoader implements StyleLoader {
++  private extensionsRoot: string;
++  private parser: GuidelineParser;
++  
++  constructor(extensionsRoot?: string) {
++    // Default to augment-extensions directory
++    this.extensionsRoot = extensionsRoot || path.join(process.cwd(), 'augment-extensions');
++    this.parser = new GuidelineParser();
++  }
++  
++  /**
++   * Load a style module from path
++   */
++  async loadStyle(modulePath: string): Promise<StyleModule> {
++    // Validate path
++    const isValid = await this.validateStylePath(modulePath);
++    if (!isValid) {
++      throw new Error(`Invalid style module path: ${modulePath}`);
++    }
++    
++    // Parse module path: writing-standards/screenplay/cinematic-styles/[category]/[style-name]
++    const parts = modulePath.split('/');
++    const category = parts[parts.length - 2] as StyleModule['category'];
++    const styleName = parts[parts.length - 1];
++    
++    // Load module.json
++    const moduleJsonPath = path.join(this.extensionsRoot, modulePath, 'module.json');
++    let moduleJson: any;
++    try {
++      const content = await readFile(moduleJsonPath, 'utf-8');
++      moduleJson = JSON.parse(content);
++    } catch (error) {
++      throw new Error(`Failed to load module.json: ${moduleJsonPath}`);
++    }
++    
++    // Load guidelines from rules/ directory
++    const rulesDir = path.join(this.extensionsRoot, modulePath, 'rules');
++    const guidelines = await this.loadGuidelines(rulesDir);
++    
++    return {
++      id: moduleJson.name || styleName,
++      name: moduleJson.displayName || styleName,
++      category,
++      path: modulePath,
++      guidelines,
++      priority: 1  // Will be set by caller
++    };
++  }
++  
++  /**
++   * Load guidelines from rules directory
++   */
++  private async loadGuidelines(rulesDir: string): Promise<StyleGuidelines> {
++    try {
++      const files = await readdir(rulesDir);
++      const mdFiles = files.filter(f => f.endsWith('.md'));
++      
++      if (mdFiles.length === 0) {
++        throw new Error(`No markdown files found in ${rulesDir}`);
++      }
++      
++      // Read all markdown files and merge guidelines
++      let allContent = '';
++      for (const file of mdFiles) {
++        const filePath = path.join(rulesDir, file);
++        const content = await readFile(filePath, 'utf-8');
++        allContent += content + '\n\n';
++      }
++      
++      // Parse guidelines from combined content
++      return this.parser.parseGuidelines(allContent);
++    } catch (error) {
++      throw new Error(`Failed to load guidelines from ${rulesDir}: ${error}`);
++    }
++  }
++  
++  /**
++   * Validate a style module path
++   */
++  async validateStylePath(modulePath: string): Promise<boolean> {
++    try {
++      // Check if path starts with expected prefix
++      if (!modulePath.startsWith('writing-standards/screenplay/cinematic-styles/')) {
++        return false;
++      }
++
++      // Check if directory exists
++      const fullPath = path.join(this.extensionsRoot, modulePath);
++      await access(fullPath, fs.constants.R_OK);
++
++      // Check if module.json exists
++      const moduleJsonPath = path.join(fullPath, 'module.json');
++      await access(moduleJsonPath, fs.constants.R_OK);
++
++      // Check if rules/ directory exists
++      const rulesDir = path.join(fullPath, 'rules');
++      await access(rulesDir, fs.constants.R_OK);
++      const rulesStat = await stat(rulesDir);
++      if (!rulesStat.isDirectory()) {
++        return false;
++      }
++
++      return true;
++    } catch {
++      return false;
++    }
++  }
++  
++  /**
++   * Get available styles in a category
++   */
++  async getAvailableStyles(category: string): Promise<string[]> {
++    const categoryPath = path.join(
++      this.extensionsRoot,
++      'writing-standards/screenplay/cinematic-styles',
++      category
++    );
++    
++    try {
++      const entries = await readdir(categoryPath, { withFileTypes: true });
++      const styles: string[] = [];
++      
++      for (const entry of entries) {
++        if (entry.isDirectory() && entry.name !== 'node_modules') {
++          const modulePath = `writing-standards/screenplay/cinematic-styles/${category}/${entry.name}`;
++          const isValid = await this.validateStylePath(modulePath);
++          if (isValid) {
++            styles.push(entry.name);
++          }
++        }
++      }
++      
++      return styles.sort();
++    } catch {
++      return [];
++    }
++  }
++}
++
++/**
++ * Create a style loader
++ */
++export function createStyleLoader(extensionsRoot?: string): StyleLoader {
++  return new CinematicStyleLoader(extensionsRoot);
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/style/style-merger.ts
++/**
++ * Style Merger
++ * 
++ * Merges multiple cinematic styles with priority-based conflict resolution
++ */
++
++import { StyleMerger as IStyleMerger, StyleModule, MergedStyleGuidelines, StyleConflict } from './types';
++
++/**
++ * Style merger implementation
++ */
++export class StyleMerger implements IStyleMerger {
++  /**
++   * Merge multiple styles with priority-based resolution
++   */
++  mergeStyles(styles: StyleModule[]): MergedStyleGuidelines {
++    if (styles.length === 0) {
++      throw new Error('No styles to merge');
++    }
++    
++    // Sort by priority (1 = highest)
++    const sortedStyles = [...styles].sort((a, b) => a.priority - b.priority);
++    
++    // Start with highest priority style
++    const primary = sortedStyles[0];
++    const merged: MergedStyleGuidelines = {
++      ...primary.guidelines,
++      appliedStyles: sortedStyles.map((s, i) => 
++        `${s.name} (${i === 0 ? 'Primary' : i === 1 ? 'Secondary' : 'Tertiary'})`
++      ),
++      conflicts: []
++    };
++    
++    // Merge additional styles
++    for (let i = 1; i < sortedStyles.length; i++) {
++      const style = sortedStyles[i];
++      this.mergeIntoGuidelines(merged, style, sortedStyles[0]);
++    }
++    
++    return merged;
++  }
++  
++  /**
++   * Merge a style into existing guidelines
++   */
++  private mergeIntoGuidelines(
++    target: MergedStyleGuidelines,
++    source: StyleModule,
++    primary: StyleModule
++  ): void {
++    // Merge camera work
++    this.mergeArrayField(target.cameraWork, 'preferredFraming', source.guidelines.cameraWork.preferredFraming, target, source, primary);
++    this.mergeArrayField(target.cameraWork, 'preferredMovement', source.guidelines.cameraWork.preferredMovement, target, source, primary);
++    this.mergeArrayField(target.cameraWork, 'preferredAngles', source.guidelines.cameraWork.preferredAngles, target, source, primary);
++    this.mergeArrayField(target.cameraWork, 'techniques', source.guidelines.cameraWork.techniques, target, source, primary);
++    
++    // Merge visual characteristics
++    this.mergeArrayField(target.visualCharacteristics, 'colorPalette', source.guidelines.visualCharacteristics.colorPalette, target, source, primary);
++    this.mergeArrayField(target.visualCharacteristics, 'lighting', source.guidelines.visualCharacteristics.lighting, target, source, primary);
++    this.mergeArrayField(target.visualCharacteristics, 'composition', source.guidelines.visualCharacteristics.composition, target, source, primary);
++    
++    // Merge pacing and rhythm
++    this.mergeArrayField(target.pacingAndRhythm, 'editingStyle', source.guidelines.pacingAndRhythm.editingStyle, target, source, primary);
++    this.mergeArrayField(target.pacingAndRhythm, 'transitions', source.guidelines.pacingAndRhythm.transitions, target, source, primary);
++    
++    // Merge character blocking
++    this.mergeArrayField(target.characterBlocking, 'staging', source.guidelines.characterBlocking.staging, target, source, primary);
++    this.mergeArrayField(target.characterBlocking, 'movement', source.guidelines.characterBlocking.movement, target, source, primary);
++    
++    // Merge dialogue delivery
++    this.mergeArrayField(target.dialogueDelivery, 'pacing', source.guidelines.dialogueDelivery.pacing, target, source, primary);
++    this.mergeArrayField(target.dialogueDelivery, 'style', source.guidelines.dialogueDelivery.style, target, source, primary);
++  }
++  
++  /**
++   * Merge an array field with conflict detection
++   */
++  private mergeArrayField(
++    targetObj: any,
++    field: string,
++    sourceValues: string[],
++    merged: MergedStyleGuidelines,
++    source: StyleModule,
++    primary: StyleModule
++  ): void {
++    const targetValues = targetObj[field] as string[];
++    
++    for (const value of sourceValues) {
++      // Check if value conflicts with existing values
++      const conflicts = targetValues.filter(tv => this.isConflicting(tv, value));
++      
++      if (conflicts.length > 0) {
++        // Record conflict
++        merged.conflicts.push({
++          guideline: `${field}: ${value}`,
++          styles: [primary.name, source.name],
++          resolution: `Using ${primary.name}'s guideline: ${conflicts[0]}`,
++          resolvedBy: primary.name
++        });
++      } else if (!targetValues.includes(value)) {
++        // Add complementary value
++        targetValues.push(value);
++      }
++    }
++  }
++  
++  /**
++   * Check if two values are conflicting
++   */
++  private isConflicting(value1: string, value2: string): boolean {
++    const v1 = value1.toLowerCase();
++    const v2 = value2.toLowerCase();
++    
++    // Define conflicting pairs
++    const conflicts = [
++      ['fast-paced', 'slow-paced'],
++      ['fast-paced', 'contemplative'],
++      ['vibrant', 'desaturated'],
++      ['vibrant', 'monochrome'],
++      ['high-contrast', 'soft'],
++      ['symmetrical', 'asymmetrical'],
++      ['static', 'dynamic'],
++      ['rapid-fire', 'measured'],
++      ['naturalistic', 'stylized']
++    ];
++    
++    for (const [a, b] of conflicts) {
++      if ((v1.includes(a) && v2.includes(b)) || (v1.includes(b) && v2.includes(a))) {
++        return true;
++      }
++    }
++    
++    return false;
++  }
++  
++  /**
++   * Resolve conflicts between styles
++   */
++  resolveConflicts(styles: StyleModule[], guideline: string): string {
++    // Always use highest priority style
++    return styles[0].name;
++  }
++}
++
++/**
++ * Create a style merger
++ */
++export function createStyleMerger(): StyleMerger {
++  return new StyleMerger();
++}
++
+
+*** End Patch

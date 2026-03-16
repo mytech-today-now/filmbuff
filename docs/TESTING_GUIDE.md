@@ -18,36 +18,41 @@ This guide provides comprehensive documentation for testing the Augment Extensio
 
 ### Test Frameworks
 
-The project uses two complementary testing approaches:
+The repository currently uses three complementary test lanes:
 
-1. **Vitest** - Modern, fast unit and integration testing
-   - Location: `tests/` directory
+1. **Jest repo suite**
+   - Location: `__tests__/`
+   - Config: `jest.config.js`
+   - Purpose: package smoke tests plus the Jest wrapper around `test-all.ts`
+
+2. **Compatibility Jest suite**
+   - Location: `tests/unit/utils/extractCommandHelp*.test.ts`
+   - Config: `jest.compat.config.js`
+   - Purpose: keep targeted compatibility coverage runnable without migrating the whole `tests/` tree to Jest
+
+3. **Vitest unit/integration suite**
+   - Location: `tests/`
    - Config: `vitest.config.ts`
    - Coverage: V8 provider
-   - Target: ≥80% line, ≥70% branch
+   - Purpose: broader unit and integration coverage for the CLI codebase
+   - Note: this lane requires a local `vitest` devDependency and currently fails fast with an install hint if `vitest` is not present
 
-2. **Standalone Test Suite** - Comprehensive CLI command testing
-   - Location: `test-all.ts`
-   - Sandboxed execution
-   - JSONL result output
-   - Real-time progress indicators
+The standalone CLI regression suite still lives in `test-all.ts` and is normally exercised through `npm run test:standalone`.
 
 ### Directory Structure
 
 ```
-augment-extensions/
-├── tests/
-│   ├── unit/              # Unit tests
-│   │   ├── modules/       # Module operation tests
-│   │   └── collections/   # Collection management tests
-│   ├── integration/       # Integration tests
-│   ├── helpers/           # Test utilities
-│   │   ├── test-env.ts    # TestEnvironment class
-│   │   ├── factories.ts   # Test data factories
-│   │   └── matchers.ts    # Custom matchers
-│   └── setup.ts           # Global test setup
-├── test-all.ts            # Standalone test suite
-└── vitest.config.ts       # Vitest configuration
+filmbuff/
+├── __tests__/             # Jest repo-level smoke/package tests
+├── tests/                 # Vitest-oriented unit/integration tests
+│   ├── unit/
+│   ├── integration/
+│   ├── helpers/
+│   └── setup.ts
+├── test-all.ts            # Standalone CLI regression suite
+├── jest.config.js
+├── jest.compat.config.js
+└── vitest.config.ts
 ```
 
 ### Core Test Components
@@ -93,6 +98,28 @@ expect(collection).toHaveCollection('web-dev');
 
 ## Running Tests
 
+### Stable Repo Checks
+
+```bash
+# Default stable repo entrypoint
+npm test
+
+# Explicit stable subset
+npm run test:stable
+
+# Focused compatibility lane
+npm run test:compat
+
+# Broader Jest lanes (currently under repair)
+npm run test:jest
+npm run test:repo
+
+# Comprehensive CLI regression wrapper
+npm run test:standalone
+```
+
+`npm test` intentionally targets the known-green compatibility subset while the broader Jest lane is being repaired.
+
 ### Vitest Tests
 
 ```bash
@@ -101,9 +128,6 @@ npm run test:vitest
 
 # Watch mode
 npm run test:vitest:watch
-
-# With UI
-npm run test:vitest:ui
 
 # Coverage report
 npm run test:vitest:coverage
@@ -118,21 +142,32 @@ npm run test:unit
 npm run test:integration
 ```
 
+If `vitest` is not installed locally, these commands fail immediately with an actionable install message instead of silently skipping the suite.
+
 ### Standalone Test Suite
 
 ```bash
-# Run comprehensive CLI tests
-npm run test:all
+# Run the Jest wrapper around the standalone CLI regression suite
+npm run test:standalone
 
-# Or directly
+# Run the full standalone script directly
 npx tsx test-all.ts
+
+# Run every configured repo lane (requires vitest to be installed)
+npm run test:all
 ```
 
 ### All Tests
 
 ```bash
-# Run both Vitest and standalone tests
+# Stable default: compatibility subset
 npm test
+
+# Broader repo-wide Jest lane
+npm run test:repo
+
+# Full suite including the Vitest lane
+npm run test:all
 ```
 
 ## Writing New Tests
@@ -242,7 +277,7 @@ function testMyNewCommands(runner: TestRunner): void {
 
 1. **Run specific test**: `npx vitest run tests/unit/modules/link.test.ts`
 2. **Use debug mode**: `DEBUG=* npx vitest run`
-3. **Use Vitest UI**: `npm run test:vitest:ui`
+3. **Run a focused npm lane**: `npm run test:unit`
 
 ### Common Issues
 

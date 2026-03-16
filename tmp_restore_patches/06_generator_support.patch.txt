@@ -1,0 +1,1034 @@
+*** Begin Patch
+*** Add File: cli/src/commands/generate-shot-list/generator/validator.ts
++/**
++ * Shot List Validator
++ * 
++ * Validates shot lists against character and duration limits
++ */
++
++import { ShotList, Shot, Warning, GeneratorConfig } from './types';
++
++/**
++ * Validator class for shot list validation
++ */
++export class ShotListValidator {
++  /**
++   * Validate entire shot list
++   */
++  validate(shotList: ShotList, config: GeneratorConfig): Warning[] {
++    const warnings: Warning[] = [];
++
++    // Validate each shot
++    for (const shot of shotList.shots) {
++      warnings.push(...this.validateShot(shot, config));
++    }
++
++    return warnings;
++  }
++
++  /**
++   * Validate individual shot
++   */
++  validateShot(shot: Shot, config: GeneratorConfig): Warning[] {
++    const warnings: Warning[] = [];
++
++    // Validate character count
++    warnings.push(...this.validateCharacterCount(shot, config));
++
++    // Validate duration
++    warnings.push(...this.validateDuration(shot, config));
++
++    // Quality gates: Validate field consistency
++    warnings.push(...this.validateFieldConsistency(shot));
++
++    return warnings;
++  }
++
++  /**
++   * Validate character count against limits
++   */
++  private validateCharacterCount(shot: Shot, config: GeneratorConfig): Warning[] {
++    const warnings: Warning[] = [];
++    const warningThreshold = config.maxCharacters * (config.warningThreshold / 100);
++
++    // Error: Exceeds limit
++    if (shot.characterCount > config.maxCharacters) {
++      warnings.push({
++        type: 'character-limit-error',
++        message: `Shot ${shot.number} exceeds character limit (${shot.characterCount.toLocaleString()}/${config.maxCharacters.toLocaleString()})`,
++        shotNumber: shot.number,
++        severity: 'error',
++        suggestion: 'Reduce description length or split into multiple shots'
++      });
++    }
++    // Warning: Approaching limit (90% threshold)
++    else if (shot.characterCount >= warningThreshold) {
++      const percentage = Math.round((shot.characterCount / config.maxCharacters) * 100);
++      warnings.push({
++        type: 'character-limit-warning',
++        message: `Shot ${shot.number} approaching character limit (${shot.characterCount.toLocaleString()}/${config.maxCharacters.toLocaleString()}, ${percentage}%)`,
++        shotNumber: shot.number,
++        severity: 'warning',
++        suggestion: 'Consider reducing description length'
++      });
++    }
++
++    return warnings;
++  }
++
++  /**
++   * Validate duration against limits
++   */
++  private validateDuration(shot: Shot, config: GeneratorConfig): Warning[] {
++    const warnings: Warning[] = [];
++    const warningThreshold = config.maxShotLength * (config.warningThreshold / 100);
++
++    // Error: Exceeds limit
++    if (shot.duration > config.maxShotLength) {
++      warnings.push({
++        type: 'duration-limit-error',
++        message: `Shot ${shot.number} exceeds duration limit (${shot.duration}s/${config.maxShotLength}s)`,
++        shotNumber: shot.number,
++        severity: 'error',
++        suggestion: 'Split this shot into multiple shorter shots'
++      });
++    }
++    // Warning: Approaching limit (90% threshold)
++    else if (shot.duration >= warningThreshold) {
++      const percentage = Math.round((shot.duration / config.maxShotLength) * 100);
++      warnings.push({
++        type: 'duration-limit-warning',
++        message: `Shot ${shot.number} approaching duration limit (${shot.duration}s/${config.maxShotLength}s, ${percentage}%)`,
++        shotNumber: shot.number,
++        severity: 'warning',
++        suggestion: 'Consider splitting into multiple shots'
++      });
++    }
++
++    return warnings;
++  }
++
++  /**
++   * Quality Gate: Validate field consistency
++   * Checks for conflicts and inconsistencies between Description, Actions, Characters, and Blocking
++   */
++  private validateFieldConsistency(shot: Shot): Warning[] {
++    const warnings: Warning[] = [];
++
++    // Check for character-action conflicts
++    warnings.push(...this.detectDescriptionActionConflicts(shot));
++
++    // Check for character consistency
++    warnings.push(...this.detectCharacterInconsistencies(shot));
++
++    // Check for field duplication
++    warnings.push(...this.detectFieldDuplication(shot));
++
++    return warnings;
++  }
++
++  /**
++   * Detect conflicts between Description and Actions fields
++   * Example: Description says "waving staff" but Actions says "pauses, sighs"
++   */
++  private detectDescriptionActionConflicts(shot: Shot): Warning[] {
++    const warnings: Warning[] = [];
++
++    // Extract action verbs from description
++    const descriptionActionVerbs = this.extractActionVerbs(shot.description);
++    const actionsActionVerbs = this.extractActionVerbs(shot.actions);
++
++    // Check if description contains character actions that conflict with Actions field
++    if (descriptionActionVerbs.length > 0 && actionsActionVerbs.length > 0) {
++      // Check for conflicting verbs
++      const conflicts = descriptionActionVerbs.filter(descVerb =>
++        !actionsActionVerbs.some(actVerb => actVerb.includes(descVerb) || descVerb.includes(actVerb))
++      );
++
++      if (conflicts.length > 0) {
++        warnings.push({
++          type: 'description-action-conflict',
++          message: `Shot ${shot.number}: Description contains character actions ("${conflicts.join('", "')}") that may conflict with Actions field`,
++          shotNumber: shot.number,
++          severity: 'warning',
++          suggestion: 'Description should focus on environment/set only, not character actions'
++        });
++      }
++    }
++
++    return warnings;
++  }
++
++  /**
++   * Detect character inconsistencies
++   * Example: Description mentions characters but Characters field is empty
++   */
++  private detectCharacterInconsistencies(shot: Shot): Warning[] {
++    const warnings: Warning[] = [];
++
++    // Check if description mentions character names but Characters field is empty
++    const characterMentions = this.extractCharacterNames(shot.description);
++
++    if (characterMentions.length > 0 && (!shot.characters || shot.characters.length === 0)) {
++      warnings.push({
++        type: 'description-character-inconsistency',
++        message: `Shot ${shot.number}: Description mentions characters (${characterMentions.join(', ')}) but Characters field is empty`,
++        shotNumber: shot.number,
++        severity: 'warning',
++        suggestion: 'Character introductions should be in Characters field, not Description'
++      });
++    }
++
++    return warnings;
++  }
++
++  /**
++   * Detect field duplication
++   * Example: Same information appears in both Description and Actions
++   */
++  private detectFieldDuplication(shot: Shot): Warning[] {
++    const warnings: Warning[] = [];
++
++    // Check if description and actions contain similar content
++    const descWords = shot.description.toLowerCase().split(/\s+/);
++    const actionWords = shot.actions.toLowerCase().split(/\s+/);
++
++    // Find common phrases (3+ words)
++    const commonPhrases = this.findCommonPhrases(descWords, actionWords, 3);
++
++    if (commonPhrases.length > 0) {
++      warnings.push({
++        type: 'field-duplication',
++        message: `Shot ${shot.number}: Description and Actions contain duplicate information`,
++        shotNumber: shot.number,
++        severity: 'warning',
++        suggestion: 'Remove duplicate content - Description should be environment only, Actions should be character actions only'
++      });
++    }
++
++    return warnings;
++  }
++
++  /**
++   * Extract action verbs from text
++   * Uses context-aware detection to avoid false positives like "looks like"
++   */
++  private extractActionVerbs(text: string): string[] {
++    const actionVerbs = [
++      'waving', 'waved', 'wave',
++      'pausing', 'paused', 'pause', 'pauses',
++      'sighing', 'sighed', 'sigh', 'sighs',
++      'standing', 'stood', 'stand', 'stands',
++      'sitting', 'sat', 'sit', 'sits',
++      'walking', 'walked', 'walk', 'walks',
++      'running', 'ran', 'run', 'runs',
++      'looking', 'looked', 'look', 'looks',
++      'turning', 'turned', 'turn', 'turns',
++      'moving', 'moved', 'move', 'moves',
++      'gesturing', 'gestured', 'gesture', 'gestures',
++      'pointing', 'pointed', 'point', 'points',
++      'reaching', 'reached', 'reach', 'reaches',
++      'grabbing', 'grabbed', 'grab', 'grabs',
++      'holding', 'held', 'hold', 'holds',
++      'carrying', 'carried', 'carry', 'carries'
++    ];
++
++    // Descriptive phrases that should NOT be flagged as actions
++    const descriptivePhrases = [
++      'looks like',
++      'looks similar',
++      'looks typical',
++      'appears like',
++      'appears similar',
++      'stands out',
++      'stands for',
++      'holds up',
++      'holds true'
++    ];
++
++    const found: string[] = [];
++    const lowerText = text.toLowerCase();
++
++    // First, check if any descriptive phrases are present
++    const hasDescriptivePhrase = descriptivePhrases.some(phrase => lowerText.includes(phrase));
++
++    for (const verb of actionVerbs) {
++      if (lowerText.includes(verb)) {
++        // If this verb is part of a descriptive phrase, skip it
++        let isDescriptive = false;
++
++        for (const phrase of descriptivePhrases) {
++          if (phrase.includes(verb) && lowerText.includes(phrase)) {
++            isDescriptive = true;
++            break;
++          }
++        }
++
++        if (!isDescriptive) {
++          found.push(verb);
++        }
++      }
++    }
++
++    return found;
++  }
++
++  /**
++   * Extract character names from text (capitalized words)
++   */
++  private extractCharacterNames(text: string): string[] {
++    // Look for character introductions with parenthetical descriptions
++    // Example: "WIZARD CLIF HIGH (mid-70s, magnificent long white beard...)"
++    const characterIntroPattern = /([A-Z][A-Z\s]+)\s*\([^)]*\)/g;
++    const matches = text.match(characterIntroPattern) || [];
++
++    // Extract just the name part (before the parenthesis)
++    const names = matches.map(match => {
++      const nameMatch = match.match(/([A-Z][A-Z\s]+)\s*\(/);
++      return nameMatch ? nameMatch[1].trim() : '';
++    }).filter(name => name.length > 0);
++
++    return [...new Set(names)];
++  }
++
++  /**
++   * Find common phrases between two word arrays
++   */
++  private findCommonPhrases(words1: string[], words2: string[], minLength: number): string[] {
++    const phrases: string[] = [];
++
++    for (let i = 0; i < words1.length - minLength + 1; i++) {
++      const phrase = words1.slice(i, i + minLength).join(' ');
++      const phrase2 = words2.join(' ');
++
++      if (phrase2.includes(phrase)) {
++        phrases.push(phrase);
++      }
++    }
++
++    return phrases;
++  }
++
++  /**
++   * Get validation summary
++   */
++  getValidationSummary(warnings: Warning[]): {
++    totalWarnings: number;
++    totalErrors: number;
++    byType: Record<string, number>;
++  } {
++    const summary = {
++      totalWarnings: warnings.filter(w => w.severity === 'warning').length,
++      totalErrors: warnings.filter(w => w.severity === 'error').length,
++      byType: {} as Record<string, number>
++    };
++
++    // Count by type
++    for (const warning of warnings) {
++      summary.byType[warning.type] = (summary.byType[warning.type] || 0) + 1;
++    }
++
++    return summary;
++  }
++}
++
++/**
++ * Create validator instance
++ */
++export function createValidator(): ShotListValidator {
++  return new ShotListValidator();
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/generator/scene-segmenter.ts
++/**
++ * Scene Segmenter
++ * 
++ * Implements scene-to-shot segmentation logic with duration-based segmentation,
++ * natural break points (dialogue, action beats), and max duration enforcement.
++ * 
++ * Task: bd-shot-list-3.2
++ */
++
++import { Scene, SceneElement, DialogueElement, ActionElement } from '../parser/types';
++
++/**
++ * Segmentation configuration
++ */
++export interface SegmentationConfig {
++  maxShotLength: number; // Maximum shot duration in seconds
++  targetShotLength: number; // Target shot duration in seconds
++  minShotLength: number; // Minimum shot duration in seconds
++}
++
++/**
++ * Scene segment (will become a shot)
++ */
++export interface SceneSegment {
++  elements: SceneElement[];
++  estimatedDuration: number;
++  breakReason: 'duration' | 'dialogue' | 'action-beat' | 'scene-end';
++}
++
++/**
++ * Duration estimation constants (in seconds)
++ */
++const DURATION_ESTIMATES = {
++  ACTION_LINE: 3, // Average seconds per action line
++  DIALOGUE_WORD: 0.4, // Average seconds per word of dialogue
++  TRANSITION: 1, // Transition duration
++  NOTE: 0 // Notes don't add screen time
++};
++
++/**
++ * Scene Segmenter class
++ */
++export class SceneSegmenter {
++  private config: SegmentationConfig;
++
++  constructor(config: SegmentationConfig) {
++    this.config = config;
++  }
++
++  /**
++   * Segment a scene into shots
++   */
++  segment(scene: Scene): SceneSegment[] {
++    const segments: SceneSegment[] = [];
++    let currentSegment: SceneElement[] = [];
++    let currentDuration = 0;
++
++    for (let i = 0; i < scene.elements.length; i++) {
++      const element = scene.elements[i];
++      const elementDuration = this.estimateElementDuration(element);
++
++      // Check if adding this element would exceed max duration
++      if (currentDuration + elementDuration > this.config.maxShotLength && currentSegment.length > 0) {
++        // Create segment at natural break point
++        segments.push({
++          elements: [...currentSegment],
++          estimatedDuration: currentDuration,
++          breakReason: 'duration'
++        });
++        currentSegment = [];
++        currentDuration = 0;
++      }
++
++      // Add element to current segment
++      currentSegment.push(element);
++      currentDuration += elementDuration;
++
++      // Check for natural break points
++      const nextElement = scene.elements[i + 1];
++      if (this.isNaturalBreakPoint(element, nextElement, currentDuration)) {
++        segments.push({
++          elements: [...currentSegment],
++          estimatedDuration: currentDuration,
++          breakReason: this.getBreakReason(element, nextElement, currentDuration)
++        });
++        currentSegment = [];
++        currentDuration = 0;
++      }
++    }
++
++    // Add remaining elements as final segment
++    if (currentSegment.length > 0) {
++      segments.push({
++        elements: currentSegment,
++        estimatedDuration: currentDuration,
++        breakReason: 'scene-end'
++      });
++    }
++
++    return segments;
++  }
++
++  /**
++   * Estimate duration of a scene element
++   */
++  private estimateElementDuration(element: SceneElement): number {
++    switch (element.type) {
++      case 'action':
++        return DURATION_ESTIMATES.ACTION_LINE;
++      
++      case 'dialogue':
++        const dialogueElement = element as DialogueElement;
++        const wordCount = dialogueElement.dialogue.speech.split(/\s+/).length;
++        return wordCount * DURATION_ESTIMATES.DIALOGUE_WORD;
++      
++      case 'transition':
++        return DURATION_ESTIMATES.TRANSITION;
++      
++      case 'note':
++        return DURATION_ESTIMATES.NOTE;
++      
++      default:
++        return 0;
++    }
++  }
++
++  /**
++   * Check if this is a natural break point between shots
++   */
++  private isNaturalBreakPoint(
++    current: SceneElement,
++    next: SceneElement | undefined,
++    currentDuration: number
++  ): boolean {
++    if (!next) {
++      return false; // End of scene, not a break point
++    }
++
++    // Break after dialogue if we're near target duration
++    if (current.type === 'dialogue' && currentDuration >= this.config.targetShotLength) {
++      return true;
++    }
++
++    // Break at action beats (action followed by dialogue or vice versa)
++    if (current.type === 'action' && next.type === 'dialogue' && currentDuration >= this.config.minShotLength) {
++      return true;
++    }
++
++    if (current.type === 'dialogue' && next.type === 'action' && currentDuration >= this.config.minShotLength) {
++      return true;
++    }
++
++    return false;
++  }
++
++  /**
++   * Get the reason for the break
++   */
++  private getBreakReason(
++    current: SceneElement,
++    next: SceneElement | undefined,
++    currentDuration: number
++  ): 'duration' | 'dialogue' | 'action-beat' | 'scene-end' {
++    if (!next) {
++      return 'scene-end';
++    }
++
++    if (currentDuration >= this.config.maxShotLength) {
++      return 'duration';
++    }
++
++    if (current.type === 'dialogue') {
++      return 'dialogue';
++    }
++
++    return 'action-beat';
++  }
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/generator/ai-blocking-extractor.ts
++/**
++ * AI-Powered Blocking Extractor
++ * 
++ * Uses Claude Sonnet 4.6 to extract detailed character blocking and spatial positions
++ * from screenplay action lines. Infers stage positions, relative positions, and
++ * maintains spatial consistency across shots.
++ */
++
++import Anthropic from '@anthropic-ai/sdk';
++
++export interface CharacterBlockingPosition {
++  character: string;
++  position: string; // Detailed position description
++  stagePosition?: string; // stage left/right/center, upstage/downstage
++  relativePosition?: string; // beside X, behind Y, etc.
++  action?: string; // sits, stands, walks, etc.
++}
++
++export interface CharacterDescription {
++  character: string;
++  physicalAppearance: string; // Detailed physical description (200-800 chars)
++  wardrobe: string; // Detailed wardrobe description (200-800 chars)
++  emotion?: string; // Current emotional state
++}
++
++export interface BlockingExtractionResult {
++  characterPositions: CharacterBlockingPosition[];
++  characterDescriptions: CharacterDescription[]; // Detailed character descriptions
++  setDescription: string; // Pure environment description (400-800 chars)
++  characterActions: string[]; // Movement/action descriptions only
++  soundEffects: string[]; // Sound effect descriptions
++}
++
++export class AIBlockingExtractor {
++  private client: Anthropic;
++  private characterDescriptionCache: Map<string, CharacterDescription> = new Map();
++  private styleGuidelines: any | null = null; // MergedStyleGuidelines type
++
++  constructor(apiKey?: string, styleGuidelines?: any) {
++    this.client = new Anthropic({
++      apiKey: apiKey || process.env.ANTHROPIC_API_KEY,
++    });
++    this.styleGuidelines = styleGuidelines || null;
++  }
++
++  /**
++   * Clear the character description cache (call at start of new screenplay)
++   */
++  clearCache(): void {
++    this.characterDescriptionCache.clear();
++  }
++
++  /**
++   * Get cached character description
++   */
++  getCachedDescription(characterName: string): CharacterDescription | undefined {
++    return this.characterDescriptionCache.get(characterName);
++  }
++
++  /**
++   * Extract blocking, set description, and actions from action lines using AI
++   */
++  async extractBlocking(
++    actionLines: string[],
++    characterNames: string[],
++    previousPositions?: Map<string, CharacterBlockingPosition>
++  ): Promise<BlockingExtractionResult> {
++    const actionText = actionLines.join('\n');
++
++    // Identify which characters need descriptions (not in cache)
++    const charactersNeedingDescriptions = characterNames.filter(
++      name => !this.characterDescriptionCache.has(name)
++    );
++
++    const prompt = this.buildBlockingPrompt(
++      actionText,
++      characterNames,
++      previousPositions,
++      charactersNeedingDescriptions
++    );
++
++    try {
++      const response = await this.client.messages.create({
++        model: 'claude-sonnet-4-6',
++        max_tokens: 4096, // Increased for verbose descriptions
++        temperature: 0.0, // Deterministic for consistency
++        messages: [{
++          role: 'user',
++          content: prompt
++        }]
++      });
++
++      const content = response.content[0];
++      if (content.type === 'text') {
++        const result = this.parseBlockingResponse(content.text, characterNames);
++
++        // Cache new character descriptions
++        for (const desc of result.characterDescriptions) {
++          if (!this.characterDescriptionCache.has(desc.character)) {
++            this.characterDescriptionCache.set(desc.character, desc);
++          }
++        }
++
++        // Add cached descriptions for characters that didn't need new ones
++        for (const name of characterNames) {
++          const cached = this.characterDescriptionCache.get(name);
++          if (cached && !result.characterDescriptions.find(d => d.character === name)) {
++            result.characterDescriptions.push(cached);
++          }
++        }
++
++        return result;
++      }
++
++      throw new Error('Unexpected response format from AI');
++    } catch (error) {
++      console.error('AI blocking extraction failed:', error);
++      // Fallback to basic extraction
++      return this.fallbackExtraction(actionLines, characterNames);
++    }
++  }
++
++  /**
++   * Build prompt for AI blocking extraction
++   */
++  private buildBlockingPrompt(
++    actionText: string,
++    characterNames: string[],
++    previousPositions?: Map<string, CharacterBlockingPosition>,
++    charactersNeedingDescriptions?: string[]
++  ): string {
++    let prompt = `You are a screenplay blocking analyzer. Extract character positions, set descriptions, and actions from the following action lines.
++
++**Action Lines:**
++${actionText}
++
++**Characters in Scene:**
++${characterNames.join(', ')}
++
++`;
++
++    if (previousPositions && previousPositions.size > 0) {
++      prompt += `**Previous Character Positions (maintain unless explicitly changed):**
++`;
++      for (const [name, pos] of previousPositions.entries()) {
++        prompt += `- ${name}: ${pos.position}`;
++        if (pos.stagePosition) prompt += ` (${pos.stagePosition})`;
++        prompt += '\n';
++      }
++      prompt += '\n';
++    }
++
++    // Add cached character descriptions to reduce redundant generation
++    const cachedDescriptions: string[] = [];
++    for (const name of characterNames) {
++      const cached = this.characterDescriptionCache.get(name);
++      if (cached) {
++        cachedDescriptions.push(`- ${name}: ${cached.physicalAppearance.substring(0, 100)}... (wardrobe: ${cached.wardrobe.substring(0, 100)}...)`);
++      }
++    }
++
++    if (cachedDescriptions.length > 0) {
++      prompt += `**Existing Character Descriptions (DO NOT regenerate these):**
++${cachedDescriptions.join('\n')}
++
++`;
++    }
++
++    // Add style guidelines if available
++    if (this.styleGuidelines) {
++      prompt += `**Cinematic Style Guidelines:**
++`;
++
++      // Add applied styles
++      if (this.styleGuidelines.appliedStyles && this.styleGuidelines.appliedStyles.length > 0) {
++        prompt += `Active Styles: ${this.styleGuidelines.appliedStyles.join(', ')}\n\n`;
++      }
++
++      // Add visual characteristics
++      if (this.styleGuidelines.visualCharacteristics) {
++        const vc = this.styleGuidelines.visualCharacteristics;
++        if (vc.colorPalette && vc.colorPalette.length > 0) {
++          prompt += `Color Palette: ${vc.colorPalette.join(', ')}\n`;
++        }
++        if (vc.lighting && vc.lighting.length > 0) {
++          prompt += `Lighting: ${vc.lighting.join(', ')}\n`;
++        }
++        if (vc.composition && vc.composition.length > 0) {
++          prompt += `Composition: ${vc.composition.join(', ')}\n`;
++        }
++      }
++
++      // Add character blocking style
++      if (this.styleGuidelines.characterBlocking) {
++        const cb = this.styleGuidelines.characterBlocking;
++        if (cb.staging && cb.staging.length > 0) {
++          prompt += `Staging: ${cb.staging.join(', ')}\n`;
++        }
++        if (cb.movement && cb.movement.length > 0) {
++          prompt += `Movement: ${cb.movement.join(', ')}\n`;
++        }
++      }
++
++      prompt += `\n**IMPORTANT**: Apply these style guidelines to ALL descriptions (set, characters, wardrobe). Descriptions should reflect the visual language and aesthetic of the active cinematic style.\n\n`;
++    }
++
++    const needsDescriptions = charactersNeedingDescriptions && charactersNeedingDescriptions.length > 0;
++
++    prompt += `**Instructions:**
++1. **Character Blocking**: For each character, extract their detailed spatial position
++   - Include stage position (stage left/right/center, upstage/downstage/center stage)
++   - Include relative positions (beside X, behind Y, at Z)
++   - Include action/posture (sits, stands, walks, etc.)
++   - Infer positions when not explicit (e.g., "beside her" → "beside CAPTAIN")
++   - Infer stage positions for set pieces (e.g., "tactical station" → "stage left, upstage")
++   - Use best guess for ambiguous positions based on typical stage layouts
++
++`;
++
++    if (needsDescriptions) {
++      prompt += `2. **Character Descriptions**: ONLY for these NEW characters: ${charactersNeedingDescriptions!.join(', ')}
++   - Physical Appearance (200-800 characters): Detailed physical description including face, body, age, distinguishing features
++   - Wardrobe (200-800 characters): Detailed clothing description including colors, style, materials, accessories
++   - Emotion (optional): Current emotional state if evident
++   - Expand on any hints in the text with rich cinematic details
++   - Make descriptions vivid and immersive
++   - IMPORTANT: Aim for 200-800 characters per character field
++   - DO NOT generate descriptions for characters already listed above
++
++`;
++    } else {
++      prompt += `2. **Character Descriptions**: All characters already have descriptions (see above). DO NOT generate new ones.
++
++`;
++    }
++
++    prompt += `3. **Set Description**: Create a DETAILED, VERBOSE environment description (400-800 characters)
++   - Expand on the basic set description with rich visual details
++   - Describe physical environment (walls, doors, furniture, props, materials, textures)
++   - Describe lighting, atmosphere, mood, visual style
++   - Add cinematic details that enhance the scene
++   - Make it vivid and immersive
++   - NO character positions or actions
++   - IMPORTANT: Aim for 400-800 characters of detailed description
++
++4. **Character Actions**: Extract ONLY character movements and actions
++   - Movements (walks, runs, enters, exits)
++   - Physical actions (picks up, opens, closes)
++   - NOT static positions (sits, stands at)
++
++5. **Sound Effects**: Extract sound effect descriptions
++   - Sounds, noises, music
++   - Format: "SOUND EFFECT: description"
++
++**Output Format (JSON):**
++\`\`\`json
++{
++  "characterPositions": [
++    {
++      "character": "CHARACTER NAME",
++      "position": "detailed position description",
++      "stagePosition": "stage left/right/center, upstage/downstage/center stage",
++      "relativePosition": "beside X, behind Y, at Z (optional)",
++      "action": "sits/stands/etc (optional)"
++    }
++  ],
++  "characterDescriptions": [${needsDescriptions ? `
++    {
++      "character": "CHARACTER NAME (ONLY NEW CHARACTERS)",
++      "physicalAppearance": "detailed physical description (200-800 chars)",
++      "wardrobe": "detailed wardrobe description (200-800 chars)",
++      "emotion": "emotional state (optional)"
++    }` : ' // Empty array - all characters already described'}
++  ],
++  "setDescription": "detailed environment description (400-800 chars)",
++  "characterActions": ["movement/action descriptions"],
++  "soundEffects": ["sound effect descriptions"]
++}
++\`\`\`
++
++Respond with ONLY the JSON object, no additional text.`;
++
++    return prompt;
++  }
++
++  /**
++   * Parse AI response into structured blocking data
++   */
++  private parseBlockingResponse(responseText: string, characterNames: string[]): BlockingExtractionResult {
++    try {
++      // Extract JSON from response (may be wrapped in ```json```)
++      const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/({[\s\S]*})/);
++      const jsonText = jsonMatch ? jsonMatch[1] : responseText;
++
++      const parsed = JSON.parse(jsonText);
++
++      return {
++        characterPositions: parsed.characterPositions || [],
++        characterDescriptions: parsed.characterDescriptions || [],
++        setDescription: parsed.setDescription || '',
++        characterActions: parsed.characterActions || [],
++        soundEffects: parsed.soundEffects || []
++      };
++    } catch (error) {
++      console.error('Failed to parse AI blocking response:', error);
++      console.error('Response text:', responseText);
++      return {
++        characterPositions: [],
++        characterDescriptions: [],
++        setDescription: '',
++        characterActions: [],
++        soundEffects: []
++      };
++    }
++  }
++
++  /**
++   * Fallback extraction when AI fails
++   */
++  private fallbackExtraction(actionLines: string[], characterNames: string[]): BlockingExtractionResult {
++    return {
++      characterPositions: characterNames.map(name => ({
++        character: name,
++        position: 'in scene',
++        stagePosition: undefined,
++        relativePosition: undefined,
++        action: undefined
++      })),
++      characterDescriptions: [],
++      setDescription: actionLines.join('. '),
++      characterActions: [],
++      soundEffects: []
++    };
++  }
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/generator/ai-entity-extractor.ts
++/**
++ * AI-Powered Entity Extractor
++ * 
++ * Uses AI to intelligently identify characters and objects from Fountain screenplay text
++ * following MPAA and AMPAS Nicholl Fellowship screenplay standards.
++ * 
++ * This replaces rigid regex patterns with fuzzy logic that understands:
++ * - Character conventions (THE CAPTAIN, FIRST OFFICER, etc.)
++ * - Object conventions (airlock door, viewscreen, etc.)
++ * - Industry-standard screenplay formatting
++ */
++
++import Anthropic from '@anthropic-ai/sdk';
++
++export interface EntityExtractionResult {
++  characters: string[];
++  objects: string[];
++  confidence: number;
++}
++
++/**
++ * AI-powered entity extractor using Claude
++ */
++export class AIEntityExtractor {
++  private client: Anthropic | null = null;
++  private apiKey: string | null = null;
++
++  constructor() {
++    // Check for API key in environment
++    this.apiKey = process.env.ANTHROPIC_API_KEY || null;
++
++    if (this.apiKey) {
++      this.client = new Anthropic({ apiKey: this.apiKey });
++    }
++  }
++
++  /**
++   * Extract characters and objects from screenplay text using AI
++   */
++  async extractEntities(sceneText: string, sceneHeading: string): Promise<EntityExtractionResult> {
++    // Fallback to regex if no API key
++    if (!this.client) {
++      console.log('No Anthropic API key found, using fallback regex extraction');
++      return this.fallbackExtraction(sceneText);
++    }
++
++    const prompt = this.buildExtractionPrompt(sceneText, sceneHeading);
++
++    try {
++      console.log('Using AI-powered entity extraction...');
++      const response = await this.client.messages.create({
++        model: 'claude-sonnet-4-6', // Latest Sonnet model (Feb 2026)
++        max_tokens: 1024,
++        temperature: 0.0, // Deterministic for consistency
++        messages: [{
++          role: 'user',
++          content: prompt
++        }]
++      });
++
++      const content = response.content[0];
++      if (content.type === 'text') {
++        const result = this.parseAIResponse(content.text);
++        console.log(`AI extracted ${result.characters.length} characters and ${result.objects.length} objects`);
++        return result;
++      }
++
++      return this.fallbackExtraction(sceneText);
++    } catch (error) {
++      console.warn('AI extraction failed, using fallback:', error);
++      return this.fallbackExtraction(sceneText);
++    }
++  }
++
++  /**
++   * Build prompt for AI entity extraction
++   */
++  private buildExtractionPrompt(sceneText: string, sceneHeading: string): string {
++    return `You are an expert screenplay analyst following MPAA and AMPAS Nicholl Fellowship standards.
++
++Extract CHARACTERS and OBJECTS from this Fountain screenplay scene.
++
++**SCENE HEADING:**
++${sceneHeading}
++
++**SCENE TEXT:**
++${sceneText}
++
++**RULES:**
++
++**Characters** are people or beings with agency:
++- THE CAPTAIN, FIRST OFFICER, ENGINEER, ENSIGN, ADMIRAL
++- WIZARD CLIF HIGH, HEIDI
++- Any named person or being who speaks or acts
++- Titles used as character names (THE CAPTAIN, not "captain" as description)
++
++**Objects** are props, set pieces, or environmental elements:
++- airlock door, viewscreen, console, PADD
++- warp core, transporter, phaser
++- Physical things that characters interact with
++
++**Extract ALL CAPS words that are characters or objects.**
++
++**OUTPUT FORMAT (JSON only, no explanation):**
++\`\`\`json
++{
++  "characters": ["THE CAPTAIN", "FIRST OFFICER", "ENGINEER"],
++  "objects": ["airlock door", "viewscreen", "console"]
++}
++\`\`\`
++
++Return ONLY the JSON, nothing else.`;
++  }
++
++  /**
++   * Parse AI response into structured result
++   */
++  private parseAIResponse(responseText: string): EntityExtractionResult {
++    try {
++      // Extract JSON from response (handle markdown code blocks)
++      const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || 
++                       responseText.match(/\{[\s\S]*\}/);
++      
++      if (!jsonMatch) {
++        throw new Error('No JSON found in response');
++      }
++
++      const jsonText = jsonMatch[1] || jsonMatch[0];
++      const parsed = JSON.parse(jsonText);
++
++      return {
++        characters: parsed.characters || [],
++        objects: parsed.objects || [],
++        confidence: 0.95 // High confidence for AI extraction
++      };
++    } catch (error) {
++      console.warn('Failed to parse AI response:', error);
++      return { characters: [], objects: [], confidence: 0.0 };
++    }
++  }
++
++  /**
++   * Fallback regex-based extraction (when AI unavailable)
++   */
++  private fallbackExtraction(sceneText: string): EntityExtractionResult {
++    const characters: string[] = [];
++    const objects: string[] = [];
++
++    // Extract ALL CAPS words (2+ letters)
++    const capsRegex = /\b([A-Z]{2,}(?:\s+[A-Z]{2,})*)\b/g;
++    const matches = sceneText.matchAll(capsRegex);
++
++    for (const match of matches) {
++      const word = match[1].trim();
++      
++      // Skip common non-character words
++      const skipWords = ['INT', 'EXT', 'DAY', 'NIGHT', 'CONTINUOUS', 'LATER', 'FADE', 'CUT'];
++      if (skipWords.includes(word)) continue;
++
++      // Simple heuristic: if it's a title or name, it's likely a character
++      if (word.includes('CAPTAIN') || word.includes('OFFICER') || word.includes('ENGINEER') || 
++          word.includes('ENSIGN') || word.includes('ADMIRAL') || word.includes('WIZARD')) {
++        if (!characters.includes(word)) characters.push(word);
++      }
++    }
++
++    return { characters, objects, confidence: 0.5 }; // Lower confidence for fallback
++  }
++}
++
+
+*** End Patch

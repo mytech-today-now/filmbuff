@@ -1,31 +1,20 @@
-/**
- * Unit tests for extractCommandHelp utility
- */
-
 import * as fs from 'fs';
-import * as path from 'path';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   detectTools,
-  executeHelp,
   detectSubcommands,
-  extractHelpRecursive,
   generateMarkdown,
   Tool,
   HelpNode
-} from '../extractCommandHelp';
+} from '@cli/utils/extractCommandHelp';
 
-// Mock fs module
-jest.mock('fs');
-const mockFs = fs as jest.Mocked<typeof fs>;
-
-// Mock child_process
-jest.mock('child_process', () => ({
-  exec: jest.fn()
+vi.mock('fs', () => ({
+  existsSync: vi.fn()
 }));
 
 describe('extractCommandHelp', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('detectTools', () => {
@@ -36,7 +25,7 @@ describe('extractCommandHelp', () => {
         { name: 'OpenSpec', command: 'openspec', directory: 'openspec' }
       ];
 
-      mockFs.existsSync.mockImplementation((p: any) => {
+      vi.mocked(fs.existsSync).mockImplementation((p: fs.PathLike) => {
         const pathStr = p.toString();
         return pathStr.includes('.beads') || pathStr.includes('openspec');
       });
@@ -54,7 +43,7 @@ describe('extractCommandHelp', () => {
         { name: 'Beads', command: 'bd', directory: '.beads' }
       ];
 
-      mockFs.existsSync.mockReturnValue(false);
+      vi.mocked(fs.existsSync).mockReturnValue(false);
 
       const result = detectTools(repoRoot, tools);
 
@@ -69,7 +58,7 @@ describe('extractCommandHelp', () => {
         { name: 'Augx', command: 'augx', directory: '.augment' }
       ];
 
-      mockFs.existsSync.mockImplementation((p: any) => {
+      vi.mocked(fs.existsSync).mockImplementation((p: fs.PathLike) => {
         return p.toString().includes('.beads');
       });
 
@@ -192,10 +181,10 @@ Commands:
         children: []
       };
 
-      const tool2: Tool = { name: 'Augx', command: 'augx', directory: '.augment' };
+      const tool2: Tool = { name: 'filmbuff', command: 'filmbuff', directory: '.augment' };
       const helpNode2: HelpNode = {
-        command: 'augx',
-        help: 'Augx tool',
+        command: 'filmbuff',
+        help: 'filmbuff tool',
         children: []
       };
 
@@ -204,9 +193,9 @@ Commands:
 
       const result = generateMarkdown(helpMap);
 
-      expect(result).toContain('## Augx Commands (augx)');
+      expect(result).toContain('## filmbuff Commands (filmbuff)');
       expect(result).toContain('## Beads Commands (bd)');
-      expect(result).toContain('**Tools**: Augx, Beads');
+      expect(result).toContain('**Tools**: Beads, filmbuff');
     });
 
     it('should handle empty help map', () => {
@@ -267,7 +256,7 @@ Commands:
         { name: 'Custom', command: 'custom', directory: '.custom', helpFlag: '-h' }
       ];
 
-      mockFs.existsSync.mockReturnValue(true);
+      vi.mocked(fs.existsSync).mockReturnValue(true);
 
       const result = detectTools('/test', tools);
 

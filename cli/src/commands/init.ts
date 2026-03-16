@@ -1,12 +1,36 @@
 import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
-import inquirer from 'inquirer';
+import * as readline from 'readline';
 import { installCharacterCountRule } from '../utils/install-rules';
 import { extractCommandHelp } from '../utils/extractCommandHelp';
 
 interface InitOptions {
   fromSubmodule?: boolean;
+}
+
+async function confirmOverwrite(): Promise<boolean> {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    console.log(
+      chalk.yellow('Filmbuff is already initialized, but overwrite confirmation requires an interactive terminal.')
+    );
+    return false;
+  }
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+
+  try {
+    const answer = await new Promise<string>(resolve => {
+      rl.question('Filmbuff already initialized. Overwrite? [y/N] ', resolve);
+    });
+
+    return ['y', 'yes'].includes(answer.trim().toLowerCase());
+  } finally {
+    rl.close();
+  }
 }
 
 export async function initCommand(options: InitOptions): Promise<void> {
@@ -18,14 +42,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
     const extensionsConfig = path.join(augmentDir, 'extensions.json');
 
     if (fs.existsSync(extensionsConfig)) {
-      const { overwrite } = await inquirer.prompt([
-        {
-          type: 'confirm',
-          name: 'overwrite',
-          message: 'Filmbuff already initialized. Overwrite?',
-          default: false
-        }
-      ]);
+      const overwrite = await confirmOverwrite();
 
       if (!overwrite) {
         console.log(chalk.yellow('Initialization cancelled.'));

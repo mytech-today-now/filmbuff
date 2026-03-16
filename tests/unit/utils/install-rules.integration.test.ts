@@ -1,16 +1,11 @@
-/**
- * Integration tests for install-rules utilities
- * These tests use real file system operations in temporary directories
- */
-
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { installCharacterCountRule } from '../install-rules';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { installCharacterCountRule } from '@cli/utils/install-rules';
 
-// Mock chalk to avoid ESM issues
-jest.mock('chalk', () => ({
+vi.mock('chalk', () => ({
   default: {
     green: (str: string) => str,
     yellow: (str: string) => str,

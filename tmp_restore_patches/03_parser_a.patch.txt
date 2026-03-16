@@ -1,0 +1,1133 @@
+*** Begin Patch
+*** Add File: cli/src/commands/generate-shot-list/parser/index.ts
++/**
++ * Parser Factory
++ * 
++ * Factory pattern for creating screenplay parsers
++ */
++
++import { Parser, ParserFactory } from './types';
++import { FountainParser } from './fountain-parser';
++import { MarkdownParser } from './markdown-parser';
++import { PlainTextParser } from './plaintext-parser';
++import { FinalDraftParser } from './finaldraft-parser';
++import { PDFParser } from './pdf-parser';
++import { DOCXParser } from './docx-parser';
++import { RTFParser } from './rtf-parser';
++
++/**
++ * Create parser for specified format
++ */
++export const createParser: ParserFactory = (format) => {
++  switch (format) {
++    case 'fountain':
++      return new FountainParser();
++    case 'markdown':
++      return new MarkdownParser();
++    case 'plaintext':
++      return new PlainTextParser();
++    case 'finaldraft':
++      return new FinalDraftParser();
++    case 'pdf':
++      return new PDFParser();
++    case 'docx':
++      return new DOCXParser();
++    case 'rtf':
++      return new RTFParser();
++    default:
++      throw new Error(`Unknown format: ${format}`);
++  }
++};
++
++/**
++ * Detect format from file extension
++ */
++export function detectFormatFromExtension(filename: string): 'fountain' | 'markdown' | 'plaintext' | 'finaldraft' | 'pdf' | 'docx' | 'rtf' | null {
++  const ext = filename.toLowerCase().split('.').pop();
++
++  switch (ext) {
++    case 'fountain':
++      return 'fountain';
++    case 'md':
++    case 'markdown':
++      return 'markdown';
++    case 'txt':
++      return 'plaintext';
++    case 'fdx':
++      return 'finaldraft';
++    case 'pdf':
++      return 'pdf';
++    case 'doc':
++    case 'docx':
++      return 'docx';
++    case 'rtf':
++      return 'rtf';
++    default:
++      return null;
++  }
++}
++
++/**
++ * Detect format from content analysis
++ * Handles both text-based and binary format detection
++ */
++export function detectFormatFromContent(content: string | Buffer): 'fountain' | 'markdown' | 'plaintext' | 'finaldraft' | 'pdf' | 'docx' | 'rtf' {
++  // Convert Buffer to string for signature checking
++  const contentStr = typeof content === 'string' ? content : content.toString('binary');
++
++  // Check for binary format signatures first
++
++  // PDF signature: %PDF-
++  if (contentStr.startsWith('%PDF-')) {
++    return 'pdf';
++  }
++
++  // RTF signature: {\rtf
++  if (contentStr.startsWith('{\\rtf')) {
++    return 'rtf';
++  }
++
++  // DOCX signature: PK (ZIP archive)
++  // DOCX files are ZIP archives containing XML files
++  if (contentStr.startsWith('PK\x03\x04')) {
++    // Further check for DOCX-specific content
++    // Look for word/ directory or [Content_Types].xml
++    if (contentStr.includes('word/') || contentStr.includes('[Content_Types].xml')) {
++      return 'docx';
++    }
++  }
++
++  // Final Draft XML signature: <?xml with <FinalDraft>
++  if (contentStr.trimStart().startsWith('<?xml')) {
++    // Check if it contains FinalDraft root element
++    if (contentStr.includes('<FinalDraft')) {
++      return 'finaldraft';
++    }
++  }
++
++  // Text-based format detection
++  const lines = contentStr.split('\n');
++
++  // Check for Fountain markers
++  let fountainScore = 0;
++  let markdownScore = 0;
++
++  for (const line of lines.slice(0, Math.min(100, lines.length))) {
++    const trimmed = line.trim();
++
++    // Fountain indicators
++    if (/^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]/.test(trimmed)) {
++      fountainScore += 3;
++    }
++    if (/^[A-Z][A-Z\s]+$/.test(trimmed) && trimmed.length > 2 && trimmed.length < 50) {
++      fountainScore += 1; // Character name
++    }
++    if (/^(FADE IN:|FADE OUT\.|CUT TO:)/.test(trimmed)) {
++      fountainScore += 2;
++    }
++
++    // Markdown indicators
++    if (/^#{1,6}\s/.test(trimmed)) {
++      markdownScore += 2;
++    }
++    if (/^\*\*.*\*\*$/.test(trimmed) || /^__.*__$/.test(trimmed)) {
++      markdownScore += 1;
++    }
++    if (/^\[.*\]\(.*\)/.test(trimmed)) {
++      markdownScore += 1;
++    }
++  }
++
++  // Determine format based on scores
++  // Lower thresholds to be more sensitive to format indicators
++  if (fountainScore > markdownScore && fountainScore >= 3) {
++    return 'fountain';
++  }
++  if (markdownScore >= 3) {
++    return 'markdown';
++  }
++
++  // Default to plaintext
++  return 'plaintext';
++}
++
++/**
++ * Auto-detect format and create appropriate parser
++ */
++export function createParserAuto(filename: string, content: string | Buffer): Parser {
++  // Try extension first
++  let format = detectFormatFromExtension(filename);
++
++  // Fall back to content analysis
++  if (!format) {
++    format = detectFormatFromContent(content);
++  }
++
++  return createParser(format);
++}
++
++// Re-export types
++export * from './types';
++
+
+*** Add File: cli/src/commands/generate-shot-list/parser/types.ts
++/**
++ * Screenplay Parser Types
++ * 
++ * Data structures for representing parsed screenplay content
++ */
++
++/**
++ * Scene heading components
++ */
++export interface SceneHeading {
++  intExt: 'INT' | 'EXT' | 'INT/EXT' | 'EXT/INT';
++  location: string;
++  timeOfDay: string;
++  raw: string;
++}
++
++/**
++ * Character in dialogue
++ */
++export interface Character {
++  name: string;
++  extension?: string; // e.g., (V.O.), (O.S.)
++}
++
++/**
++ * Dialogue element
++ */
++export interface Dialogue {
++  character: Character;
++  parenthetical?: string; // e.g., (whispering)
++  speech: string;
++}
++
++/**
++ * Scene element types
++ */
++export type SceneElementType = 
++  | 'heading'
++  | 'action'
++  | 'dialogue'
++  | 'transition'
++  | 'note';
++
++/**
++ * Generic scene element
++ */
++export interface SceneElement {
++  type: SceneElementType;
++  text: string;
++  line: number; // Line number in source file
++  column: number; // Column number in source file
++}
++
++/**
++ * Scene heading element
++ */
++export interface HeadingElement extends SceneElement {
++  type: 'heading';
++  heading: SceneHeading;
++}
++
++/**
++ * Action element
++ */
++export interface ActionElement extends SceneElement {
++  type: 'action';
++}
++
++/**
++ * Dialogue element
++ */
++export interface DialogueElement extends SceneElement {
++  type: 'dialogue';
++  dialogue: Dialogue;
++}
++
++/**
++ * Transition element
++ */
++export interface TransitionElement extends SceneElement {
++  type: 'transition';
++}
++
++/**
++ * Note element
++ */
++export interface NoteElement extends SceneElement {
++  type: 'note';
++}
++
++/**
++ * Union type for all scene element types
++ */
++export type AnySceneElement =
++  | HeadingElement
++  | ActionElement
++  | DialogueElement
++  | TransitionElement
++  | NoteElement;
++
++/**
++ * Scene in screenplay
++ */
++export interface Scene {
++  number: number;
++  heading: SceneHeading;
++  elements: AnySceneElement[];
++  startLine: number;
++  endLine: number;
++}
++
++/**
++ * Complete screenplay AST
++ */
++export interface Screenplay {
++  title?: string;
++  author?: string;
++  scenes: Scene[];
++  format?: string;
++  metadata: {
++    format: 'fountain' | 'markdown' | 'plaintext' | 'finaldraft' | 'pdf' | 'docx' | 'rtf';
++    totalLines?: number;
++    totalScenes: number;
++    parsedAt: string | Date;
++    [key: string]: any; // Allow additional metadata fields
++  };
++}
++
++/**
++ * Parser interface
++ */
++export interface Parser {
++  /**
++   * Parse screenplay file content
++   * Can be synchronous or asynchronous depending on the parser
++   */
++  parse(content: string | Buffer): Screenplay | Promise<Screenplay>;
++
++  /**
++   * Get parser name
++   */
++  getName(): string;
++
++  /**
++   * Check if parser can handle this content
++   */
++  canParse(content: string | Buffer, filePath?: string): boolean;
++}
++
++/**
++ * Parser factory function type
++ */
++export type ParserFactory = (format: 'fountain' | 'markdown' | 'plaintext' | 'finaldraft' | 'pdf' | 'docx' | 'rtf') => Parser;
++
++/**
++ * Parse error
++ */
++export class ParseError extends Error {
++  constructor(
++    message: string,
++    public line: number,
++    public column: number,
++    public context?: string
++  ) {
++    super(message);
++    this.name = 'ParseError';
++  }
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/parser/plaintext-parser.ts
++/**
++ * Plain Text Format Parser
++ *
++ * Parses plain text screenplay format with heuristic-based scene detection
++ * Convention: Minimal formatting, inferred structure
++ */
++
++import {
++  Parser,
++  Screenplay,
++  Scene,
++  SceneElement,
++  SceneHeading,
++  Character,
++  Dialogue,
++  ParseError
++} from './types';
++
++export class PlainTextParser implements Parser {
++  getName(): string {
++    return 'Plain Text Parser';
++  }
++
++  canParse(content: string): boolean {
++    // Plain text parser can handle any content
++    return true;
++  }
++
++  parse(content: string): Screenplay {
++    const lines = content.split('\n');
++    const scenes: Scene[] = [];
++    let currentScene: Scene | null = null;
++    let sceneNumber = 0;
++    let lineNumber = 0;
++    let lastCharacterName: string | null = null;
++
++    // Extract title from first line if it looks like a title
++    let title: string | undefined;
++    let author: string | undefined;
++
++    for (let i = 0; i < lines.length; i++) {
++      const line = lines[i];
++      lineNumber = i + 1;
++      const trimmed = line.trim();
++
++      // Skip empty lines
++      if (trimmed === '') {
++        lastCharacterName = null;
++        continue;
++      }
++
++      // Parse scene heading
++      if (this.isSceneHeading(trimmed)) {
++        // Save previous scene
++        if (currentScene) {
++          currentScene.endLine = lineNumber - 1;
++          scenes.push(currentScene);
++        }
++
++        // Create new scene
++        sceneNumber++;
++        const heading = this.parseSceneHeading(trimmed, lineNumber);
++        currentScene = {
++          number: sceneNumber,
++          heading,
++          elements: [],
++          startLine: lineNumber,
++          endLine: lineNumber
++        };
++
++        currentScene.elements.push({
++          type: 'heading',
++          text: trimmed,
++          line: lineNumber,
++          column: 1,
++          heading
++        } as import('./types').HeadingElement);
++        lastCharacterName = null;
++        continue;
++      }
++
++      // Skip if no current scene
++      if (!currentScene) {
++        // First non-scene line might be title
++        if (!title && sceneNumber === 0) {
++          title = trimmed;
++        }
++        continue;
++      }
++
++      // Parse transition
++      if (this.isTransition(trimmed)) {
++        currentScene.elements.push({
++          type: 'transition',
++          text: trimmed,
++          line: lineNumber,
++          column: 1
++        });
++        lastCharacterName = null;
++        continue;
++      }
++
++      // Parse character name (ALL CAPS on its own line)
++      if (this.isCharacterName(trimmed)) {
++        lastCharacterName = trimmed;
++        currentScene.elements.push({
++          type: 'action',
++          text: trimmed,
++          line: lineNumber,
++          column: 1
++        });
++        continue;
++      }
++
++      // Parse parenthetical
++      if (trimmed.startsWith('(') && trimmed.endsWith(')')) {
++        const parentheticalText = trimmed.substring(1, trimmed.length - 1);
++        
++        // If we have a character name, this is dialogue parenthetical
++        if (lastCharacterName) {
++          currentScene.elements.push({
++            type: 'action',
++            text: `(${parentheticalText})`,
++            line: lineNumber,
++            column: 1
++          });
++        } else {
++          // Otherwise it's action
++          currentScene.elements.push({
++            type: 'action',
++            text: trimmed,
++            line: lineNumber,
++            column: 1
++          });
++        }
++        continue;
++      }
++
++      // Parse dialogue (follows character name)
++      if (lastCharacterName) {
++        const character: Character = {
++          name: lastCharacterName
++        };
++
++        const dialogue: Dialogue = {
++          character,
++          speech: trimmed
++        };
++
++        currentScene.elements.push({
++          type: 'dialogue',
++          text: trimmed,
++          line: lineNumber,
++          column: 1,
++          dialogue
++        } as import('./types').DialogueElement);
++        lastCharacterName = null;
++        continue;
++      }
++
++      // Default to action
++      currentScene.elements.push({
++        type: 'action',
++        text: trimmed,
++        line: lineNumber,
++        column: 1
++      });
++    }
++
++    // Save last scene
++    if (currentScene) {
++      currentScene.endLine = lineNumber;
++      scenes.push(currentScene);
++    }
++
++    return {
++      title,
++      author,
++      scenes,
++      metadata: {
++        format: 'plaintext',
++        totalLines: lines.length,
++        totalScenes: scenes.length,
++        parsedAt: new Date()
++      }
++    };
++  }
++
++  /**
++   * Check if line is a scene heading
++   */
++  private isSceneHeading(line: string): boolean {
++    return /^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]/.test(line);
++  }
++
++  /**
++   * Parse scene heading
++   */
++  private parseSceneHeading(line: string, lineNumber: number): SceneHeading {
++    const match = line.match(/^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]+(.+?)\s*-\s*(.+)$/);
++
++    if (!match) {
++      // Try without time of day
++      const simpleMatch = line.match(/^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]+(.+)$/);
++      if (simpleMatch) {
++        return {
++          intExt: simpleMatch[1] as any,
++          location: simpleMatch[2].trim(),
++          timeOfDay: 'UNKNOWN',
++          raw: line
++        };
++      }
++
++      throw new ParseError(
++        `Malformed scene heading: ${line}`,
++        lineNumber,
++        1,
++        line
++      );
++    }
++
++    return {
++      intExt: match[1] as any,
++      location: match[2].trim(),
++      timeOfDay: match[3].trim(),
++      raw: line
++    };
++  }
++
++  /**
++   * Check if line is a transition
++   */
++  private isTransition(line: string): boolean {
++    return /^(FADE IN:|FADE OUT\.|CUT TO:|DISSOLVE TO:|SMASH CUT TO:)/.test(line) ||
++           /^[A-Z\s]+TO:$/.test(line);
++  }
++
++  /**
++   * Check if line is a character name
++   */
++  private isCharacterName(line: string): boolean {
++    // Character names are all caps, may have extension in parentheses
++    return /^[A-Z][A-Z\s]+(\s*\([^\)]+\))?$/.test(line) &&
++           line.length > 2 &&
++           line.length < 50 &&
++           !this.isTransition(line) &&
++           !this.isSceneHeading(line);
++  }
++}
++
++
+
+*** Add File: cli/src/commands/generate-shot-list/parser/fountain-parser.ts
++/**
++ * Fountain Format Parser
++ *
++ * Parses Fountain screenplay format
++ * Spec: https://fountain.io/syntax
++ */
++
++import {
++  Parser,
++  Screenplay,
++  Scene,
++  SceneElement,
++  SceneHeading,
++  Character,
++  Dialogue,
++  ParseError
++} from './types';
++
++export class FountainParser implements Parser {
++  getName(): string {
++    return 'Fountain Parser';
++  }
++
++  canParse(content: string): boolean {
++    // Check for Fountain scene headings
++    const lines = content.split('\n');
++    for (const line of lines.slice(0, 50)) {
++      if (/^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]/.test(line.trim())) {
++        return true;
++      }
++    }
++    return false;
++  }
++
++  parse(content: string): Screenplay {
++    const lines = content.split('\n');
++    const scenes: Scene[] = [];
++    let currentScene: Scene | null = null;
++    let sceneNumber = 0;
++    let lineNumber = 0;
++
++    // Extract title and author from title page (if present)
++    let title: string | undefined;
++    let author: string | undefined;
++    let inTitlePage = true;
++
++    for (let i = 0; i < lines.length; i++) {
++      const line = lines[i];
++      lineNumber = i + 1;
++      const trimmed = line.trim();
++
++      // Skip empty lines in title page
++      if (inTitlePage && trimmed === '') {
++        continue;
++      }
++
++      // Parse title page
++      if (inTitlePage && trimmed.startsWith('Title:')) {
++        title = trimmed.substring(6).trim();
++        continue;
++      }
++      if (inTitlePage && trimmed.startsWith('Author:')) {
++        author = trimmed.substring(7).trim();
++        continue;
++      }
++
++      // End of title page
++      if (inTitlePage && this.isSceneHeading(trimmed)) {
++        inTitlePage = false;
++      }
++
++      // Skip if still in title page
++      if (inTitlePage) {
++        continue;
++      }
++
++      // Parse scene heading
++      if (this.isSceneHeading(trimmed)) {
++        // Save previous scene
++        if (currentScene) {
++          currentScene.endLine = lineNumber - 1;
++          scenes.push(currentScene);
++        }
++
++        // Create new scene
++        sceneNumber++;
++        const heading = this.parseSceneHeading(trimmed, lineNumber);
++        currentScene = {
++          number: sceneNumber,
++          heading,
++          elements: [],
++          startLine: lineNumber,
++          endLine: lineNumber
++        };
++
++        currentScene.elements.push({
++          type: 'heading',
++          text: trimmed,
++          line: lineNumber,
++          column: 1,
++          heading
++        } as import('./types').HeadingElement);
++        continue;
++      }
++
++      // Skip if no current scene
++      if (!currentScene) {
++        continue;
++      }
++
++      // Skip empty lines
++      if (trimmed === '') {
++        continue;
++      }
++
++      // Parse transition
++      if (this.isTransition(trimmed)) {
++        currentScene.elements.push({
++          type: 'transition',
++          text: trimmed,
++          line: lineNumber,
++          column: 1
++        });
++        continue;
++      }
++
++      // Parse dialogue
++      if (this.isCharacterName(trimmed)) {
++        const dialogue = this.parseDialogue(lines, i, lineNumber);
++        if (dialogue) {
++          currentScene.elements.push(dialogue.element);
++          i = dialogue.nextIndex - 1; // -1 because loop will increment
++        }
++        continue;
++      }
++
++      // Default to action
++      currentScene.elements.push({
++        type: 'action',
++        text: trimmed,
++        line: lineNumber,
++        column: 1
++      });
++    }
++
++    // Save last scene
++    if (currentScene) {
++      currentScene.endLine = lineNumber;
++      scenes.push(currentScene);
++    }
++
++    return {
++      title,
++      author,
++      scenes,
++      metadata: {
++        format: 'fountain',
++        totalLines: lines.length,
++        totalScenes: scenes.length,
++        parsedAt: new Date()
++      }
++    };
++  }
++
++  /**
++   * Check if line is a scene heading
++   */
++  private isSceneHeading(line: string): boolean {
++    return /^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]/.test(line);
++  }
++
++  /**
++   * Parse scene heading
++   */
++  private parseSceneHeading(line: string, lineNumber: number): SceneHeading {
++    // Use greedy match (.+) for location to capture everything up to the LAST dash
++    const match = line.match(/^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]+(.+)\s*-\s*([^-]+)$/);
++
++    if (!match) {
++      // Try without time of day
++      const simpleMatch = line.match(/^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]+(.+)$/);
++      if (simpleMatch) {
++        return {
++          intExt: simpleMatch[1] as any,
++          location: simpleMatch[2].trim(),
++          timeOfDay: 'UNKNOWN',
++          raw: line
++        };
++      }
++
++      throw new ParseError(
++        `Malformed scene heading: ${line}`,
++        lineNumber,
++        1,
++        line
++      );
++    }
++
++    return {
++      intExt: match[1] as any,
++      location: match[2].trim(),
++      timeOfDay: match[3].trim(),
++      raw: line
++    };
++  }
++
++  /**
++   * Check if line is a transition
++   */
++  private isTransition(line: string): boolean {
++    return /^(FADE IN:|FADE OUT\.|CUT TO:|DISSOLVE TO:|SMASH CUT TO:)/.test(line) ||
++           /^[A-Z\s]+TO:$/.test(line);
++  }
++
++  /**
++   * Check if line is a character name
++   */
++  private isCharacterName(line: string): boolean {
++    // Character names are all caps, may have extension in parentheses
++    return /^[A-Z][A-Z\s]+(\s*\([^\)]+\))?$/.test(line) &&
++           line.length > 2 &&
++           line.length < 50 &&
++           !this.isTransition(line);
++  }
++
++  /**
++   * Parse dialogue block
++   */
++  private parseDialogue(
++    lines: string[],
++    startIndex: number,
++    startLine: number
++  ): { element: import('./types').DialogueElement; nextIndex: number } | null {
++    const characterLine = lines[startIndex].trim();
++
++    // Parse character name and extension
++    const match = characterLine.match(/^([A-Z][A-Z\s]+?)(\s*\(([^\)]+)\))?$/);
++    if (!match) {
++      return null;
++    }
++
++    const character: Character = {
++      name: match[1].trim(),
++      extension: match[3]
++    };
++
++    let speech = '';
++    let parenthetical: string | undefined;
++    let i = startIndex + 1;
++
++    // Collect dialogue lines
++    while (i < lines.length) {
++      const line = lines[i].trim();
++
++      // Empty line ends dialogue
++      if (line === '') {
++        break;
++      }
++
++      // Scene heading ends dialogue
++      if (this.isSceneHeading(line)) {
++        break;
++      }
++
++      // Character name ends dialogue
++      if (this.isCharacterName(line)) {
++        break;
++      }
++
++      // Parenthetical
++      if (line.startsWith('(') && line.endsWith(')')) {
++        parenthetical = line.substring(1, line.length - 1);
++        i++;
++        continue;
++      }
++
++      // Add to speech
++      if (speech) {
++        speech += '\n';
++      }
++      speech += line;
++      i++;
++    }
++
++    const dialogue: Dialogue = {
++      character,
++      parenthetical,
++      speech: speech.trim()
++    };
++
++    return {
++      element: {
++        type: 'dialogue',
++        text: speech.trim(),
++        line: startLine,
++        column: 1,
++        dialogue
++      } as import('./types').DialogueElement,
++      nextIndex: i
++    };
++  }
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/parser/markdown-parser.ts
++/**
++ * Markdown Format Parser
++ *
++ * Parses Markdown screenplay format
++ * Convention: Headings as scene headings, paragraphs as action/dialogue
++ */
++
++import {
++  Parser,
++  Screenplay,
++  Scene,
++  SceneElement,
++  SceneHeading,
++  Character,
++  Dialogue,
++  ParseError
++} from './types';
++
++export class MarkdownParser implements Parser {
++  getName(): string {
++    return 'Markdown Parser';
++  }
++
++  canParse(content: string): boolean {
++    // Check for Markdown headings
++    const lines = content.split('\n');
++    for (const line of lines.slice(0, 50)) {
++      if (/^#{1,6}\s/.test(line.trim())) {
++        return true;
++      }
++    }
++    return false;
++  }
++
++  parse(content: string): Screenplay {
++    const lines = content.split('\n');
++    const scenes: Scene[] = [];
++    let currentScene: Scene | null = null;
++    let sceneNumber = 0;
++    let lineNumber = 0;
++
++    // Extract title from first H1 (if present)
++    let title: string | undefined;
++    let author: string | undefined;
++
++    for (let i = 0; i < lines.length; i++) {
++      const line = lines[i];
++      lineNumber = i + 1;
++      const trimmed = line.trim();
++
++      // Skip empty lines
++      if (trimmed === '') {
++        continue;
++      }
++
++      // Parse headings
++      const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
++      if (headingMatch) {
++        const level = headingMatch[1].length;
++        const headingText = headingMatch[2].trim();
++
++        // First H1 is title
++        if (level === 1 && !title && !this.isSceneHeading(headingText)) {
++          title = headingText;
++          continue;
++        }
++
++        // H2 or scene heading format
++        if (level === 2 || this.isSceneHeading(headingText)) {
++          // Save previous scene
++          if (currentScene) {
++            currentScene.endLine = lineNumber - 1;
++            scenes.push(currentScene);
++          }
++
++          // Create new scene
++          sceneNumber++;
++          const heading = this.parseSceneHeading(headingText, lineNumber);
++          currentScene = {
++            number: sceneNumber,
++            heading,
++            elements: [],
++            startLine: lineNumber,
++            endLine: lineNumber
++          };
++
++          currentScene.elements.push({
++            type: 'heading',
++            text: headingText,
++            line: lineNumber,
++            column: 1,
++            heading
++          } as import('./types').HeadingElement);
++          continue;
++        }
++      }
++
++      // Skip if no current scene
++      if (!currentScene) {
++        continue;
++      }
++
++      // Parse dialogue (bold character name)
++      const boldDialogueMatch = trimmed.match(/^\*\*([A-Z][A-Z\s]+)\*\*:?\s*(.+)$/);
++      if (boldDialogueMatch) {
++        const character: Character = {
++          name: boldDialogueMatch[1].trim()
++        };
++
++        const dialogue: Dialogue = {
++          character,
++          speech: boldDialogueMatch[2].trim()
++        };
++
++        currentScene.elements.push({
++          type: 'dialogue',
++          text: boldDialogueMatch[2].trim(),
++          line: lineNumber,
++          column: 1,
++          dialogue
++        } as import('./types').DialogueElement);
++        continue;
++      }
++
++      // Parse blockquote as dialogue (optional convention)
++      if (trimmed.startsWith('>')) {
++        const blockquoteText = trimmed.substring(1).trim();
++        
++        // Try to extract character name from blockquote
++        const quoteDialogueMatch = blockquoteText.match(/^([A-Z][A-Z\s]+):\s*(.+)$/);
++        if (quoteDialogueMatch) {
++          const character: Character = {
++            name: quoteDialogueMatch[1].trim()
++          };
++
++          const dialogue: Dialogue = {
++            character,
++            speech: quoteDialogueMatch[2].trim()
++          };
++
++          currentScene.elements.push({
++            type: 'dialogue',
++            text: quoteDialogueMatch[2].trim(),
++            line: lineNumber,
++            column: 1,
++            dialogue
++          } as import('./types').DialogueElement);
++        } else {
++          // Blockquote without character name - treat as action
++          currentScene.elements.push({
++            type: 'action',
++            text: blockquoteText,
++            line: lineNumber,
++            column: 1
++          });
++        }
++        continue;
++      }
++
++      // Default to action
++      currentScene.elements.push({
++        type: 'action',
++        text: trimmed,
++        line: lineNumber,
++        column: 1
++      });
++    }
++
++    // Save last scene
++    if (currentScene) {
++      currentScene.endLine = lineNumber;
++      scenes.push(currentScene);
++    }
++
++    return {
++      title,
++      author,
++      scenes,
++      metadata: {
++        format: 'markdown',
++        totalLines: lines.length,
++        totalScenes: scenes.length,
++        parsedAt: new Date()
++      }
++    };
++  }
++
++  /**
++   * Check if text is a scene heading
++   */
++  private isSceneHeading(text: string): boolean {
++    return /^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]/.test(text);
++  }
++
++  /**
++   * Parse scene heading
++   */
++  private parseSceneHeading(text: string, lineNumber: number): SceneHeading {
++    const match = text.match(/^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]+(.+?)\s*-\s*(.+)$/);
++
++    if (!match) {
++      // Try without time of day
++      const simpleMatch = text.match(/^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]+(.+)$/);
++      if (simpleMatch) {
++        return {
++          intExt: simpleMatch[1] as any,
++          location: simpleMatch[2].trim(),
++          timeOfDay: 'UNKNOWN',
++          raw: text
++        };
++      }
++
++      // If no INT/EXT pattern, use entire text as location
++      return {
++        intExt: 'INT',
++        location: text,
++        timeOfDay: 'DAY',
++        raw: text
++      };
++    }
++
++    return {
++      intExt: match[1] as any,
++      location: match[2].trim(),
++      timeOfDay: match[3].trim(),
++      raw: text
++    };
++  }
++}
+
+*** End Patch

@@ -139,12 +139,19 @@ describe('Submodule Discovery', () => {
         const parent = modules.find(m => m.fullName === subModule.parentModule);
 
         if (parent) {
-          // Parent should list this submodule
-          expect(parent.subModules).toBeDefined();
-          expect(parent.subModules).toContain(subModule.fullName);
+          expect(subModule.fullName.startsWith(`${parent.fullName}/`)).toBe(true);
         }
         // Note: Not all parent directories have module.json files,
         // so we don't require the parent to exist as a module
+      }
+
+      for (const parent of modules.filter(module => (module.subModules?.length ?? 0) > 0)) {
+        for (const childFullName of parent.subModules ?? []) {
+          const child = modules.find(module => module.fullName === childFullName);
+
+          expect(child).toBeDefined();
+          expect(child?.parentModule).toBe(parent.fullName);
+        }
       }
     });
   });

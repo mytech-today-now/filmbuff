@@ -1,246 +1,231 @@
-/**
- * Unit tests for skill-system utilities
- * Tests skill loading, validation, discovery, and injection
- */
-
 import * as fs from 'fs';
 import * as path from 'path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs');
+  return {
+    ...actual,
+    existsSync: vi.fn(),
+    readFileSync: vi.fn(),
+    readdirSync: vi.fn()
+  };
+});
+
 import {
-  parseSkill,
-  validateSkillMetadata,
+  SKILL_CATEGORIES,
+  clearSkillCache,
   discoverSkills,
   findSkill,
+  getSkillCacheStats,
+  getSkillContentForInjection,
+  getSkillPath,
+  getSkillsDir,
   loadSkillDynamic,
   loadSkillsBatch,
-  getSkillContentForInjection,
-  clearSkillCache,
-  getSkillCacheStats,
-  getSkillsDir,
-  getSkillPath,
-  SKILL_CATEGORIES
-} from '../skill-system';
+  parseSkill,
+  validateSkillMetadata
+} from '@cli/utils/skill-system';
 
-// Mock fs module
-jest.mock('fs');
+const mockRepoRoot = '/test/repo';
+const mockSkillsDir = path.join(mockRepoRoot, 'skills');
+const normalize = (value: fs.PathLike) => String(value).replace(/\\/g, '/');
+const mockExistsSync = vi.mocked(fs.existsSync);
+const mockReadFileSync = vi.mocked(fs.readFileSync);
+const mockReaddirSync = vi.mocked(fs.readdirSync);
 
-// Mock chalk to avoid ESM issues
-jest.mock('chalk', () => ({
-  default: {
-    green: (str: string) => str,
-    yellow: (str: string) => str,
-    red: (str: string) => str,
-    gray: (str: string) => str,
-    blue: (str: string) => str,
-    bold: {
-      green: (str: string) => str,
-      blue: (str: string) => str
-    }
-  },
-  green: (str: string) => str,
-  yellow: (str: string) => str,
-  red: (str: string) => str,
-  gray: (str: string) => str,
-  blue: (str: string) => str,
-  bold: {
-    green: (str: string) => str,
-    blue: (str: string) => str
-  }
-}));
+function makeSkillContent(overrides: Record<string, string | number> = {}, body = '# Test Skill Content') {
+  const metadata = {
+    id: 'test-skill',
+    name: 'Test Skill',
+    version: '1.0.0',
+    category: 'utility',
+    tags: '[test]',
+    tokenBudget: 1000,
+    priority: 'medium',
+    ...overrides
+  };
 
-describe('Skill System', () => {
-  const mockRepoRoot = '/test/repo';
-  const mockSkillsDir = path.join(mockRepoRoot, 'skills');
+  return `---\nid: ${metadata.id}\nname: ${metadata.name}\nversion: ${metadata.version}\ncategory: ${metadata.category}\ntags: ${metadata.tags}\ntokenBudget: ${metadata.tokenBudget}\npriority: ${metadata.priority}\n---\n\n${body}`;
+}
 
+describe('skill-system legacy compatibility', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockExistsSync.mockReset();
+    mockReadFileSync.mockReset();
+    mockReaddirSync.mockReset();
+    mockExistsSync.mockReturnValue(false);
+    mockReadFileSync.mockReturnValue('');
+    mockReaddirSync.mockReturnValue([] as any);
+    vi.restoreAllMocks();
+    vi.spyOn(process, 'cwd').mockReturnValue(mockRepoRoot);
     clearSkillCache();
   });
 
+  afterEach(() => {
+    clearSkillCache();
+    vi.restoreAllMocks();
+  });
+
   describe('getSkillsDir', () => {
-    it('should return skills directory path', () => {
-      const result = getSkillsDir(mockRepoRoot);
-      expect(result).toBe(mockSkillsDir);
+    it('returns the skills directory for an explicit repo root', () => {
+      expect(getSkillsDir(mockRepoRoot)).toBe(mockSkillsDir);
     });
 
-    it('should use process.cwd() when no repoRoot provided', () => {
-      const originalCwd = process.cwd();
-      const result = getSkillsDir();
-      expect(result).toBe(path.join(originalCwd, 'skills'));
+    it('falls back to process.cwd() when repoRoot is omitted', () => {
+      expect(getSkillsDir()).toBe(path.join(mockRepoRoot, 'skills'));
     });
   });
 
   describe('getSkillPath', () => {
-    it('should return correct skill file path', () => {
-      const result = getSkillPath('sdk-query', 'retrieval', mockRepoRoot);
-      expect(result).toBe(path.join(mockSkillsDir, 'retrieval', 'sdk-query.md'));
+    it('builds a category-qualified skill path', () => {
+      expect(getSkillPath('sdk-query', 'retrieval', mockRepoRoot))
+        .toBe(path.join(mockSkillsDir, 'retrieval', 'sdk-query.md'));
     });
   });
 
   describe('parseSkill', () => {
-    it('should parse valid skill file with frontmatter', () => {
-      const mockContent = `---
-id: test-skill
-name: Test Skill
-version: 1.0.0
-category: retrieval
-tags: [test, example]
-tokenBudget: 1000
-priority: medium
----
-
-# Test Skill Content
-
-This is the skill body.`;
-
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockContent);
+    it('parses valid frontmatter and body content', () => {
+      mockReadFileSync.mockReturnValue(makeSkillContent({ category: 'retrieval' }));
 
       const result = parseSkill('/test/skill.md');
 
       expect(result.metadata.id).toBe('test-skill');
-      expect(result.metadata.name).toBe('Test Skill');
-      expect(result.metadata.version).toBe('1.0.0');
       expect(result.metadata.category).toBe('retrieval');
       expect(result.metadata.tokenBudget).toBe(1000);
       expect(result.content).toContain('# Test Skill Content');
     });
 
-    it('should throw error for invalid skill file without frontmatter', () => {
-      const mockContent = `# Invalid Skill
+    it('throws when frontmatter is missing', () => {
+      mockReadFileSync.mockReturnValue('# Invalid Skill\n\nNo frontmatter here.');
 
-No frontmatter here.`;
-
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockContent);
-
-      expect(() => parseSkill('/test/invalid.md')).toThrow('Missing frontmatter');
+      expect(() => parseSkill('/test/invalid.md')).toThrow(/Missing frontmatter/);
     });
   });
 
   describe('validateSkillMetadata', () => {
-    it('should validate correct skill metadata', () => {
-      const metadata = {
+    it('accepts valid metadata', () => {
+      const result = validateSkillMetadata({
         id: 'test-skill',
         name: 'Test Skill',
         version: '1.0.0',
-        category: 'retrieval' as const,
+        category: 'retrieval',
         tags: ['test'],
         tokenBudget: 1000,
-        priority: 'medium' as const
-      };
+        priority: 'medium'
+      });
 
-      const result = validateSkillMetadata(metadata);
       expect(result.valid).toBe(true);
-      expect(result.errors).toHaveLength(0);
+      expect(result.errors).toEqual([]);
     });
 
-    it('should detect missing required fields', () => {
-      const metadata = {
+    it('reports missing required fields', () => {
+      const result = validateSkillMetadata({
         id: 'test-skill',
-        // missing name, version, category
         tags: ['test'],
-        tokenBudget: 1000,
-        priority: 'medium' as const
-      } as any;
+        tokenBudget: 1000
+      } as any);
 
-      const result = validateSkillMetadata(metadata);
       expect(result.valid).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors).toEqual(expect.arrayContaining([
+        'Missing required field: name',
+        'Missing required field: version',
+        'Missing required field: category'
+      ]));
     });
 
-    it('should detect invalid category', () => {
-      const metadata = {
+    it('rejects invalid categories', () => {
+      const result = validateSkillMetadata({
         id: 'test-skill',
         name: 'Test Skill',
         version: '1.0.0',
         category: 'invalid-category' as any,
-        tags: ['test'],
-        tokenBudget: 1000,
-        priority: 'medium' as const
-      };
+        tokenBudget: 1000
+      });
 
-      const result = validateSkillMetadata(metadata);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('category'))).toBe(true);
+      expect(result.errors[0]).toContain('Invalid category');
+      expect(SKILL_CATEGORIES).toContain('retrieval');
     });
 
-    it('should detect invalid token budget', () => {
-      const metadata = {
+    it('rejects token budgets below the minimum', () => {
+      const result = validateSkillMetadata({
         id: 'test-skill',
         name: 'Test Skill',
         version: '1.0.0',
-        category: 'retrieval' as const,
-        tags: ['test'],
-        tokenBudget: -100, // Invalid negative budget
-        priority: 'medium' as const
-      };
+        category: 'retrieval',
+        tokenBudget: 100
+      });
 
-      const result = validateSkillMetadata(metadata);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(e => e.includes('tokenBudget'))).toBe(true);
+      expect(result.errors).toContain('Token budget too low: minimum 500 tokens');
     });
   });
 
   describe('discoverSkills', () => {
-    it('should discover skills in all categories', () => {
-      const mockFiles = {
+    it('discovers markdown skills across category directories', () => {
+      const filesByCategory: Record<string, string[]> = {
         retrieval: ['sdk-query.md', 'context-retrieval.md'],
         analysis: ['code-analysis.md'],
         generation: ['add-mcp-skill.md']
       };
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockImplementation((dirPath: string) => {
-        const category = path.basename(dirPath);
-        return mockFiles[category as keyof typeof mockFiles] || [];
+      mockExistsSync.mockImplementation((target) => {
+        const current = normalize(target);
+        if (current === normalize(mockSkillsDir)) {
+          return true;
+        }
+
+        return Object.keys(filesByCategory)
+          .some((category) => current === normalize(path.join(mockSkillsDir, category)));
       });
 
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
+      mockReaddirSync.mockImplementation((target) => {
+        const category = path.basename(String(target));
+        return (filesByCategory[category] || []) as any;
+      });
 
-      const mockSkillContent = `---
-id: test-skill
-name: Test Skill
-version: 1.0.0
-category: retrieval
-tags: [test]
-tokenBudget: 1000
-priority: medium
----
-
-# Test Content`;
-
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      mockReadFileSync.mockImplementation((target) => {
+        const name = path.basename(String(target), '.md');
+        const category = path.basename(path.dirname(String(target)));
+        return makeSkillContent({ id: name, name, category });
+      });
 
       const result = discoverSkills(mockRepoRoot);
 
-      expect(result.length).toBeGreaterThan(0);
+      expect(result).toHaveLength(4);
+      expect(result.map((skill) => skill.metadata.id)).toEqual(expect.arrayContaining([
+        'sdk-query',
+        'context-retrieval',
+        'code-analysis',
+        'add-mcp-skill'
+      ]));
     });
 
-    it('should return empty array when skills directory does not exist', () => {
-      (fs.existsSync as jest.Mock).mockReturnValue(false);
+    it('returns an empty array when the skills directory is missing', () => {
+      mockExistsSync.mockReturnValue(false);
 
-      const result = discoverSkills(mockRepoRoot);
-
-      expect(result).toEqual([]);
+      expect(discoverSkills(mockRepoRoot)).toEqual([]);
     });
   });
 
   describe('findSkill', () => {
-    it('should find skill by ID', () => {
-      const mockSkillContent = `---
-id: sdk-query
-name: SDK Query
-version: 1.0.0
-category: retrieval
-tags: [sdk]
-tokenBudget: 1800
-priority: high
----
+    it('finds a skill by ID', () => {
+      mockExistsSync.mockImplementation((target) => {
+        const current = normalize(target);
+        return current === normalize(mockSkillsDir)
+          || current === normalize(path.join(mockSkillsDir, 'retrieval'));
+      });
 
-# SDK Query Skill`;
-
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue(['sdk-query.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      mockReaddirSync.mockReturnValue(['sdk-query.md'] as any);
+      mockReadFileSync.mockReturnValue(makeSkillContent({
+        id: 'sdk-query',
+        name: 'SDK Query',
+        category: 'retrieval',
+        tokenBudget: 1800,
+        priority: 'high',
+        tags: '[sdk]'
+      }, '# SDK Query Skill'));
 
       const result = findSkill('sdk-query', mockRepoRoot);
 
@@ -249,150 +234,116 @@ priority: high
       expect(result?.metadata.name).toBe('SDK Query');
     });
 
-    it('should return null for non-existent skill', () => {
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue([]);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
+    it('returns null when no skill matches', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReaddirSync.mockReturnValue([] as any);
 
-      const result = findSkill('non-existent-skill', mockRepoRoot);
-
-      expect(result).toBeNull();
+      expect(findSkill('non-existent-skill', mockRepoRoot)).toBeNull();
     });
   });
 
   describe('loadSkillDynamic', () => {
-    beforeEach(() => {
-      clearSkillCache();
-    });
+    it('loads a skill without dependencies', () => {
+      mockExistsSync.mockImplementation((target) => {
+        const current = normalize(target);
+        return current === normalize(mockSkillsDir)
+          || current === normalize(path.join(mockSkillsDir, 'utility'));
+      });
 
-    it('should load skill without dependencies', () => {
-      const mockSkillContent = `---
-id: simple-skill
-name: Simple Skill
-version: 1.0.0
-category: utility
-tags: [simple]
-tokenBudget: 500
-priority: low
----
-
-# Simple Skill`;
-
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue(['simple-skill.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      mockReaddirSync.mockReturnValue(['simple-skill.md'] as any);
+      mockReadFileSync.mockReturnValue(makeSkillContent({
+        id: 'simple-skill',
+        name: 'Simple Skill',
+        category: 'utility',
+        tokenBudget: 500,
+        priority: 'low',
+        tags: '[simple]'
+      }, '# Simple Skill'));
 
       const result = loadSkillDynamic('simple-skill', { cache: false });
 
       expect(result).not.toBeNull();
       expect(result?.skill.metadata.id).toBe('simple-skill');
       expect(result?.totalTokens).toBe(500);
-      expect(result?.dependencies).toHaveLength(0);
+      expect(result?.dependencies).toEqual([]);
     });
 
-    it('should cache loaded skills', () => {
-      const mockSkillContent = `---
-id: cached-skill
-name: Cached Skill
-version: 1.0.0
-category: utility
-tags: [cache]
-tokenBudget: 500
-priority: low
----
+    it('returns cached results on subsequent loads', () => {
+      mockExistsSync.mockImplementation((target) => {
+        const current = normalize(target);
+        return current === normalize(mockSkillsDir)
+          || current === normalize(path.join(mockSkillsDir, 'utility'));
+      });
 
-# Cached Skill`;
+      mockReaddirSync.mockReturnValue(['cached-skill.md'] as any);
+      const readFileSpy = mockReadFileSync.mockReturnValue(makeSkillContent({
+        id: 'cached-skill',
+        name: 'Cached Skill',
+        category: 'utility',
+        tokenBudget: 500,
+        priority: 'low',
+        tags: '[cache]'
+      }, '# Cached Skill'));
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue(['cached-skill.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      const first = loadSkillDynamic('cached-skill', { cache: true });
+      expect(first?.skill.metadata.id).toBe('cached-skill');
 
-      // First load
-      const result1 = loadSkillDynamic('cached-skill', { cache: true });
-      expect(result1).not.toBeNull();
+      readFileSpy.mockClear();
 
-      // Clear mocks to verify cache is used
-      jest.clearAllMocks();
-
-      // Second load should use cache
-      const result2 = loadSkillDynamic('cached-skill', { cache: true });
-      expect(result2).not.toBeNull();
-      expect(result2?.skill.metadata.id).toBe('cached-skill');
-
-      // Verify fs.readFileSync was not called again
-      expect(fs.readFileSync).not.toHaveBeenCalled();
+      const second = loadSkillDynamic('cached-skill', { cache: true });
+      expect(second?.skill.metadata.id).toBe('cached-skill');
+      expect(readFileSpy).not.toHaveBeenCalled();
     });
 
-    it('should return null for non-existent skill', () => {
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue([]);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
+    it('returns null when the skill cannot be found', () => {
+      mockExistsSync.mockReturnValue(true);
+      mockReaddirSync.mockReturnValue([] as any);
 
-      const result = loadSkillDynamic('non-existent', { cache: false });
-
-      expect(result).toBeNull();
+      expect(loadSkillDynamic('non-existent', { cache: false })).toBeNull();
     });
   });
 
   describe('loadSkillsBatch', () => {
-    it('should load multiple skills', () => {
-      const mockSkills = {
-        'skill1': `---
-id: skill1
-name: Skill 1
-version: 1.0.0
-category: utility
-tags: [test]
-tokenBudget: 500
-priority: low
----
-# Skill 1`,
-        'skill2': `---
-id: skill2
-name: Skill 2
-version: 1.0.0
-category: utility
-tags: [test]
-tokenBudget: 600
-priority: low
----
-# Skill 2`
-      };
+    it('loads multiple distinct skills', () => {
+      mockExistsSync.mockImplementation((target) => {
+        const current = normalize(target);
+        return current === normalize(mockSkillsDir)
+          || current === normalize(path.join(mockSkillsDir, 'utility'));
+      });
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockImplementation(() => ['skill1.md', 'skill2.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
-        if (filePath.includes('skill1')) return mockSkills.skill1;
-        if (filePath.includes('skill2')) return mockSkills.skill2;
-        return '';
+      mockReaddirSync.mockReturnValue(['skill1.md', 'skill2.md'] as any);
+      mockReadFileSync.mockImplementation((target) => {
+        const id = path.basename(String(target), '.md');
+        return makeSkillContent({
+          id,
+          name: id === 'skill1' ? 'Skill 1' : 'Skill 2',
+          category: 'utility',
+          tokenBudget: id === 'skill1' ? 500 : 600,
+          priority: 'low'
+        }, `# ${id === 'skill1' ? 'Skill 1' : 'Skill 2'}`);
       });
 
       const result = loadSkillsBatch(['skill1', 'skill2'], { cache: false });
 
       expect(result).toHaveLength(2);
-      expect(result[0].skill.metadata.id).toBe('skill1');
-      expect(result[1].skill.metadata.id).toBe('skill2');
+      expect(result.map((entry) => entry.skill.metadata.id)).toEqual(['skill1', 'skill2']);
     });
 
-    it('should skip duplicate skills', () => {
-      const mockSkillContent = `---
-id: duplicate-skill
-name: Duplicate Skill
-version: 1.0.0
-category: utility
-tags: [test]
-tokenBudget: 500
-priority: low
----
-# Duplicate Skill`;
+    it('skips duplicate skill IDs in the same batch', () => {
+      mockExistsSync.mockImplementation((target) => {
+        const current = normalize(target);
+        return current === normalize(mockSkillsDir)
+          || current === normalize(path.join(mockSkillsDir, 'utility'));
+      });
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue(['duplicate-skill.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      mockReaddirSync.mockReturnValue(['duplicate-skill.md'] as any);
+      mockReadFileSync.mockReturnValue(makeSkillContent({
+        id: 'duplicate-skill',
+        name: 'Duplicate Skill',
+        category: 'utility',
+        tokenBudget: 500,
+        priority: 'low'
+      }, '# Duplicate Skill'));
 
       const result = loadSkillsBatch(['duplicate-skill', 'duplicate-skill'], { cache: false });
 
@@ -402,74 +353,54 @@ priority: low
   });
 
   describe('getSkillContentForInjection', () => {
-    it('should format skill content for injection', () => {
-      const mockSkill = {
-        metadata: {
-          id: 'test-skill',
-          name: 'Test Skill',
-          version: '1.0.0',
-          category: 'utility' as const,
-          tags: ['test'],
-          tokenBudget: 500,
-          priority: 'low' as const
+    it('formats skill content with metadata headers', () => {
+      const result = getSkillContentForInjection({
+        skill: {
+          metadata: {
+            id: 'test-skill',
+            name: 'Test Skill',
+            version: '1.0.0',
+            category: 'utility',
+            tokenBudget: 500,
+            priority: 'low'
+          },
+          content: '# Test Skill Content',
+          filePath: '/test/skill.md'
         },
-        content: '# Test Skill Content',
-        filePath: '/test/skill.md'
-      };
-
-      const loadedSkill = {
-        skill: mockSkill,
         dependencies: [],
         totalTokens: 500
-      };
+      });
 
-      const result = getSkillContentForInjection(loadedSkill);
-
-      expect(result).toContain('Test Skill');
+      expect(result).toContain('# Skill: Test Skill (test-skill)');
       expect(result).toContain('# Test Skill Content');
     });
   });
 
-  describe('clearSkillCache', () => {
-    it('should clear the skill cache', () => {
-      const mockSkillContent = `---
-id: cached-skill
-name: Cached Skill
-version: 1.0.0
-category: utility
-tags: [cache]
-tokenBudget: 500
-priority: low
----
-# Cached Skill`;
+  describe('cache helpers', () => {
+    it('clearSkillCache empties the cache', () => {
+      mockExistsSync.mockImplementation((target) => {
+        const current = normalize(target);
+        return current === normalize(mockSkillsDir)
+          || current === normalize(path.join(mockSkillsDir, 'utility'));
+      });
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readdirSync as jest.Mock).mockReturnValue(['cached-skill.md']);
-      (fs.statSync as jest.Mock).mockReturnValue({ isDirectory: () => true });
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockSkillContent);
+      mockReaddirSync.mockReturnValue(['cached-skill.md'] as any);
+      mockReadFileSync.mockReturnValue(makeSkillContent({
+        id: 'cached-skill',
+        name: 'Cached Skill',
+        category: 'utility',
+        tokenBudget: 500,
+        priority: 'low'
+      }, '# Cached Skill'));
 
-      // Load skill to populate cache
       loadSkillDynamic('cached-skill', { cache: true });
-
-      // Clear cache
       clearSkillCache();
 
-      // Get cache stats
-      const stats = getSkillCacheStats();
-      expect(stats.size).toBe(0);
+      expect(getSkillCacheStats().size).toBe(0);
     });
-  });
 
-  describe('getSkillCacheStats', () => {
-    it('should return cache statistics', () => {
-      clearSkillCache();
-
-      const stats = getSkillCacheStats();
-
-      expect(stats).toHaveProperty('size');
-      expect(stats).toHaveProperty('skills');
-      expect(stats.size).toBe(0);
-      expect(stats.skills).toEqual([]);
+    it('getSkillCacheStats reports cache size and keys', () => {
+      expect(getSkillCacheStats()).toEqual({ size: 0, skills: [] });
     });
   });
 });

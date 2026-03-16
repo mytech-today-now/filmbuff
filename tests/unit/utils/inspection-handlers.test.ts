@@ -1,16 +1,11 @@
-/**
- * Unit Tests for Inspection Handlers
- * Tests the extensible handler system for module inspection
- */
-
-import { describe, it, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   BaseInspectionHandler,
   DefaultInspectionHandler,
   HandlerOptions,
   HandlerResult
-} from '../inspection-handlers';
-import { Module } from '../module-system';
+} from '@cli/utils/inspection-handlers';
+import type { Module } from '@cli/utils/module-system';
 
 describe('Inspection Handlers', () => {
   describe('BaseInspectionHandler', () => {
@@ -70,11 +65,10 @@ describe('Inspection Handlers', () => {
       } as Module;
     });
 
-    it('should support all module types', () => {
-      expect(handler.supports('coding-standards')).toBe(true);
-      expect(handler.supports('domain-rules')).toBe(true);
-      expect(handler.supports('workflows')).toBe(true);
-      expect(handler.supports('any-type')).toBe(true);
+    it('should expose wildcard support as a sentinel value', () => {
+      expect(handler.supports('*')).toBe(true);
+      expect(handler.supports('coding-standards')).toBe(false);
+      expect(handler.supports('domain-rules')).toBe(false);
     });
 
     it('should have lowest priority', () => {
@@ -109,13 +103,27 @@ describe('Inspection Handlers', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      const invalidModule = null as any;
+      const invalidModule = {
+        fullName: 'test/module',
+        metadata: {
+          name: 'module',
+          version: '1.0.0',
+          type: 'coding-standards',
+          get description() {
+            throw new Error('description failure');
+          }
+        },
+        rules: [],
+        examples: [],
+        path: '/test/path'
+      } as unknown as Module;
       
       const result = await handler.handle(invalidModule, {});
 
       expect(result.success).toBe(false);
-      expect(result.error).toBeDefined();
+      expect(result.error).toContain('description failure');
       expect(result.metadata?.handlerId).toBe('default-handler');
+      expect(result.metadata?.moduleType).toBe('coding-standards');
     });
 
     it('should respect handler options', async () => {

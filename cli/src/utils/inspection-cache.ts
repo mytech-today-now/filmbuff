@@ -123,6 +123,20 @@ export class InspectionCache<T = any> {
   }
 
   /**
+   * Enable caching
+   */
+  enable(): void {
+    this.setEnabled(true);
+  }
+
+  /**
+   * Disable caching and clear cached entries
+   */
+  disable(): void {
+    this.setEnabled(false);
+  }
+
+  /**
    * Check if caching is enabled
    */
   isEnabled(): boolean {
@@ -163,4 +177,5 @@ export const moduleInspectionCache = new InspectionCache({
   ttl: 5 * 60 * 1000, // 5 minutes
   maxSize: 100
 });
+
 

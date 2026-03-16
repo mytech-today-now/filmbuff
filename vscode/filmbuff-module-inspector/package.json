@@ -1,0 +1,72 @@
+{
+  "name": "filmbuff-module-inspector",
+  "displayName": "FilmBuff Module Inspector",
+  "description": "VS Code context menu and keyboard shortcut integration for FilmBuff module inspection.",
+  "version": "0.1.0",
+  "publisher": "mytech-today-now",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:filmbuff.inspectModule",
+    "onCommand:filmbuff.inspectModuleOptimizations"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "filmbuff.inspectModule",
+        "title": "FilmBuff: Open Module Inspection Report",
+        "category": "FilmBuff"
+      },
+      {
+        "command": "filmbuff.inspectModuleOptimizations",
+        "title": "FilmBuff: Show Optimization Suggestions",
+        "category": "FilmBuff"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "filmbuff.inspectModule",
+          "group": "navigation@20",
+          "when": "explorerResourceIsFolder == false && resourceExtname =~ /\\.(md|json|txt|ts|tsx|js|jsx|py|php|rb|go|rs|java|c|cpp|cs|sh|ps1|yml|yaml|xml|html|css|scss|sql)$/"
+        },
+        {
+          "command": "filmbuff.inspectModuleOptimizations",
+          "group": "navigation@21",
+          "when": "explorerResourceIsFolder == false && resourceExtname =~ /\\.(md|json|txt|ts|tsx|js|jsx|py|php|rb|go|rs|java|c|cpp|cs|sh|ps1|yml|yaml|xml|html|css|scss|sql)$/"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "filmbuff.inspectModule",
+          "group": "navigation@20",
+          "when": "editorHasDocument && editorLangId =~ /^(markdown|json|plaintext|typescript|typescriptreact|javascript|javascriptreact|python|php|ruby|go|rust|java|c|cpp|csharp|shellscript|powershell|yaml|xml|html|css|scss|sql)$/"
+        },
+        {
+          "command": "filmbuff.inspectModuleOptimizations",
+          "group": "navigation@21",
+          "when": "editorHasDocument && editorLangId =~ /^(markdown|json|plaintext|typescript|typescriptreact|javascript|javascriptreact|python|php|ruby|go|rust|java|c|cpp|csharp|shellscript|powershell|yaml|xml|html|css|scss|sql)$/"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "filmbuff.inspectModule",
+        "key": "ctrl+alt+i",
+        "mac": "cmd+alt+i",
+        "when": "editorTextFocus && editorLangId =~ /^(markdown|json|plaintext|typescript|typescriptreact|javascript|javascriptreact|python|php|ruby|go|rust|java|c|cpp|csharp|shellscript|powershell|yaml|xml|html|css|scss|sql)$/"
+      },
+      {
+        "command": "filmbuff.inspectModuleOptimizations",
+        "key": "ctrl+alt+o",
+        "mac": "cmd+alt+o",
+        "when": "editorTextFocus && editorLangId =~ /^(markdown|json|plaintext|typescript|typescriptreact|javascript|javascriptreact|python|php|ruby|go|rust|java|c|cpp|csharp|shellscript|powershell|yaml|xml|html|css|scss|sql)$/"
+      }
+    ]
+  }
+}

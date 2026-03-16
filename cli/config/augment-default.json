@@ -29,9 +29,18 @@
     "webviewEnabled": true
   },
   "ai": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-6",
     "enablePromptGeneration": true,
     "enableSummaries": true,
-    "defaultPromptTemplate": "module-summary"
+    "defaultPromptTemplate": "module-summary",
+    "promptTemplates": [],
+    "summaryCache": {
+      "enabled": true,
+      "ttlSeconds": 3600,
+      "directory": ".augment/cache/ai-summaries",
+      "retryAttempts": 1
+    }
   }
 }
 

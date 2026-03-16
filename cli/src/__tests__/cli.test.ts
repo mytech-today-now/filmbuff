@@ -12,16 +12,10 @@ jest.mock('../commands/show');
 jest.mock('../commands/link');
 jest.mock('../commands/update');
 jest.mock('../commands/search');
-jest.mock('../commands/coord');
 jest.mock('../commands/sync');
 jest.mock('../commands/validate');
 jest.mock('../commands/catalog');
-jest.mock('../commands/install-rules');
-jest.mock('../commands/gui');
 jest.mock('../commands/unlink');
-jest.mock('../commands/self-remove');
-jest.mock('../commands/skill');
-jest.mock('../commands/mcp');
 jest.mock('chalk', () => ({
   default: {
     blue: (str: string) => str,
@@ -193,26 +187,28 @@ describe('CLI Command Parsing', () => {
     it('should parse show linked command', () => {
       const mockAction = jest.fn();
       program
-        .command('show linked')
+        .command('show <module>')
         .option('--json', 'Output as JSON')
         .action(mockAction);
 
       program.parse(['node', 'augx', 'show', 'linked']);
 
       expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('linked');
     });
 
     it('should parse show linked command with --json flag', () => {
       const mockAction = jest.fn();
       program
-        .command('show linked')
+        .command('show <module>')
         .option('--json', 'Output as JSON')
         .action(mockAction);
 
       program.parse(['node', 'augx', 'show', 'linked', '--json']);
 
       expect(mockAction).toHaveBeenCalled();
-      expect(mockAction.mock.calls[0][0].json).toBe(true);
+      expect(mockAction.mock.calls[0][0]).toBe('linked');
+      expect(mockAction.mock.calls[0][1].json).toBe(true);
     });
   });
 
@@ -220,26 +216,28 @@ describe('CLI Command Parsing', () => {
     it('should parse show all command', () => {
       const mockAction = jest.fn();
       program
-        .command('show all')
+        .command('show <module>')
         .option('--json', 'Output as JSON')
         .action(mockAction);
 
       program.parse(['node', 'augx', 'show', 'all']);
 
       expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('all');
     });
 
     it('should parse show all command with --json flag', () => {
       const mockAction = jest.fn();
       program
-        .command('show all')
+        .command('show <module>')
         .option('--json', 'Output as JSON')
         .action(mockAction);
 
       program.parse(['node', 'augx', 'show', 'all', '--json']);
 
       expect(mockAction).toHaveBeenCalled();
-      expect(mockAction.mock.calls[0][0].json).toBe(true);
+      expect(mockAction.mock.calls[0][0]).toBe('all');
+      expect(mockAction.mock.calls[0][1].json).toBe(true);
     });
   });
 
@@ -1026,6 +1024,129 @@ describe('CLI Command Parsing', () => {
       expect(mockAction).toHaveBeenCalled();
       expect(mockAction.mock.calls[0][0]).toBe('node server.js');
       expect(mockAction.mock.calls[0][1]).toBe('./output');
+    });
+  });
+
+  describe('generate-shot-list command', () => {
+    function registerGenerateShotListCommand(mockAction: jest.Mock): void {
+      program
+        .command('generate-shot-list')
+        .requiredOption('--input <file>', 'Path to screenplay file')
+        .option('--format <format>', 'Output format: md, json, jsonl, csv, txt, html', 'md')
+        .option('--output <filename>', 'Custom output filename')
+        .option('--max-characters <number>', 'Maximum characters per shot description', '4000')
+        .option('--max-shot-length <seconds>', 'Maximum shot duration in seconds', '12')
+        .option(
+          '--style <module-path>',
+          'Apply cinematic style guidelines (can be specified multiple times)',
+          (value: string, previous: string[] = []) => [...previous, value]
+        )
+        .option('--mute-sfx', 'Remove all MUSIC and SOUND EFFECT content from the output')
+        .option('--ai-provider <provider>', 'AI provider for shot list generation')
+        .option('--ai-model <model>', 'AI model for the selected provider')
+        .option('--logging', 'Enable comprehensive error logging to JSONL file')
+        .action(mockAction);
+    }
+
+    it('should parse generate-shot-list command with AI options', () => {
+      const mockAction = jest.fn();
+      registerGenerateShotListCommand(mockAction);
+
+      program.parse([
+        'node',
+        'filmbuff',
+        'generate-shot-list',
+        '--input',
+        'screenplay.fountain',
+        '--ai-provider',
+        'anthropic',
+        '--ai-model',
+        'claude-sonnet-4-6'
+      ]);
+
+      expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0].input).toBe('screenplay.fountain');
+      expect(mockAction.mock.calls[0][0].aiProvider).toBe('anthropic');
+      expect(mockAction.mock.calls[0][0].aiModel).toBe('claude-sonnet-4-6');
+    });
+
+    it('should parse generate-shot-list command with explicit output option', () => {
+      const mockAction = jest.fn();
+      registerGenerateShotListCommand(mockAction);
+
+      program.parse([
+        'node',
+        'filmbuff',
+        'generate-shot-list',
+        '--input',
+        'screenplay.fountain',
+        '--output',
+        'screenplay-ai-shot-list.json'
+      ]);
+
+      expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0].input).toBe('screenplay.fountain');
+      expect(mockAction.mock.calls[0][0].output).toBe('screenplay-ai-shot-list.json');
+    });
+
+    it('should parse generate-shot-list command with mute-sfx flag', () => {
+      const mockAction = jest.fn();
+      registerGenerateShotListCommand(mockAction);
+
+      program.parse([
+        'node',
+        'filmbuff',
+        'generate-shot-list',
+        '--input',
+        'screenplay.fountain',
+        '--mute-sfx'
+      ]);
+
+      expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0].muteSfx).toBe(true);
+    });
+
+    it('should parse generate-shot-list command with a single style', () => {
+      const mockAction = jest.fn();
+      registerGenerateShotListCommand(mockAction);
+
+      program.parse([
+        'node',
+        'filmbuff',
+        'generate-shot-list',
+        '--input',
+        'screenplay.fountain',
+        '--style',
+        'writing-standards/screenplay/cinematic-styles/directors/christopher-nolan'
+      ]);
+
+      expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0].style).toEqual([
+        'writing-standards/screenplay/cinematic-styles/directors/christopher-nolan'
+      ]);
+    });
+
+    it('should collect repeated style flags in order', () => {
+      const mockAction = jest.fn();
+      registerGenerateShotListCommand(mockAction);
+
+      program.parse([
+        'node',
+        'filmbuff',
+        'generate-shot-list',
+        '--input',
+        'screenplay.fountain',
+        '--style',
+        'writing-standards/screenplay/cinematic-styles/directors/brian-de-palma',
+        '--style',
+        'writing-standards/screenplay/cinematic-styles/directors/alfred-hitchcock'
+      ]);
+
+      expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0].style).toEqual([
+        'writing-standards/screenplay/cinematic-styles/directors/brian-de-palma',
+        'writing-standards/screenplay/cinematic-styles/directors/alfred-hitchcock'
+      ]);
     });
   });
 });

@@ -1,202 +1,274 @@
 /**
  * AI Prompt Generation Utilities
- * 
- * Generates AI-ready prompts from module inspection results
+ *
+ * Generates AI-ready prompts from module inspection results and configurable templates.
  */
 
 import { Module } from './module-system';
+import type { AugmentConfig } from './config-system';
 
-export interface PromptTemplate {
-  name: string;
-  description: string;
-  generate: (module: Module, context?: any) => string;
+export interface PromptTemplateContext {
+  code?: string;
+  file?: string;
+  complexity?: string | number;
+  [key: string]: unknown;
 }
 
-/**
- * Generate a code review prompt from module standards
- */
-export function generateCodeReviewPrompt(module: Module, codeSnippet?: string): string {
-  const prompt = `# Code Review Request
+export interface PromptTemplateDefinition {
+  name: string;
+  description: string;
+  template: string;
+  builtIn?: boolean;
+}
+
+export interface PromptTemplate extends PromptTemplateDefinition {
+  generate: (module: Module, context?: PromptTemplateContext) => string;
+}
+
+export interface PromptTemplateValidationResult {
+  valid: boolean;
+  errors: string[];
+  missingVariables: string[];
+}
+
+const BUILTIN_TEMPLATES: PromptTemplateDefinition[] = [
+  {
+    name: 'code-review',
+    description: 'Generate code review prompt with module standards',
+    builtIn: true,
+    template: `# Code Review Request
 
 ## Standards Module
-**Module**: ${module.fullName}
-**Version**: ${module.metadata.version}
-**Type**: ${module.metadata.type}
+**Module**: {{module.fullName}}
+**Version**: {{module.metadata.version}}
+**Type**: {{module.metadata.type}}
 
 ## Standards to Apply
-${module.metadata.description}
+{{module.metadata.description}}
 
 ## Rules
-${module.rules?.map((rule, i) => `${i + 1}. ${rule}`).join('\n') || 'No specific rules defined'}
+{{derived.numberedRules}}
 
 ## Task
 Please review the following code against these standards:
 
-${codeSnippet ? `\`\`\`\n${codeSnippet}\n\`\`\`` : '[Paste your code here]'}
+{{context.code}}
 
 ## Expected Output
 1. Compliance assessment
 2. Violations found (if any)
 3. Specific recommendations
-4. Code examples for fixes
-`;
+4. Code examples for fixes`
+  },
+  {
+    name: 'module-summary',
+    description: 'Generate module summary for AI context',
+    builtIn: true,
+    template: `# Module Summary for AI Context
 
-  return prompt;
-}
-
-/**
- * Generate a module summary prompt for AI context
- */
-export function generateModuleSummaryPrompt(module: Module): string {
-  const prompt = `# Module Summary for AI Context
-
-**Module**: ${module.fullName}
-**Version**: ${module.metadata.version}
-**Type**: ${module.metadata.type}
-**Description**: ${module.metadata.description}
+**Module**: {{module.fullName}}
+**Version**: {{module.metadata.version}}
+**Type**: {{module.metadata.type}}
+**Description**: {{module.metadata.description}}
 
 ## Purpose
-This module provides ${module.metadata.type} guidelines for ${module.fullName}.
+This module provides {{module.metadata.type}} guidelines for {{module.fullName}}.
 
 ## Key Rules
-${module.rules?.slice(0, 10).map((rule, i) => `${i + 1}. ${rule}`).join('\n') || 'No rules defined'}
+{{derived.topRules}}
 
 ## Examples Available
-${module.examples?.slice(0, 5).map((ex, i) => `${i + 1}. ${ex}`).join('\n') || 'No examples available'}
+{{derived.topExamples}}
 
 ## Character Count
-Approximately ${module.metadata.augment?.characterCount || 'unknown'} characters
-
-## Usage
-When working on ${module.metadata.type} tasks, reference this module for:
-- Coding standards and conventions
-- Best practices and patterns
-- Example implementations
-- Common pitfalls to avoid
-`;
-
-  return prompt;
-}
-
-/**
- * Generate an optimization suggestion prompt
- */
-export function generateOptimizationPrompt(module: Module, targetFile?: string): string {
-  const prompt = `# Code Optimization Request
+Approximately {{derived.characterCount}} characters`
+  },
+  {
+    name: 'optimization',
+    description: 'Generate optimization suggestions prompt',
+    builtIn: true,
+    template: `# Code Optimization Request
 
 ## Context
-**Standards Module**: ${module.fullName}
-**Target**: ${targetFile || 'Current codebase'}
+**Standards Module**: {{module.fullName}}
+**Target**: {{context.file}}
 
 ## Optimization Goals
-Based on ${module.fullName} standards, suggest optimizations for:
+Based on {{module.fullName}} standards, suggest optimizations for:
 
-1. **Performance**
-   - Identify bottlenecks
-   - Suggest algorithmic improvements
-   - Recommend caching strategies
-
-2. **Code Quality**
-   - Reduce complexity
-   - Improve readability
-   - Enhance maintainability
-
-3. **Best Practices**
-   - Apply ${module.metadata.type} patterns
-   - Follow naming conventions
-   - Implement proper error handling
-
-4. **Security**
-   - Identify vulnerabilities
-   - Suggest secure alternatives
-   - Implement input validation
+1. Performance
+2. Code Quality
+3. Best Practices
+4. Security
 
 ## Standards Reference
-${module.rules?.slice(0, 5).map((rule, i) => `${i + 1}. ${rule}`).join('\n') || 'See module for full standards'}
-
-## Expected Output
-For each optimization:
-- Current issue
-- Recommended solution
-- Code example
-- Impact assessment (high/medium/low)
-`;
-
-  return prompt;
-}
-
-/**
- * Generate a refactoring recommendation prompt
- */
-export function generateRefactoringPrompt(module: Module, complexity?: any): string {
-  const prompt = `# Refactoring Recommendations
+{{derived.topRules}}`
+  },
+  {
+    name: 'refactoring',
+    description: 'Generate refactoring recommendations prompt',
+    builtIn: true,
+    template: `# Refactoring Recommendations
 
 ## Module Standards
-**Module**: ${module.fullName}
-**Type**: ${module.metadata.type}
+**Module**: {{module.fullName}}
+**Type**: {{module.metadata.type}}
 
 ## Refactoring Goals
-Refactor code to align with ${module.fullName} standards:
+Refactor code to align with {{module.fullName}} standards.
 
-### 1. Structure Improvements
-- Organize code according to ${module.metadata.type} patterns
-- Separate concerns appropriately
-- Improve modularity
-
-### 2. Naming Conventions
-- Apply consistent naming from standards
-- Improve variable/function names
-- Use descriptive identifiers
-
-### 3. Code Simplification
-- Reduce cyclomatic complexity
-- Extract reusable functions
-- Eliminate code duplication
-
-### 4. Documentation
-- Add inline comments
-- Document public APIs
-- Include usage examples
+### Complexity Context
+{{context.complexity}}
 
 ## Standards to Follow
-${module.rules?.map((rule, i) => `${i + 1}. ${rule}`).join('\n') || 'See module for full standards'}
+{{derived.numberedRules}}`
+  }
+];
 
-## Output Format
-For each refactoring:
-1. Current code pattern
-2. Recommended pattern
-3. Step-by-step migration guide
-4. Benefits of change
-`;
-
-  return prompt;
+export function generateCodeReviewPrompt(module: Module, codeSnippet?: string): string {
+  return renderPromptTemplate(resolvePromptTemplate('code-review')!, module, {
+    code: codeSnippet ? `\`\`\`\n${codeSnippet}\n\`\`\`` : '[Paste your code here]'
+  });
 }
 
-/**
- * Get all available prompt templates
- */
-export function getPromptTemplates(): PromptTemplate[] {
-  return [
-    {
-      name: 'code-review',
-      description: 'Generate code review prompt with module standards',
-      generate: (module, context) => generateCodeReviewPrompt(module, context?.code)
+export function generateModuleSummaryPrompt(module: Module): string {
+  return renderPromptTemplate(resolvePromptTemplate('module-summary')!, module);
+}
+
+export function generateOptimizationPrompt(module: Module, targetFile?: string): string {
+  return renderPromptTemplate(resolvePromptTemplate('optimization')!, module, {
+    file: targetFile || 'Current codebase'
+  });
+}
+
+export function generateRefactoringPrompt(module: Module, complexity?: unknown): string {
+  return renderPromptTemplate(resolvePromptTemplate('refactoring')!, module, {
+    complexity: typeof complexity === 'string' || typeof complexity === 'number'
+      ? complexity
+      : 'Current complexity analysis unavailable'
+  });
+}
+
+export function getPromptTemplates(config?: Pick<AugmentConfig, 'ai'>): PromptTemplate[] {
+  const templateMap = new Map<string, PromptTemplate>();
+
+  [...BUILTIN_TEMPLATES, ...(config?.ai?.promptTemplates || [])]
+    .filter(definition => isValidDefinition(definition))
+    .forEach(definition => {
+      templateMap.set(definition.name, createTemplate(definition));
+    });
+
+  return [...templateMap.values()];
+}
+
+export function resolvePromptTemplate(name: string, config?: Pick<AugmentConfig, 'ai'>): PromptTemplate | undefined {
+  return getPromptTemplates(config).find(template => template.name === name);
+}
+
+export function validatePromptTemplateUsage(
+  template: PromptTemplateDefinition,
+  module: Module,
+  context: PromptTemplateContext = {}
+): PromptTemplateValidationResult {
+  if (!isValidDefinition(template)) {
+    return {
+      valid: false,
+      errors: ['Prompt template "unknown" is invalid'],
+      missingVariables: []
+    };
+  }
+
+  const missingVariables = extractTemplateVariables(template.template).filter(variable => {
+    return resolveTemplateValue(variable, module, context) === undefined;
+  });
+
+  return {
+    valid: missingVariables.length === 0,
+    errors: missingVariables.length > 0 ? [`Missing template variables: ${missingVariables.join(', ')}`] : [],
+    missingVariables
+  };
+}
+
+export function renderPromptTemplate(
+  template: PromptTemplateDefinition,
+  module: Module,
+  context: PromptTemplateContext = {}
+): string {
+  return template.template.replace(/{{\s*([a-zA-Z0-9_.]+)\s*}}/g, (_, expression: string) => {
+    const value = resolveTemplateValue(expression, module, context);
+    return value === undefined ? `{{${expression}}}` : formatTemplateValue(value);
+  });
+}
+
+function createTemplate(definition: PromptTemplateDefinition): PromptTemplate {
+  return {
+    ...definition,
+    generate: (module: Module, context?: PromptTemplateContext) => renderPromptTemplate(definition, module, context)
+  };
+}
+
+function resolveTemplateValue(expression: string, module: Module, context: PromptTemplateContext): unknown {
+  const derived = {
+    numberedRules: formatNumberedList(module.rules, 'No specific rules defined'),
+    topRules: formatNumberedList(module.rules.slice(0, 10), 'No rules defined'),
+    topExamples: formatNumberedList(module.examples.slice(0, 5), 'No examples available'),
+    characterCount: module.metadata.augment?.characterCount || 'unknown'
+  };
+
+  const roots: Record<string, unknown> = {
+    module,
+    context: {
+      code: '[Paste your code here]',
+      file: 'Current codebase',
+      complexity: 'Current complexity analysis unavailable',
+      ...context
     },
-    {
-      name: 'module-summary',
-      description: 'Generate module summary for AI context',
-      generate: (module) => generateModuleSummaryPrompt(module)
-    },
-    {
-      name: 'optimization',
-      description: 'Generate optimization suggestions prompt',
-      generate: (module, context) => generateOptimizationPrompt(module, context?.file)
-    },
-    {
-      name: 'refactoring',
-      description: 'Generate refactoring recommendations prompt',
-      generate: (module, context) => generateRefactoringPrompt(module, context?.complexity)
+    derived
+  };
+
+  return expression.split('.').reduce<unknown>((current, key) => {
+    if (current && typeof current === 'object' && key in (current as Record<string, unknown>)) {
+      return (current as Record<string, unknown>)[key];
     }
-  ];
+
+    return undefined;
+  }, roots);
+}
+
+function extractTemplateVariables(template: string): string[] {
+  const variables = new Set<string>();
+  template.replace(/{{\s*([a-zA-Z0-9_.]+)\s*}}/g, (_, expression: string) => {
+    variables.add(expression);
+    return '';
+  });
+  return [...variables];
+}
+
+function formatTemplateValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    return value.length === 0 ? 'None' : value.join('\n');
+  }
+
+  if (value && typeof value === 'object') {
+    return JSON.stringify(value, null, 2);
+  }
+
+  return String(value);
+}
+
+function formatNumberedList(items: string[], emptyValue: string): string {
+  return items.length > 0 ? items.map((item, index) => `${index + 1}. ${item}`).join('\n') : emptyValue;
+}
+
+function isValidDefinition(template?: PromptTemplateDefinition): template is PromptTemplateDefinition {
+  return Boolean(
+    template &&
+    typeof template.name === 'string' &&
+    template.name.trim() &&
+    typeof template.description === 'string' &&
+    template.description.trim() &&
+    typeof template.template === 'string' &&
+    template.template.trim()
+  );
 }
 

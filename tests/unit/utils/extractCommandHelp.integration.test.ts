@@ -6,7 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
-import { extractCommandHelp, extractAllHelp, detectTools } from '../extractCommandHelp';
+import { extractCommandHelp, extractAllHelp, detectTools } from '@cli/utils/extractCommandHelp';
 
 describe('extractCommandHelp integration tests', () => {
   let tempDir: string;
@@ -119,7 +119,7 @@ describe('extractCommandHelp integration tests', () => {
       expect(tools.length).toBe(3);
       expect(tools.map(t => t.name)).toContain('Beads');
       expect(tools.map(t => t.name)).toContain('OpenSpec');
-      expect(tools.map(t => t.name)).toContain('Augx');
+      expect(tools.map(t => t.name)).toContain('filmbuff');
     });
 
     it('should only detect tools with existing directories', () => {

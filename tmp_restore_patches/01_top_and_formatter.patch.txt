@@ -1,0 +1,982 @@
+*** Begin Patch
+*** Add File: cli/src/commands/generate-shot-list/help-text.ts
++/**
++ * Help Text for generate-shot-list command
++ * 
++ * Comprehensive help documentation for the AI Shot List Generator
++ */
++
++export const HELP_TEXT = `
++╔══════════════════════════════════════════════════════════════════════════════╗
++║                        AI SHOT LIST GENERATOR                                ║
++║                                                                              ║
++║  Convert traditional screenplays into AI-optimized shot lists for video     ║
++║  generation platforms (Runway, Pika, Stable Video Diffusion, etc.)          ║
++╚══════════════════════════════════════════════════════════════════════════════╝
++
++SYNOPSIS
++  augx generate-shot-list --path <screenplay-file> [options]
++
++DESCRIPTION
++  Converts traditional screenplays into AI-optimized shot lists with automatic
++  enforcement of shot duration and character limits. Each shot includes:
++  
++  • Complete scene context (set, lighting, time of day)
++  • Character descriptions and positions
++  • Camera framing and movement suggestions
++  • Shot duration and character count validation
++  • Technical notes and metadata
++
++REQUIRED ARGUMENTS
++  --path <file>
++      Path to screenplay file
++      Supported formats: Fountain (.fountain), Markdown (.md), Plain Text (.txt)
++      
++      Examples:
++        --path screenplay.fountain
++        --path /path/to/screenplay.md
++        --path "C:\\Users\\Name\\screenplay.txt"
++
++OPTIONAL ARGUMENTS
++  --format <format>
++      Output format for shot list
++      Valid values: md, json, jsonl, csv, txt, html
++      Default: md
++      
++      Examples:
++        --format json
++        --format html
++
++  --output <filename>
++      Custom output filename
++      Default: <screenplay-name>-ai-shot-list.<format>
++      
++      Examples:
++        --output my-shots.json
++        --output /path/to/output.md
++
++  --max-characters <number>
++      Maximum characters per shot description
++      Range: 100 - 10000
++      Default: 4000
++      
++      Examples:
++        --max-characters 3000
++        --max-characters 5000
++
++  --max-shot-length <seconds>
++      Maximum shot duration in seconds
++      Range: 1 - 60
++      Default: 12
++
++      Examples:
++        --max-shot-length 10
++        --max-shot-length 15
++
++  --logging
++      Enable debug logging to augx.jsonl
++      Logs all stages: parsing, generation, validation, formatting
++      Includes error details, warnings, and style decisions
++
++      Example:
++        --logging
++
++  --mute-sfx
++      Remove all MUSIC and SOUND EFFECT content from the output
++      Dialogue will remain intact if appropriate for the shot
++      The missing SFX and Music will not affect the shot(s) in any other way
++
++      Example:
++        --mute-sfx
++
++  --style <module-path>
++      Apply cinematic style guidelines (can be specified multiple times)
++      Format: writing-standards/screenplay/cinematic-styles/[category]/[style-name]
++      Categories: directors, franchises, films, comedy-formats
++      Priority: first --style flag = highest priority
++
++      Examples:
++        --style writing-standards/screenplay/cinematic-styles/directors/brian-de-palma
++        --style writing-standards/screenplay/cinematic-styles/directors/brian-de-palma \
++        --style writing-standards/screenplay/cinematic-styles/directors/alfred-hitchcock
++
++  --verbose
++      Enable verbose output with detailed progress information
++
++  --quiet
++      Suppress all output except errors
++
++  --help, -h
++      Display this help message
++
++USAGE EXAMPLES
++  Basic usage (Markdown output):
++    augx generate-shot-list --path screenplay.fountain
++
++  Generate JSON output:
++    augx generate-shot-list --path screenplay.md --format json
++
++  Custom character limit:
++    augx generate-shot-list --path screenplay.txt --max-characters 3000
++
++  Custom output file:
++    augx generate-shot-list --path screenplay.fountain --output my-shots.html --format html
++
++  With debug logging:
++    augx generate-shot-list --path screenplay.md --logging
++
++  Mute sound effects and music:
++    augx generate-shot-list --path screenplay.fountain --mute-sfx
++
++  Apply cinematic style:
++    augx generate-shot-list --path screenplay.fountain \
++      --style writing-standards/screenplay/cinematic-styles/directors/christopher-nolan
++
++  Multiple styles (priority-based):
++    augx generate-shot-list --path screenplay.fountain \
++      --style writing-standards/screenplay/cinematic-styles/directors/brian-de-palma \
++      --style writing-standards/screenplay/cinematic-styles/directors/alfred-hitchcock \
++      --logging
++
++  Verbose mode:
++    augx generate-shot-list --path screenplay.md --verbose
++
++SUPPORTED FORMATS
++  Input Formats:
++    • Fountain (.fountain) - Industry-standard screenplay format
++    • Markdown (.md) - Headings as scenes, paragraphs as action/dialogue
++    • Plain Text (.txt) - Simple text with INT/EXT scene headings
++
++  Output Formats:
++    • Markdown (md) - Structured shot list with tables
++    • JSON (json) - Machine-readable format with all metadata
++    • JSONL (jsonl) - One shot per line (streaming-friendly)
++    • CSV (csv) - Spreadsheet-compatible format
++    • TXT (txt) - Simple plain text format
++    • HTML (html) - Interactive format with character counting
++
++ERROR HANDLING
++  When --logging is enabled, all events are logged to augx.jsonl
++
++  Common errors:
++    • PE001: Invalid scene heading format
++    • VE001: Shot exceeds character limit
++    • VE002: Shot exceeds duration limit
++    • IO001: Input file not found
++    • IO002: Output file cannot be written
++    • STYLE_CONFLICT: Multiple styles have conflicting guidelines
++
++EXIT CODES
++  0 - Success
++  1 - General error
++  2 - Invalid arguments
++  3 - Input file error
++  4 - Output file error
++  5 - Parsing error
++  6 - Validation error
++
++BEST PRACTICES
++  1. Use Fountain format for best results (most structured)
++  2. Keep shot descriptions under 4000 characters for optimal AI generation
++  3. Limit shots to 12 seconds for better video quality
++  4. Use HTML output for interactive editing and character counting
++  5. Review warnings in the output for potential issues
++  6. Enable --logging for debugging and audit trails
++  7. Apply cinematic styles to match specific director aesthetics
++
++CINEMATIC STYLES
++  • Styles are loaded from augment-extensions modules
++  • Multiple styles can be combined with priority-based merging
++  • First --style flag = highest priority (primary style)
++  • Conflicts are automatically resolved using primary style
++  • Style conflicts are logged when --logging is enabled
++
++TIPS
++  • The generator automatically splits long scenes into multiple shots
++  • Context is repeated for each shot (set, characters, lighting)
++  • Metadata extraction identifies shot types and camera movements
++  • Character limits include full context, not just action description
++  • Style guidelines influence camera work, lighting, and pacing suggestions
++
++For more information, visit:
++  https://github.com/mytech-today-now/augment-extensions
++
++Report issues at:
++  https://github.com/mytech-today-now/augment-extensions/issues
++`;
++
++/**
++ * Display help text
++ */
++export function displayHelp(): void {
++  console.log(HELP_TEXT);
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/errors.ts
++/**
++ * Error Catalog for AI Shot List Generator
++ * 
++ * Comprehensive error definitions with codes, messages, and fix suggestions
++ */
++
++export type ErrorType = 'parsing' | 'validation' | 'formatting' | 'io' | 'runtime';
++export type Severity = 'critical' | 'error' | 'warning' | 'info';
++
++export interface ErrorDefinition {
++  code: string;
++  name: string;
++  description: string;
++  severity: Severity;
++  exitCode: number;
++  recovery: string;
++  message: (context?: any) => string;
++  fix: (context?: any) => string;
++  autoFixable: boolean;
++  relatedDocs: string[];
++}
++
++/**
++ * Parsing Errors (PE001-PE004)
++ */
++export const PARSING_ERRORS: Record<string, ErrorDefinition> = {
++  PE001: {
++    code: 'PE001',
++    name: 'Invalid Screenplay Format',
++    description: 'Input file is not in a recognized format',
++    severity: 'critical',
++    exitCode: 5,
++    recovery: 'Fail - cannot parse',
++    message: (ctx) => `Invalid screenplay format: ${ctx?.format || 'unknown'}. File must be Fountain (.fountain), Markdown (.md), or Plain Text (.txt)`,
++    fix: (ctx) => `Convert your screenplay to one of the supported formats: Fountain, Markdown, or Plain Text. See https://fountain.io for Fountain format specification.`,
++    autoFixable: false,
++    relatedDocs: ['https://fountain.io/syntax', 'https://github.com/mytech-today-now/augment-extensions/blob/main/docs/screenplay-formats.md']
++  },
++  PE002: {
++    code: 'PE002',
++    name: 'Malformed Scene Heading',
++    description: "Scene heading doesn't follow standard format",
++    severity: 'error',
++    exitCode: 5,
++    recovery: 'Skip scene, continue',
++    message: (ctx) => `Malformed scene heading at line ${ctx?.line}: "${ctx?.text}". Expected format: INT/EXT. LOCATION - TIME`,
++    fix: (ctx) => `Correct the scene heading format. Use: INT. or EXT. followed by location, hyphen, and time of day. Example: "INT. COFFEE SHOP - DAY"`,
++    autoFixable: true,
++    relatedDocs: ['https://fountain.io/syntax#section-sluglines']
++  },
++  PE003: {
++    code: 'PE003',
++    name: 'Unclosed Dialogue Block',
++    description: 'Character dialogue is not properly terminated',
++    severity: 'error',
++    exitCode: 5,
++    recovery: 'Skip dialogue, continue',
++    message: (ctx) => `Unclosed dialogue block starting at line ${ctx?.line}. Character: ${ctx?.character}`,
++    fix: (ctx) => `Ensure dialogue blocks are properly terminated with a blank line or next scene element.`,
++    autoFixable: true,
++    relatedDocs: ['https://fountain.io/syntax#section-dialogue']
++  },
++  PE004: {
++    code: 'PE004',
++    name: 'Invalid Character Name',
++    description: 'Character name contains invalid characters',
++    severity: 'warning',
++    exitCode: 0,
++    recovery: 'Sanitize name, continue',
++    message: (ctx) => `Invalid character name at line ${ctx?.line}: "${ctx?.name}". Character names should be uppercase letters, spaces, and hyphens only.`,
++    fix: (ctx) => `Remove special characters from character name. Use only uppercase letters, spaces, and hyphens.`,
++    autoFixable: true,
++    relatedDocs: ['https://fountain.io/syntax#section-character']
++  }
++};
++
++/**
++ * Validation Errors (VE001-VE004)
++ */
++export const VALIDATION_ERRORS: Record<string, ErrorDefinition> = {
++  VE001: {
++    code: 'VE001',
++    name: 'Character Limit Exceeded',
++    description: 'Shot description exceeds maximum characters',
++    severity: 'warning',
++    exitCode: 0,
++    recovery: 'Continue with warning',
++    message: (ctx) => `Shot ${ctx?.shotNumber} exceeds character limit: ${ctx?.actualChars} characters (max: ${ctx?.maxChars})`,
++    fix: (ctx) => `Reduce shot description length or increase --max-characters limit. Consider splitting into multiple shots.`,
++    autoFixable: false,
++    relatedDocs: []
++  },
++  VE002: {
++    code: 'VE002',
++    name: 'Shot Duration Exceeded',
++    description: 'Shot duration exceeds maximum length',
++    severity: 'warning',
++    exitCode: 0,
++    recovery: 'Continue with warning',
++    message: (ctx) => `Shot ${ctx?.shotNumber} exceeds duration limit: ${ctx?.actualDuration}s (max: ${ctx?.maxDuration}s)`,
++    fix: (ctx) => `Reduce shot duration or increase --max-shot-length limit. Consider splitting into multiple shots.`,
++    autoFixable: false,
++    relatedDocs: []
++  },
++  VE003: {
++    code: 'VE003',
++    name: 'Empty Shot Description',
++    description: 'Shot has no action or dialogue',
++    severity: 'warning',
++    exitCode: 0,
++    recovery: 'Continue with warning',
++    message: (ctx) => `Shot ${ctx?.shotNumber} has no action or dialogue`,
++    fix: (ctx) => `Add action description or dialogue to the shot, or remove the empty shot.`,
++    autoFixable: false,
++    relatedDocs: []
++  },
++  VE004: {
++    code: 'VE004',
++    name: 'Missing Required Metadata',
++    description: 'Shot is missing required fields',
++    severity: 'error',
++    exitCode: 6,
++    recovery: 'Fail - cannot generate',
++    message: (ctx) => `Shot ${ctx?.shotNumber} is missing required metadata: ${ctx?.missingFields?.join(', ')}`,
++    fix: (ctx) => `Ensure all required fields are present: scene heading, location, time of day, and action/dialogue.`,
++    autoFixable: false,
++    relatedDocs: []
++  }
++};
++
++/**
++ * Formatting Errors (FE001-FE002)
++ */
++export const FORMATTING_ERRORS: Record<string, ErrorDefinition> = {
++  FE001: {
++    code: 'FE001',
++    name: 'Invalid Output Format',
++    description: 'Specified output format is not supported',
++    severity: 'critical',
++    exitCode: 2,
++    recovery: 'Fail - invalid argument',
++    message: (ctx) => `Invalid output format: "${ctx?.format}". Supported formats: md, json, jsonl, csv, txt, html`,
++    fix: (ctx) => `Use one of the supported output formats: md, json, jsonl, csv, txt, or html. Example: --format json`,
++    autoFixable: false,
++    relatedDocs: []
++  },
++  FE002: {
++    code: 'FE002',
++    name: 'Output File Extension Mismatch',
++    description: "Filename extension doesn't match format",
++    severity: 'warning',
++    exitCode: 0,
++    recovery: 'Continue with warning',
++    message: (ctx) => `Output file extension ".${ctx?.extension}" doesn't match format "${ctx?.format}"`,
++    fix: (ctx) => `Rename output file to use correct extension for format "${ctx?.format}", or change format to match extension.`,
++    autoFixable: false,
++    relatedDocs: []
++  }
++};
++
++/**
++ * I/O Errors (IO001-IO005)
++ */
++export const IO_ERRORS: Record<string, ErrorDefinition> = {
++  IO001: {
++    code: 'IO001',
++    name: 'Input File Not Found',
++    description: "Specified screenplay file doesn't exist",
++    severity: 'critical',
++    exitCode: 3,
++    recovery: 'Fail - cannot read',
++    message: (ctx) => `Input file not found: ${ctx?.path}`,
++    fix: (ctx) => `Check that the file path is correct and the file exists. Use absolute path or path relative to current directory.`,
++    autoFixable: false,
++    relatedDocs: []
++  },
++  IO002: {
++    code: 'IO002',
++    name: 'Permission Denied (Read)',
++    description: 'No read permission for input file',
++    severity: 'critical',
++    exitCode: 3,
++    recovery: 'Fail - cannot read',
++    message: (ctx) => `Permission denied reading file: ${ctx?.path}`,
++    fix: (ctx) => `Check file permissions and ensure you have read access. On Unix: chmod +r "${ctx?.path}"`,
++    autoFixable: false,
++    relatedDocs: []
++  },
++  IO003: {
++    code: 'IO003',
++    name: 'Permission Denied (Write)',
++    description: 'No write permission for output directory',
++    severity: 'critical',
++    exitCode: 4,
++    recovery: 'Fail - cannot write',
++    message: (ctx) => `Permission denied writing to: ${ctx?.path}`,
++    fix: (ctx) => `Check directory permissions and ensure you have write access. On Unix: chmod +w "${ctx?.directory}"`,
++    autoFixable: false,
++    relatedDocs: []
++  },
++  IO004: {
++    code: 'IO004',
++    name: 'Disk Full',
++    description: 'Insufficient disk space for output file',
++    severity: 'critical',
++    exitCode: 4,
++    recovery: 'Fail - cannot write',
++    message: (ctx) => `Insufficient disk space. Required: ${ctx?.required}MB, Available: ${ctx?.available}MB`,
++    fix: (ctx) => `Free up disk space or choose a different output location with more available space.`,
++    autoFixable: false,
++    relatedDocs: []
++  },
++  IO005: {
++    code: 'IO005',
++    name: 'Output File Already Exists',
++    description: 'Output file exists and overwrite not enabled',
++    severity: 'error',
++    exitCode: 4,
++    recovery: 'Fail - would overwrite',
++    message: (ctx) => `Output file already exists: ${ctx?.path}. Use --force to overwrite.`,
++    fix: (ctx) => `Either delete the existing file, choose a different output filename, or use --force flag to overwrite.`,
++    autoFixable: false,
++    relatedDocs: []
++  }
++};
++
++/**
++ * Runtime Errors (RE001-RE003)
++ */
++export const RUNTIME_ERRORS: Record<string, ErrorDefinition> = {
++  RE001: {
++    code: 'RE001',
++    name: 'Out of Memory',
++    description: 'Screenplay is too large to process',
++    severity: 'critical',
++    exitCode: 1,
++    recovery: 'Fail - insufficient memory',
++    message: (ctx) => `Out of memory processing screenplay. File size: ${ctx?.fileSize}MB`,
++    fix: (ctx) => `Split the screenplay into smaller files or increase Node.js memory limit: node --max-old-space-size=4096`,
++    autoFixable: false,
++    relatedDocs: []
++  },
++  RE002: {
++    code: 'RE002',
++    name: 'Processing Timeout',
++    description: 'Processing takes longer than maximum time',
++    severity: 'critical',
++    exitCode: 1,
++    recovery: 'Fail - timeout exceeded',
++    message: (ctx) => `Processing timeout after ${ctx?.timeout}s. File may be too large or complex.`,
++    fix: (ctx) => `Simplify the screenplay, split into smaller files, or increase timeout limit.`,
++    autoFixable: false,
++    relatedDocs: []
++  },
++  RE003: {
++    code: 'RE003',
++    name: 'Unexpected Exception',
++    description: 'Unhandled error in processing logic',
++    severity: 'critical',
++    exitCode: 1,
++    recovery: 'Fail - unknown error',
++    message: (ctx) => `Unexpected error: ${ctx?.error?.message || 'Unknown error'}`,
++    fix: (ctx) => `This is an internal error. Please report this issue with the error details and input file.`,
++    autoFixable: false,
++    relatedDocs: ['https://github.com/mytech-today-now/augment-extensions/issues']
++  }
++};
++
++/**
++ * All errors combined
++ */
++export const ALL_ERRORS: Record<string, ErrorDefinition> = {
++  ...PARSING_ERRORS,
++  ...VALIDATION_ERRORS,
++  ...FORMATTING_ERRORS,
++  ...IO_ERRORS,
++  ...RUNTIME_ERRORS
++};
++
++/**
++ * Get error definition by code
++ */
++export function getErrorDefinition(code: string): ErrorDefinition | undefined {
++  return ALL_ERRORS[code];
++}
++
++/**
++ * Get all errors of a specific type
++ */
++export function getErrorsByType(type: ErrorType): Record<string, ErrorDefinition> {
++  switch (type) {
++    case 'parsing':
++      return PARSING_ERRORS;
++    case 'validation':
++      return VALIDATION_ERRORS;
++    case 'formatting':
++      return FORMATTING_ERRORS;
++    case 'io':
++      return IO_ERRORS;
++    case 'runtime':
++      return RUNTIME_ERRORS;
++    default:
++      return {};
++  }
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/formatter/base-formatter.ts
++/**
++ * Base Formatter
++ * 
++ * Abstract base class with common utilities for all formatters
++ */
++
++import { ShotList } from '../generator/types';
++import { Formatter, FormatterOptions, TimeFormatter, TextWrapper } from './types';
++
++/**
++ * Time formatting utilities
++ */
++export const timeFormatter: TimeFormatter = {
++  /**
++   * Format seconds to MM:SS
++   */
++  formatTime(seconds: number): string {
++    const roundedSeconds = Math.round(seconds);
++    const mins = Math.floor(roundedSeconds / 60);
++    const secs = roundedSeconds % 60;
++    return `${mins}:${secs.toString().padStart(2, '0')}`;
++  },
++
++  /**
++   * Format total duration to human-readable format
++   */
++  formatDuration(totalSeconds: number): string {
++    const roundedSeconds = Math.round(totalSeconds);
++    const hours = Math.floor(roundedSeconds / 3600);
++    const mins = Math.floor((roundedSeconds % 3600) / 60);
++    const secs = roundedSeconds % 60;
++
++    if (hours > 0) {
++      return `${hours}h ${mins}m ${secs}s`;
++    } else if (mins > 0) {
++      return `${mins}m ${secs}s`;
++    } else {
++      return `${secs}s`;
++    }
++  }
++};
++
++/**
++ * Text wrapping utilities
++ */
++export const textWrapper: TextWrapper = {
++  /**
++   * Wrap text to specified width
++   */
++  wrapText(text: string, width: number, indent: string = ''): string {
++    const words = text.split(' ');
++    const lines: string[] = [];
++    let currentLine = '';
++
++    for (const word of words) {
++      if ((currentLine + word).length > width) {
++        lines.push(currentLine.trim());
++        currentLine = indent + word + ' ';
++      } else {
++        currentLine += word + ' ';
++      }
++    }
++
++    if (currentLine.trim()) {
++      lines.push(currentLine.trim());
++    }
++
++    return lines.join('\n');
++  }
++};
++
++/**
++ * Base formatter class with common utilities
++ */
++export abstract class BaseFormatter implements Formatter {
++  abstract format(shotList: ShotList, options?: FormatterOptions): string;
++  abstract getExtension(): string;
++  abstract getMimeType(): string;
++
++  /**
++   * Format time using utility
++   */
++  protected formatTime(seconds: number): string {
++    return timeFormatter.formatTime(seconds);
++  }
++
++  /**
++   * Format duration using utility
++   */
++  protected formatDuration(totalSeconds: number): string {
++    return timeFormatter.formatDuration(totalSeconds);
++  }
++
++  /**
++   * Wrap text using utility
++   */
++  protected wrapText(text: string, width: number, indent?: string): string {
++    return textWrapper.wrapText(text, width, indent);
++  }
++
++  /**
++   * Calculate average character count
++   */
++  protected getAverageCharCount(shotList: ShotList): number {
++    if (shotList.shots.length === 0) return 0;
++    return Math.round(
++      shotList.shots.reduce((sum, s) => sum + s.characterCount, 0) / shotList.shots.length
++    );
++  }
++
++  /**
++   * Get maximum character count
++   */
++  protected getMaxCharCount(shotList: ShotList): number {
++    if (shotList.shots.length === 0) return 0;
++    return Math.max(...shotList.shots.map(s => s.characterCount));
++  }
++
++  /**
++   * Calculate average shot length
++   */
++  protected getAverageShotLength(shotList: ShotList): string {
++    if (shotList.shots.length === 0) return '0.0';
++    return (shotList.totalDuration / shotList.shots.length).toFixed(1);
++  }
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/formatter/types.ts
++/**
++ * Shot List Formatter Types
++ * 
++ * Type definitions for output format generation
++ */
++
++import { ShotList } from '../generator/types';
++
++/**
++ * Supported output formats
++ */
++export type OutputFormat = 'md' | 'json' | 'jsonl' | 'csv' | 'txt' | 'html';
++
++/**
++ * Formatter options
++ */
++export interface FormatterOptions {
++  /**
++   * Pretty-print output (for JSON)
++   */
++  prettyPrint?: boolean;
++
++  /**
++   * Include warnings in output
++   */
++  includeWarnings?: boolean;
++
++  /**
++   * Maximum character limit for display
++   */
++  maxCharacters?: number;
++
++  /**
++   * Include metadata in output
++   */
++  includeMetadata?: boolean;
++}
++
++/**
++ * Formatter interface
++ */
++export interface Formatter {
++  /**
++   * Format shot list to string
++   */
++  format(shotList: ShotList, options?: FormatterOptions): string;
++
++  /**
++   * Get file extension for this format
++   */
++  getExtension(): string;
++
++  /**
++   * Get MIME type for this format
++   */
++  getMimeType(): string;
++}
++
++/**
++ * Formatter factory function type
++ */
++export type FormatterFactory = (format: OutputFormat) => Formatter;
++
++/**
++ * Time formatting utilities
++ */
++export interface TimeFormatter {
++  /**
++   * Format seconds to MM:SS
++   */
++  formatTime(seconds: number): string;
++
++  /**
++   * Format total duration to human-readable format (e.g., "1h 23m 15s")
++   */
++  formatDuration(totalSeconds: number): string;
++}
++
++/**
++ * Text wrapping utilities
++ */
++export interface TextWrapper {
++  /**
++   * Wrap text to specified width
++   */
++  wrapText(text: string, width: number, indent?: string): string;
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/formatter/json-formatter.ts
++/**
++ * JSON Formatter
++ *
++ * Generates JSON output with valid JSON structure and all shot metadata
++ */
++
++import { BaseFormatter } from './base-formatter';
++import { ShotList, Shot, Warning } from '../generator/types';
++import { FormatterOptions } from './types';
++
++/**
++ * JSON formatter implementation
++ */
++export class JSONFormatter extends BaseFormatter {
++  /**
++   * Format shot list to JSON
++   */
++  format(shotList: ShotList, options?: FormatterOptions): string {
++    const prettyPrint = options?.prettyPrint !== false; // Default to true
++    const includeWarnings = options?.includeWarnings !== false; // Default to true
++
++    // Build JSON-serializable object
++    const output = {
++      metadata: {
++        title: shotList.title || null,
++        author: shotList.author || null,
++        generatedAt: shotList.metadata.generatedAt.toISOString(),
++        sourceFormat: shotList.metadata.sourceFormat,
++        maxCharacters: shotList.metadata.maxCharacters,
++        maxShotLength: shotList.metadata.maxShotLength
++      },
++      summary: {
++        totalShots: shotList.totalShots,
++        totalDuration: shotList.totalDuration,
++        totalDurationFormatted: this.formatDuration(shotList.totalDuration),
++        totalCharacters: shotList.totalCharacters,
++        averageShotLength: parseFloat(this.getAverageShotLength(shotList)),
++        averageCharacters: this.getAverageCharCount(shotList),
++        maxCharacters: this.getMaxCharCount(shotList)
++      },
++      warnings: includeWarnings ? this.formatWarnings(shotList.warnings) : [],
++      shots: shotList.shots.map(shot => this.formatShot(shot, options))
++    };
++
++    // Serialize to JSON
++    if (prettyPrint) {
++      return JSON.stringify(output, null, 2);
++    } else {
++      return JSON.stringify(output);
++    }
++  }
++
++  /**
++   * Format individual shot for JSON
++   * Requirement 12: Include all fields from Shot interface
++   */
++  private formatShot(shot: Shot, options?: FormatterOptions): any {
++    const includeWarnings = options?.includeWarnings !== false;
++
++    return {
++      number: shot.number,
++      sceneNumber: shot.sceneNumber,
++      heading: {
++        raw: shot.heading.raw,
++        intExt: shot.heading.intExt,
++        location: shot.heading.location,
++        timeOfDay: shot.heading.timeOfDay
++      },
++      context: {
++        set: shot.context.set,
++        lighting: shot.context.lighting,
++        timeOfDay: shot.context.timeOfDay,
++        atmosphere: shot.context.atmosphere || null,
++        weather: shot.context.weather || null
++      },
++      characters: shot.characters.map(char => ({
++        name: char.name,
++        position: char.position,
++        appearance: char.appearance,
++        wardrobe: char.wardrobe || null,              // Requirement 10: Rich character descriptions
++        physicalAppearance: char.physicalAppearance || null,  // Requirement 10: Rich character descriptions
++        emotion: char.emotion || null,
++        action: char.action || null
++      })),
++      set: shot.set,
++      description: shot.description,
++      actions: shot.actions,
++      dialogue: shot.dialogue,  // Requirement 8 & 12: Mandatory dialogue property
++      blocking: shot.blocking,
++      sfx: shot.sfx,
++      techDetails: shot.techDetails,
++      metadata: {
++        shotType: shot.metadata.shotType,
++        cameraMovement: shot.metadata.cameraMovement,
++        framing: shot.metadata.framing,
++        visualStyle: shot.metadata.visualStyle,        // Requirement 5 & 12: Visual style property
++        cinematicStyle: shot.metadata.cinematicStyle || null,  // Requirement 12: Cinematic style
++        technicalNotes: shot.metadata.technicalNotes || []
++      },
++      duration: {
++        seconds: shot.duration,
++        formatted: this.formatTime(shot.duration)
++      },
++      characterCount: {
++        count: shot.characterCount,
++        limit: options?.maxCharacters || shot.characterCount,
++        percentage: Math.round((shot.characterCount / (options?.maxCharacters || shot.characterCount)) * 100)
++      },
++      warnings: includeWarnings ? this.formatWarnings(shot.warnings) : []
++    };
++  }
++
++  /**
++   * Format warnings for JSON
++   */
++  private formatWarnings(warnings: Warning[]): any[] {
++    return warnings.map(warning => ({
++      type: warning.type,
++      message: warning.message,
++      shotNumber: warning.shotNumber,
++      severity: warning.severity,
++      suggestion: warning.suggestion || null
++    }));
++  }
++
++  /**
++   * Get file extension
++   */
++  getExtension(): string {
++    return 'json';
++  }
++
++  /**
++   * Get MIME type
++   */
++  getMimeType(): string {
++    return 'application/json';
++  }
++}
++
+
+*** Add File: cli/src/commands/generate-shot-list/formatter/html-formatter.ts
++/**
++ * HTML Formatter
++ *
++ * Generates HTML output with editable fields and character counting
++ */
++
++import { BaseFormatter } from './base-formatter';
++import { ShotList, Shot } from '../generator/types';
++import { FormatterOptions } from './types';
++import { HTML_TEMPLATE, SHOT_CARD_TEMPLATE } from './html-template';
++
++/**
++ * HTML formatter implementation
++ */
++export class HTMLFormatter extends BaseFormatter {
++  /**
++   * Format shot list to HTML
++   */
++  format(shotList: ShotList, options?: FormatterOptions): string {
++    const maxChars = options?.maxCharacters || 400;
++    
++    // Generate shot cards
++    const shotCards = shotList.shots.map(shot => 
++      this.formatShot(shot, maxChars)
++    ).join('\n');
++
++    // Replace template variables
++    let html = HTML_TEMPLATE;
++    html = html.replace('{{TITLE}}', this.escapeHtml(shotList.title || 'Shot List'));
++    html = html.replace('{{SUBTITLE}}', this.escapeHtml(shotList.author || ''));
++    html = html.replace('{{TOTAL_SHOTS}}', shotList.shots.length.toString());
++    html = html.replace('{{TOTAL_DURATION}}', this.formatDuration(shotList.totalDuration));
++    html = html.replace('{{TOTAL_CHARACTERS}}', this.getTotalCharacters(shotList).toLocaleString());
++    html = html.replace('{{GENERATED_DATE}}', new Date().toLocaleDateString());
++    html = html.replace('{{SHOTS}}', shotCards);
++
++    return html;
++  }
++
++  /**
++   * Format individual shot
++   */
++  private formatShot(shot: Shot, maxChars: number): string {
++    const charCount = shot.characterCount;
++    const charPercentage = Math.min((charCount / maxChars) * 100, 100);
++
++    let card = SHOT_CARD_TEMPLATE;
++    card = card.replace(/{{SHOT_NUMBER}}/g, shot.number.toString());
++    card = card.replace('{{DURATION}}', this.formatTime(shot.duration));
++    card = card.replace('{{SCENE_HEADING}}', this.escapeHtml(shot.heading.raw));
++    card = card.replace('{{DESCRIPTION}}', this.escapeHtml(shot.description));
++    card = card.replace(/{{MAX_CHARS}}/g, maxChars.toString());
++    card = card.replace('{{CHAR_COUNT}}', charCount.toString());
++    card = card.replace(/{{CHAR_PERCENTAGE}}/g, charPercentage.toFixed(0));
++
++    return card;
++  }
++
++  /**
++   * Get total character count across all shots
++   */
++  private getTotalCharacters(shotList: ShotList): number {
++    return shotList.shots.reduce((sum, shot) => sum + shot.characterCount, 0);
++  }
++
++  /**
++   * Escape HTML special characters
++   */
++  private escapeHtml(text: string): string {
++    const htmlEscapes: Record<string, string> = {
++      '&': '&amp;',
++      '<': '&lt;',
++      '>': '&gt;',
++      '"': '&quot;',
++      "'": '&#39;'
++    };
++    
++    return text.replace(/[&<>"']/g, char => htmlEscapes[char]);
++  }
++
++  /**
++   * Get file extension
++   */
++  getExtension(): string {
++    return 'html';
++  }
++
++  /**
++   * Get MIME type
++   */
++  getMimeType(): string {
++    return 'text/html';
++  }
++}
++
+
+*** End Patch

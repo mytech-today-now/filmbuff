@@ -109,6 +109,9 @@ src/types/
 # Development files (internal use only)
 dev/
 
+# Large binaries (exceed GitHub 100 MB limit)
+toolbox.exe
+
 # CLI development and test files
 cli/debug-output.txt
 cli/test-*.md
@@ -121,3 +124,7 @@ cli/evaluation/
 # and contains creative content that should be preserved and versioned.
 
 .beads/.jsonl.lock
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db

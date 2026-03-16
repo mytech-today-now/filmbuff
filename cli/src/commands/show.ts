@@ -8,28 +8,42 @@ import {
   getModuleSuggestions,
   discoverModules,
   extractModuleMetadata,
-  Module
+  listModuleFiles
 } from '../utils/module-system';
+import type { ExtendedModuleMetadata, FileInfo, Module } from '../utils/module-system';
 import { moduleInspectionCache } from '../utils/inspection-cache';
 import { readFileStreaming, readFileLineByLine } from '../utils/stream-reader';
 import { Spinner, ProgressBar } from '../utils/progress';
 import { formatClickablePath, getWorkspaceRoot } from '../utils/vscode-links';
 import { openInEditor, openInPreview, isVSCodeAvailable } from '../utils/vscode-editor';
 import {
-  generateCodeReviewPrompt,
-  generateModuleSummaryPrompt,
-  generateOptimizationPrompt,
-  generateRefactoringPrompt,
-  getPromptTemplates
+  getPromptTemplates,
+  resolvePromptTemplate,
+  validatePromptTemplateUsage
 } from '../utils/ai-prompts';
 import {
-  generateModuleSummary,
-  generateDetailedSummary,
-  generateJSONSummary,
-  generateCompactSummary,
-  generateAIContext
+  generateAIContext,
+  generateAISummary
 } from '../utils/ai-summary';
-import { configLoader } from '../utils/config-loader';
+import { configManager } from '../utils/config-system';
+import type { AugmentConfig } from '../utils/config-system';
+import { InspectionOutputChannel } from '../utils/output-channel';
+import {
+  beginInspection,
+  completeInspection,
+  failInspection,
+  getLastInspectionReportPath,
+  getModuleInspectionStatus
+} from '../utils/inspection-status';
+import { generateInspectionReport } from '../utils/inspection-report';
+import {
+  generateRefactoringRecommendations,
+  type RefactoringRecommendation
+} from '../utils/refactoring-recommendations';
+import {
+  generateOptimizationSuggestions,
+  type OptimizationSuggestion
+} from '../utils/optimization-suggestions';
 
 interface ShowOptions {
   json?: boolean;
@@ -60,6 +74,11 @@ interface ShowModuleOptions {
   noCache?: boolean;
   open?: boolean;
   preview?: boolean;
+  webview?: boolean;
+  status?: boolean;
+  openLastReport?: boolean;
+  recommendations?: boolean;
+  optimizationSuggestions?: boolean;
   aiPrompt?: string;
   aiSummary?: boolean;
   aiContext?: boolean;
@@ -104,7 +123,7 @@ export async function showCommand(moduleName: string, options: ShowOptions): Pro
       return;
     }
 
-    console.log(chalk.bold.blue(`\n📦 ${module.fullName}\n`));
+    console.log(chalk.bold(chalk.blue(`\n📦 ${module.fullName}\n`)));
     console.log(chalk.gray(`Version: ${module.metadata.version}`));
     console.log(chalk.gray(`Type: ${module.metadata.type}`));
     console.log(chalk.gray(`Description: ${module.metadata.description}\n`));
@@ -144,10 +163,18 @@ export async function showModuleCommand(
   filePath: string | undefined,
   options: ShowModuleOptions
 ): Promise<void> {
+  const outputChannel = new InspectionOutputChannel();
+  let cacheShouldBeEnabled = true;
+
   try {
+    const hasExplicitPageSize = options.pageSize !== undefined;
+
     // Load configuration and apply defaults
-    const config = configLoader.getConfig();
+    const config = configManager.load();
     const inspectionConfig = config.inspection || {};
+    const aiConfig = config.ai || {};
+    cacheShouldBeEnabled = inspectionConfig.cache !== false;
+    moduleInspectionCache.setEnabled(cacheShouldBeEnabled);
 
     // Apply configuration defaults if options not explicitly set
     if (!options.format && inspectionConfig.defaultFormat) {
@@ -162,23 +189,24 @@ export async function showModuleCommand(
 
     // Validate module name
     if (!moduleName || moduleName.trim() === '') {
-      console.error(chalk.red('Error: Module name is required'));
-      console.log(chalk.gray('\nUsage: filmbuff show module <module-name> [file-path] [options]'));
-      console.log(chalk.gray('Example: filmbuff show module php-standards'));
-      console.log(chalk.gray('         filmbuff show module php-standards rules/psr-standards.md'));
+      outputChannel.error('Error: Module name is required');
+      console.log(chalk.gray('\nUsage: filmbuff show <module-name> [file-path] [options]'));
+      console.log(chalk.gray('Example: filmbuff show php-standards'));
+      console.log(chalk.gray('         filmbuff show php-standards rules/psr-standards.md'));
       process.exit(1);
     }
 
-    // Disable cache if --no-cache flag is set or if cache is disabled in config
-    if (options.noCache || !inspectionConfig.cache) {
-      moduleInspectionCache.setEnabled(false);
+    // Disable cache if --no-cache flag is set
+    if (options.noCache) {
+      outputChannel.info('Inspection cache disabled for this command.');
+      moduleInspectionCache.disable();
     }
 
     // Discover and validate module using enhanced discovery
     const module = findModuleEnhanced(moduleName);
 
     if (!module) {
-      console.error(chalk.red(`Module not found: ${moduleName}`));
+      outputChannel.error(`Module not found: ${moduleName}`);
 
       // Suggest similar modules using enhanced suggestions
       const suggestions = getModuleSuggestions(moduleName, 5);
@@ -193,19 +221,54 @@ export async function showModuleCommand(
       process.exit(1);
     }
 
+	    if (options.status) {
+	      showInspectionStatus(module, options, outputChannel);
+	      return;
+	    }
+
+	    if (options.openLastReport) {
+	      await openLastInspectionReport(module, options, config, outputChannel);
+	      return;
+	    }
+
+	    if (options.webview) {
+	      await showModuleWebview(module, options, config, outputChannel);
+	      return;
+	    }
+
+	    if (options.recommendations) {
+	      await showModuleRecommendations(module, options, outputChannel);
+	      return;
+	    }
+
+		    if (options.optimizationSuggestions) {
+		      await showModuleOptimizationSuggestions(module, options, outputChannel);
+		      return;
+		    }
+
     // Handle AI integration options
     if (options.aiPrompt) {
-      await handleAIPrompt(module, options.aiPrompt);
+      if (aiConfig.enablePromptGeneration === false) {
+        outputChannel.error('AI prompt generation is disabled in configuration.');
+        process.exit(1);
+      }
+
+      await handleAIPrompt(module, options.aiPrompt, config, outputChannel);
       return;
     }
 
     if (options.aiSummary) {
-      await handleAISummary(module, options);
+      if (aiConfig.enableSummaries === false) {
+        outputChannel.error('AI summary generation is disabled in configuration.');
+        process.exit(1);
+      }
+
+      await handleAISummary(module, options, config, outputChannel);
       return;
     }
 
     if (options.aiContext) {
-      await handleAIContext(module);
+      await handleAIContext(module, outputChannel);
       return;
     }
 
@@ -213,7 +276,13 @@ export async function showModuleCommand(
     if (filePath) {
       // Individual file inspection
       await showModuleFile(module, filePath, options);
-    } else if (options.content) {
+    } else if (
+      options.content ||
+      options.search ||
+      options.filter ||
+      options.page !== undefined ||
+      hasExplicitPageSize
+    ) {
       // Aggregated content view
       await showModuleContent(module, options);
     } else {
@@ -221,21 +290,18 @@ export async function showModuleCommand(
       await showModuleOverview(module, options);
     }
 
-    // Re-enable cache after command completes
-    if (options.noCache) {
-      moduleInspectionCache.setEnabled(true);
-    }
-
   } catch (error) {
-    console.error(chalk.red('Error inspecting module:'), error);
+    outputChannel.error('Error inspecting module:');
+    console.error(error);
     if (error instanceof Error) {
       console.error(chalk.gray(error.message));
     }
-    // Re-enable cache on error
-    if (options.noCache) {
-      moduleInspectionCache.setEnabled(true);
-    }
+
     process.exit(1);
+  } finally {
+    if (options.noCache) {
+      moduleInspectionCache.setEnabled(cacheShouldBeEnabled);
+    }
   }
 }
 
@@ -364,7 +430,7 @@ async function showModuleOverview(module: Module, options: ShowModuleOptions): P
 
   // Colored text output format (default)
   console.log();
-  console.log(chalk.bold.blue(`📦 ${module.fullName}`));
+  console.log(chalk.bold(chalk.blue(`📦 ${module.fullName}`)));
   console.log(chalk.gray('─'.repeat(60)));
   console.log();
 
@@ -425,9 +491,13 @@ async function showModuleOverview(module: Module, options: ShowModuleOptions): P
 
   // Helpful commands
   console.log(chalk.bold('Commands:'));
-  console.log(chalk.gray(`  View content:     filmbuff show module ${module.fullName} --content`));
-  console.log(chalk.gray(`  List files:       filmbuff show module ${module.fullName} --filter "*.md"`));
-  console.log(chalk.gray(`  Search content:   filmbuff show module ${module.fullName} --search "keyword"`));
+	  console.log(chalk.gray(`  View content:     filmbuff show ${module.fullName} --content`));
+	  console.log(chalk.gray(`  List files:       filmbuff show ${module.fullName} --filter "*.md"`));
+	  console.log(chalk.gray(`  Search content:   filmbuff show ${module.fullName} --search "keyword"`));
+		  console.log(chalk.gray(`  Open report:      filmbuff show ${module.fullName} --webview`));
+		  console.log(chalk.gray(`  Show status:      filmbuff show ${module.fullName} --status`));
+		  console.log(chalk.gray(`  Recommendations:  filmbuff show ${module.fullName} --recommendations`));
+		  console.log(chalk.gray(`  Optimizations:    filmbuff show ${module.fullName} --optimization-suggestions`));
   console.log();
 }
 
@@ -461,12 +531,333 @@ function formatDate(date: Date): string {
   }
 }
 
+function loadInspectionData(module: Module, depth?: number): {
+  metadata: ExtendedModuleMetadata;
+  files: FileInfo[];
+} {
+  const cacheKey = `overview:${module.fullName}`;
+  let metadata = moduleInspectionCache.get(cacheKey, module.path) as ExtendedModuleMetadata | undefined;
+
+  if (!metadata) {
+    metadata = extractModuleMetadata(module.path) || undefined;
+    if (!metadata) {
+      throw new Error(`Failed to extract metadata for ${module.fullName}`);
+    }
+    moduleInspectionCache.set(cacheKey, metadata, module.path);
+  }
+
+  const files = listModuleFiles(module.path, {
+    recursive: true,
+    groupByDirectory: true,
+    depth
+  });
+
+  return { metadata, files };
+}
+
+function showInspectionStatus(
+  module: Module,
+  options: ShowModuleOptions,
+  outputChannel: InspectionOutputChannel
+): void {
+  const status = getModuleInspectionStatus(module.fullName);
+  const payload = {
+    ...status,
+    lastReportExists: Boolean(status.lastReportPath && fs.existsSync(status.lastReportPath))
+  };
+
+  if (options.json || options.format === 'json') {
+    outputChannel.write(JSON.stringify(payload, null, 2));
+    return;
+  }
+
+  console.log();
+  console.log(chalk.bold(chalk.blue(`📡 Inspection status for ${module.fullName}`)));
+  console.log(chalk.gray('─'.repeat(60)));
+  console.log(chalk.gray(`State:        ${status.state}`));
+  console.log(chalk.gray(`Action:       ${status.lastAction || 'none'}`));
+  console.log(chalk.gray(`Updated:      ${status.updatedAt}`));
+  console.log(chalk.gray(`Tooltip:      ${status.tooltip}`));
+  if (status.lastReportPath) {
+    console.log(chalk.gray(`Last report:  ${formatClickablePath(status.lastReportPath, { absolute: true, workspaceRoot: getWorkspaceRoot() })}`));
+  }
+  console.log(chalk.gray(`Quick action: filmbuff show ${module.fullName} --open-last-report`));
+  console.log();
+}
+
+async function openLastInspectionReport(
+  module: Module,
+  options: ShowModuleOptions,
+  config: AugmentConfig,
+  outputChannel: InspectionOutputChannel
+): Promise<void> {
+  const reportPath = getLastInspectionReportPath(module.fullName);
+  if (!reportPath) {
+    outputChannel.error(`No inspection report found for ${module.fullName}. Run --webview first.`);
+    process.exit(1);
+  }
+
+  let opened = false;
+  if (isVSCodeAvailable()) {
+    const preview = options.preview || (!options.open && Boolean(config.vscode?.openInPreview));
+    try {
+      if (preview) {
+        await openInPreview(reportPath);
+      } else {
+        await openInEditor(reportPath);
+      }
+      opened = true;
+      outputChannel.success(`Opened last report for ${module.fullName}`);
+    } catch (error) {
+      outputChannel.warn(`Unable to open the report automatically: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  const payload = {
+    module: module.fullName,
+    reportPath,
+    opened
+  };
+
+  if (options.json || options.format === 'json') {
+    outputChannel.write(JSON.stringify(payload, null, 2));
+    return;
+  }
+
+  console.log();
+  console.log(chalk.bold('Last inspection report:'));
+  console.log(chalk.gray(`  ${formatClickablePath(reportPath, { absolute: true, workspaceRoot: getWorkspaceRoot() })}`));
+  console.log();
+}
+
+async function showModuleWebview(
+  module: Module,
+  options: ShowModuleOptions,
+  config: AugmentConfig,
+  outputChannel: InspectionOutputChannel
+): Promise<void> {
+  beginInspection(module.fullName, 'webview');
+  outputChannel.startSpinner(`Generating inspection report for ${module.fullName}...`);
+
+  try {
+    const { metadata, files } = loadInspectionData(module, options.depth);
+    const recommendations = generateRefactoringRecommendations(module, metadata, files);
+	    const optimizationSuggestions = generateOptimizationSuggestions(module, metadata, files);
+    const report = generateInspectionReport({
+      module,
+      metadata,
+      files,
+	      recommendations,
+	      optimizationSuggestions
+    });
+
+    completeInspection({
+      moduleName: module.fullName,
+      action: 'webview',
+      lastReportPath: report.reportPath,
+	      details: `${report.fileCount} files inspected with ${report.recommendationCount} refactoring recommendations and ${report.optimizationSuggestionCount} optimization suggestions.`
+    });
+    outputChannel.stopSpinner(`✓ Inspection report generated for ${module.fullName}`);
+
+    let opened = false;
+    if (config.vscode?.webviewEnabled !== false && isVSCodeAvailable()) {
+      try {
+        const preview = options.preview || (!options.open && Boolean(config.vscode?.openInPreview));
+        if (preview) {
+          await openInPreview(report.reportPath);
+        } else {
+          await openInEditor(report.reportPath);
+        }
+        opened = true;
+      } catch (error) {
+        outputChannel.warn(`Report generated but automatic open failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+
+    const payload = {
+      module: module.fullName,
+      reportPath: report.reportPath,
+      generatedAt: report.generatedAt,
+      fileCount: report.fileCount,
+      recommendationCount: report.recommendationCount,
+	      optimizationSuggestionCount: report.optimizationSuggestionCount,
+      opened
+    };
+
+    if (options.json || options.format === 'json') {
+      outputChannel.write(JSON.stringify(payload, null, 2));
+      return;
+    }
+
+    console.log();
+    console.log(chalk.bold('Inspection report:'));
+    console.log(chalk.gray(`  ${formatClickablePath(report.reportPath, { absolute: true, workspaceRoot: getWorkspaceRoot() })}`));
+    console.log(chalk.gray(`  Use --open-last-report to reopen the most recent report for this module.`));
+    console.log();
+  } catch (error) {
+    outputChannel.stopSpinner();
+    failInspection(module.fullName, 'webview', error);
+    throw error;
+  }
+}
+
+async function showModuleRecommendations(
+  module: Module,
+  options: ShowModuleOptions,
+  outputChannel: InspectionOutputChannel
+): Promise<void> {
+  beginInspection(module.fullName, 'recommendations');
+  outputChannel.startSpinner(`Analyzing ${module.fullName} for refactoring opportunities...`);
+
+  try {
+    const { metadata, files } = loadInspectionData(module, options.depth);
+    const recommendations = generateRefactoringRecommendations(module, metadata, files);
+
+    completeInspection({
+      moduleName: module.fullName,
+      action: 'recommendations',
+      details: `${recommendations.length} prioritized recommendations generated.`
+    });
+    outputChannel.stopSpinner(`✓ Refactoring recommendations ready for ${module.fullName}`);
+
+    if (options.json || options.format === 'json') {
+      outputChannel.write(JSON.stringify({
+        module: module.fullName,
+        recommendationCount: recommendations.length,
+        recommendations
+      }, null, 2));
+      return;
+    }
+
+    if (options.format === 'markdown') {
+      console.log(`# Refactoring recommendations for ${module.fullName}\n`);
+      recommendations.forEach(rec => {
+        console.log(`## ${rec.title} (${rec.priority})`);
+        console.log(`${rec.summary}\n`);
+        console.log(`- Why: ${rec.rationale}`);
+        if (rec.targetPath) console.log(`- Target: \`${rec.targetPath}\``);
+        rec.steps.forEach(step => console.log(`- ${step}`));
+        console.log();
+      });
+      return;
+    }
+
+    console.log();
+    console.log(chalk.bold(chalk.blue(`🛠️ Refactoring recommendations for ${module.fullName}`)));
+    console.log(chalk.gray('─'.repeat(60)));
+    if (recommendations.length === 0) {
+      console.log(chalk.green('No refactoring recommendations at this time.'));
+      console.log();
+      return;
+    }
+
+    recommendations.forEach((recommendation, index) => {
+      const color = recommendation.priority === 'high'
+        ? chalk.red
+        : recommendation.priority === 'medium'
+          ? chalk.yellow
+          : chalk.green;
+
+      console.log(color(`${index + 1}. ${recommendation.title} [${recommendation.priority}]`));
+      console.log(chalk.gray(`   ${recommendation.summary}`));
+      console.log(chalk.gray(`   Why: ${recommendation.rationale}`));
+      recommendation.metrics.forEach(metric => console.log(chalk.gray(`   • ${metric}`)));
+      recommendation.steps.forEach((step, stepIndex) => console.log(chalk.gray(`   ${stepIndex + 1}) ${step}`)));
+      if (recommendation.targetPath) {
+        console.log(chalk.gray(`   Link: ${formatClickablePath(recommendation.targetPath, { absolute: true, workspaceRoot: getWorkspaceRoot() })}`));
+      }
+      console.log();
+    });
+  } catch (error) {
+    outputChannel.stopSpinner();
+    failInspection(module.fullName, 'recommendations', error);
+    throw error;
+  }
+}
+
+async function showModuleOptimizationSuggestions(
+  module: Module,
+  options: ShowModuleOptions,
+  outputChannel: InspectionOutputChannel
+): Promise<void> {
+  beginInspection(module.fullName, 'optimization-suggestions');
+  outputChannel.startSpinner(`Analyzing ${module.fullName} for optimization opportunities...`);
+
+  try {
+    const { metadata, files } = loadInspectionData(module, options.depth);
+    const suggestions = generateOptimizationSuggestions(module, metadata, files);
+
+    completeInspection({
+      moduleName: module.fullName,
+      action: 'optimization-suggestions',
+      details: `${suggestions.length} categorized optimization suggestions generated.`
+    });
+    outputChannel.stopSpinner(`✓ Optimization suggestions ready for ${module.fullName}`);
+
+    if (options.json || options.format === 'json') {
+      outputChannel.write(JSON.stringify({
+        module: module.fullName,
+        suggestionCount: suggestions.length,
+        suggestions
+      }, null, 2));
+      return;
+    }
+
+    if (options.format === 'markdown') {
+      console.log(`# Optimization suggestions for ${module.fullName}\n`);
+      suggestions.forEach(suggestion => {
+        console.log(`## ${suggestion.title} (${suggestion.category} / ${suggestion.impact})`);
+        console.log(`${suggestion.summary}\n`);
+        console.log(`- Why: ${suggestion.rationale}`);
+        if (suggestion.targetPath) console.log(`- Target: \`${suggestion.targetPath}\``);
+        suggestion.metrics.forEach(metric => console.log(`- ${metric}`));
+        suggestion.steps.forEach(step => console.log(`- ${step}`));
+        console.log(`\n\`\`\`${suggestion.exampleLanguage}`);
+        console.log(suggestion.codeExample);
+        console.log('\`\`\`\n');
+      });
+      return;
+    }
+
+    console.log();
+    console.log(chalk.bold(chalk.blue(`⚡ Optimization suggestions for ${module.fullName}`)));
+    console.log(chalk.gray('─'.repeat(60)));
+    if (suggestions.length === 0) {
+      console.log(chalk.green('No optimization suggestions at this time.'));
+      console.log();
+      return;
+    }
+
+    suggestions.forEach((suggestion, index) => {
+      const color = suggestion.impact === 'high'
+        ? chalk.red
+        : suggestion.impact === 'medium'
+          ? chalk.yellow
+          : chalk.green;
+
+      console.log(color(`${index + 1}. ${suggestion.title} [${suggestion.category} / ${suggestion.impact}]`));
+      console.log(chalk.gray(`   ${suggestion.summary}`));
+      console.log(chalk.gray(`   Why: ${suggestion.rationale}`));
+      suggestion.metrics.forEach(metric => console.log(chalk.gray(`   • ${metric}`)));
+      suggestion.steps.forEach((step, stepIndex) => console.log(chalk.gray(`   ${stepIndex + 1}) ${step}`)));
+      if (suggestion.targetPath) {
+        console.log(chalk.gray(`   Link: ${formatClickablePath(suggestion.targetPath, { absolute: true, workspaceRoot: getWorkspaceRoot() })}`));
+      }
+      console.log(chalk.gray(`   Example (${suggestion.exampleLanguage}):`));
+      suggestion.codeExample.split('\n').forEach(line => console.log(chalk.gray(`     ${line}`)));
+      console.log();
+    });
+  } catch (error) {
+    outputChannel.stopSpinner();
+    failInspection(module.fullName, 'optimization-suggestions', error);
+    throw error;
+  }
+}
+
 /**
  * Display aggregated content from all module files
  */
 async function showModuleContent(module: Module, options: ShowModuleOptions): Promise<void> {
-  const { listModuleFiles } = await import('../utils/module-system');
-
   // Get all markdown files from the module
   const files = listModuleFiles(module.path, {
     recursive: true,
@@ -605,7 +996,7 @@ async function showModuleContent(module: Module, options: ShowModuleOptions): Pr
 
   // Colored text output format (default)
   console.log();
-  console.log(chalk.bold.blue(`📄 Aggregated Content: ${module.fullName}`));
+  console.log(chalk.bold(chalk.blue(`📄 Aggregated Content: ${module.fullName}`)));
   console.log(chalk.gray('─'.repeat(60)));
   console.log();
 
@@ -634,9 +1025,9 @@ async function showModuleContent(module: Module, options: ShowModuleOptions): Pr
 
   // Display each file with section headers
   for (const file of filesToDisplay) {
-    console.log(chalk.bold.cyan(`┌─ ${file.relativePath}`));
+    console.log(chalk.bold(chalk.cyan(`┌─ ${file.relativePath}`)));
     console.log(chalk.gray(`│  Size: ${formatBytes(file.size)} | Modified: ${formatDate(file.modified)}`));
-    console.log(chalk.bold.cyan('└' + '─'.repeat(58)));
+    console.log(chalk.bold(chalk.cyan('└' + '─'.repeat(58))));
     console.log();
 
     let content = fs.readFileSync(file.path, 'utf-8');
@@ -665,10 +1056,10 @@ async function showModuleContent(module: Module, options: ShowModuleOptions): Pr
     console.log(chalk.gray(`  Current page: ${currentPage} of ${totalPages}`));
 
     if (currentPage < totalPages) {
-      console.log(chalk.cyan(`  Next page:    filmbuff show module ${module.fullName} --content --page ${currentPage + 1}`));
+	      console.log(chalk.cyan(`  Next page:    filmbuff show ${module.fullName} --content --page ${currentPage + 1}`));
     }
     if (currentPage > 1) {
-      console.log(chalk.cyan(`  Prev page:    filmbuff show module ${module.fullName} --content --page ${currentPage - 1}`));
+	      console.log(chalk.cyan(`  Prev page:    filmbuff show ${module.fullName} --content --page ${currentPage - 1}`));
     }
   }
 
@@ -837,7 +1228,7 @@ async function showModuleFile(module: Module, filePath: string, options: ShowMod
   const clickablePath = formatClickablePath(fullPath, { workspaceRoot });
 
   console.log();
-  console.log(chalk.bold.blue(`📄 ${relativePath}`));
+  console.log(chalk.bold(chalk.blue(`📄 ${relativePath}`)));
   console.log(chalk.gray(`   ${clickablePath}`));
   console.log(chalk.gray('─'.repeat(60)));
   console.log();
@@ -929,7 +1320,7 @@ function displaySearchResults(
 
   // Text output
   console.log();
-  console.log(chalk.bold.blue(`🔍 Search Results: "${searchTerm}"`));
+  console.log(chalk.bold(chalk.blue(`🔍 Search Results: "${searchTerm}"`)));
   console.log(chalk.gray('─'.repeat(60)));
   console.log();
 
@@ -938,7 +1329,7 @@ function displaySearchResults(
   console.log();
 
   for (const result of searchResults) {
-    console.log(chalk.bold.cyan(`📄 ${result.file.relativePath}`));
+    console.log(chalk.bold(chalk.cyan(`📄 ${result.file.relativePath}`)));
     console.log(chalk.gray(`   ${result.matches.length} matches`));
     console.log();
 
@@ -1000,7 +1391,7 @@ function performSearch(
  */
 function highlightSearchTerm(text: string, searchTerm: string): string {
   const regex = new RegExp(`(${searchTerm})`, 'gi');
-  return text.replace(regex, chalk.yellow.bold('$1'));
+  return text.replace(regex, chalk.bold(chalk.yellow('$1')));
 }
 
 /**
@@ -1211,7 +1602,7 @@ export async function showLinkedCommand(options: ShowListOptions): Promise<void>
       return;
     }
 
-    console.log(chalk.bold.blue('\n📦 Linked Modules:\n'));
+    console.log(chalk.bold(chalk.blue('\n📦 Linked Modules:\n')));
 
     linkedModules.forEach((module) => {
       console.log(chalk.green('✓') + ' ' + chalk.bold(module.name) + ' ' + chalk.gray(`(v${module.version})`));
@@ -1243,7 +1634,7 @@ export async function showAllCommand(options: ShowListOptions): Promise<void> {
       return;
     }
 
-    console.log(chalk.bold.blue('\n📦 All Available Modules:\n'));
+    console.log(chalk.bold(chalk.blue('\n📦 All Available Modules:\n')));
 
     allModules.forEach((module) => {
       const status = module.linked ? chalk.green('✓') : chalk.gray('○');
@@ -1294,7 +1685,7 @@ async function getAllModules(): Promise<ModuleListItem[]> {
   const linkedModules = getLinkedModules();
 
   // Get all available modules from repository
-  const modulesDir = path.join(__dirname, '../../../filmbuff');
+  const modulesDir = path.join(__dirname, '../../../augment-extensions');
 
   if (!fs.existsSync(modulesDir)) {
     return linkedModules;
@@ -1335,12 +1726,17 @@ async function getAllModules(): Promise<ModuleListItem[]> {
 /**
  * Handle AI prompt generation
  */
-async function handleAIPrompt(module: Module, promptType: string): Promise<void> {
-  const templates = getPromptTemplates();
-  const template = templates.find(t => t.name === promptType);
+async function handleAIPrompt(
+  module: Module,
+  promptType: string,
+  config: AugmentConfig,
+  outputChannel: InspectionOutputChannel
+): Promise<void> {
+  const templates = getPromptTemplates(config);
+  const template = resolvePromptTemplate(promptType, config);
 
   if (!template) {
-    console.error(chalk.red(`Unknown prompt template: ${promptType}`));
+    outputChannel.error(`Unknown prompt template: ${promptType}`);
     console.log(chalk.yellow('\nAvailable templates:'));
     templates.forEach(t => {
       console.log(chalk.cyan(`  • ${t.name}: ${t.description}`));
@@ -1348,30 +1744,68 @@ async function handleAIPrompt(module: Module, promptType: string): Promise<void>
     process.exit(1);
   }
 
+  const validation = validatePromptTemplateUsage(template, module);
+  if (!validation.valid) {
+    outputChannel.error(`Prompt template validation failed for ${promptType}.`);
+    validation.errors.forEach(error => console.error(chalk.gray(`  • ${error}`)));
+    process.exit(1);
+  }
+
+  outputChannel.startSpinner(`Generating AI prompt for ${module.fullName}...`);
   const prompt = template.generate(module);
-  console.log(prompt);
+  outputChannel.stopSpinner(`✓ AI prompt ready (${template.name})`);
+  outputChannel.write(prompt);
 }
 
 /**
  * Handle AI summary generation
  */
-async function handleAISummary(module: Module, options: ShowModuleOptions): Promise<void> {
+async function handleAISummary(
+  module: Module,
+  options: ShowModuleOptions,
+  config: AugmentConfig,
+  outputChannel: InspectionOutputChannel
+): Promise<void> {
+  outputChannel.startSpinner(`Generating AI summary for ${module.fullName}...`);
+  const result = generateAISummary(module, {
+    format: options.json ? 'json' : options.compact ? 'compact' : 'detailed',
+    includeContent: options.content,
+    config
+  });
+  outputChannel.stopSpinner(`✓ AI summary ready (${result.source})`);
+
   if (options.json) {
-    const summary = generateJSONSummary(module);
-    console.log(summary);
-  } else if (options.compact) {
-    const summary = generateCompactSummary(module);
-    console.log(summary);
-  } else {
-    const summary = generateDetailedSummary(module, options.content);
-    console.log(summary);
+    let parsedSummary: unknown = result.content;
+    try {
+      parsedSummary = JSON.parse(result.content);
+    } catch {
+      parsedSummary = result.content;
+    }
+
+    outputChannel.write(JSON.stringify({
+      summary: parsedSummary,
+      metadata: result.metadata,
+      source: result.source
+    }, null, 2));
+    return;
+  }
+
+  outputChannel.write(result.content);
+
+  if (result.source === 'cache') {
+    outputChannel.info('Served AI summary from cache.');
+  }
+  if (result.metadata.fallbackUsed) {
+    outputChannel.warn('Summary generation fell back to a compact summary. Re-run the command to retry.');
   }
 }
 
 /**
  * Handle AI context generation
  */
-async function handleAIContext(module: Module): Promise<void> {
+async function handleAIContext(module: Module, outputChannel: InspectionOutputChannel): Promise<void> {
+  outputChannel.startSpinner(`Building AI context for ${module.fullName}...`);
   const context = generateAIContext(module);
-  console.log(context);
+  outputChannel.stopSpinner('✓ AI context ready');
+  outputChannel.write(context);
 }

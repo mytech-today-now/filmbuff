@@ -1,18 +1,31 @@
-/**
- * Tests for install-rules utilities
- */
-
 import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
-import { installCharacterCountRule, InstallRulesError } from '../install-rules';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { installCharacterCountRule } from '@cli/utils/install-rules';
 
-// Mock fs modules
-jest.mock('fs/promises');
-jest.mock('fs');
+vi.mock('fs/promises', async () => {
+  const actual = await vi.importActual<typeof import('fs/promises')>('fs/promises');
+  return {
+    ...actual,
+    access: vi.fn(),
+    copyFile: vi.fn(),
+    mkdir: vi.fn(),
+    readFile: vi.fn(),
+    unlink: vi.fn(),
+    writeFile: vi.fn()
+  };
+});
 
-// Mock chalk to avoid ESM issues
-jest.mock('chalk', () => ({
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs');
+  return {
+    ...actual,
+    existsSync: vi.fn()
+  };
+});
+
+vi.mock('chalk', () => ({
   default: {
     green: (str: string) => str,
     yellow: (str: string) => str,
@@ -42,13 +55,14 @@ describe('Install Rules', () => {
   const mockRulePath = path.join(mockRulesDir, 'character-count-management.md');
 
   beforeEach(() => {
-    jest.clearAllMocks();
-    // Default mocks
-    (fsSync.existsSync as jest.Mock).mockReturnValue(false);
-    (fs.access as jest.Mock).mockResolvedValue(undefined);
-    (fs.mkdir as jest.Mock).mockResolvedValue(undefined);
-    (fs.writeFile as jest.Mock).mockResolvedValue(undefined);
-    (fs.readFile as jest.Mock).mockResolvedValue('');
+    vi.clearAllMocks();
+    vi.mocked(fsSync.existsSync).mockReturnValue(false);
+    vi.mocked(fs.access).mockResolvedValue(undefined);
+    vi.mocked(fs.copyFile).mockResolvedValue(undefined);
+    vi.mocked(fs.mkdir).mockResolvedValue(undefined);
+    vi.mocked(fs.readFile).mockResolvedValue('' as never);
+    vi.mocked(fs.unlink).mockResolvedValue(undefined);
+    vi.mocked(fs.writeFile).mockResolvedValue(undefined);
   });
 
   describe('installCharacterCountRule', () => {
@@ -71,14 +85,18 @@ describe('Install Rules', () => {
     });
 
     it('should skip installation if rule already exists with same content', async () => {
-      const ruleContent = `---
-type: "always_apply"
----
+      await installCharacterCountRule({
+        targetDir: mockTargetDir,
+        verbose: false
+      });
 
-# Character Count Management for .augment/ Directory`;
+      const installedContent = vi.mocked(fs.writeFile).mock.calls[0]?.[1] as string;
 
-      (fsSync.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFile as jest.Mock).mockResolvedValue(ruleContent);
+      vi.clearAllMocks();
+      vi.mocked(fsSync.existsSync).mockReturnValue(true);
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue(installedContent as never);
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined);
 
       const result = await installCharacterCountRule({
         targetDir: mockTargetDir,
@@ -93,8 +111,8 @@ type: "always_apply"
     });
 
     it('should skip installation if rule exists with different content and skipIfExists is true', async () => {
-      (fsSync.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFile as jest.Mock).mockResolvedValue('Different content');
+      vi.mocked(fsSync.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFile).mockResolvedValue('Different content' as never);
 
       const result = await installCharacterCountRule({
         targetDir: mockTargetDir,
@@ -109,10 +127,11 @@ type: "always_apply"
     });
 
     it('should replace rule if force option is true', async () => {
-      (fsSync.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFile as jest.Mock).mockResolvedValue('Different content');
-      (fs.copyFile as jest.Mock).mockResolvedValue(undefined);
-      (fs.unlink as jest.Mock).mockResolvedValue(undefined);
+      vi.mocked(fsSync.existsSync).mockReturnValue(true);
+      vi.mocked(fs.access).mockResolvedValue(undefined);
+      vi.mocked(fs.readFile).mockResolvedValue('Different content' as never);
+      vi.mocked(fs.copyFile).mockResolvedValue(undefined);
+      vi.mocked(fs.unlink).mockResolvedValue(undefined);
 
       const result = await installCharacterCountRule({
         targetDir: mockTargetDir,
@@ -128,7 +147,7 @@ type: "always_apply"
     it('should handle permission denied errors', async () => {
       const permError = new Error('Permission denied') as NodeJS.ErrnoException;
       permError.code = 'EACCES';
-      (fs.mkdir as jest.Mock).mockRejectedValue(permError);
+      vi.mocked(fs.mkdir).mockRejectedValue(permError);
 
       const result = await installCharacterCountRule({
         targetDir: mockTargetDir,
@@ -143,7 +162,7 @@ type: "always_apply"
     it('should handle disk full errors', async () => {
       const diskError = new Error('No space left') as NodeJS.ErrnoException;
       diskError.code = 'ENOSPC';
-      (fs.writeFile as jest.Mock).mockRejectedValue(diskError);
+      vi.mocked(fs.writeFile).mockRejectedValue(diskError);
 
       const result = await installCharacterCountRule({
         targetDir: mockTargetDir,

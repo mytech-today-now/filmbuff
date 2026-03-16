@@ -7,7 +7,7 @@ import {
   parseSemanticVersion,
   compareSemanticVersions,
   satisfiesVersionRange
-} from '../module-system';
+} from '@cli/utils/module-system';
 
 describe('Semantic Versioning', () => {
   describe('isValidSemanticVersion', () => {

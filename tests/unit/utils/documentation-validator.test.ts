@@ -1,18 +1,16 @@
-/**
- * Tests for documentation validation utilities
- */
-
 import * as fs from 'fs';
-import * as path from 'path';
-import { validateReadmeStructure, validateModuleDocumentation } from '../documentation-validator';
-import { Module } from '../module-system';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { validateModuleDocumentation, validateReadmeStructure } from '@cli/utils/documentation-validator';
+import type { Module } from '@cli/utils/module-system';
 
-// Mock fs module
-jest.mock('fs');
+vi.mock('fs', () => ({
+  existsSync: vi.fn(),
+  readFileSync: vi.fn()
+}));
 
 describe('Documentation Validator', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('validateReadmeStructure', () => {
@@ -36,8 +34,8 @@ This module provides testing functionality.
 Total: ~5,000 characters
 `;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockReadme);
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(mockReadme as never);
 
       const result = validateReadmeStructure('/test/module');
 
@@ -52,8 +50,8 @@ Total: ~5,000 characters
 This is a test module.
 `;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockReadme);
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(mockReadme as never);
 
       const result = validateReadmeStructure('/test/module');
 
@@ -66,8 +64,8 @@ This is a test module.
     it('should warn about short README', () => {
       const mockReadme = `# Test`;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue(mockReadme);
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue(mockReadme as never);
 
       const result = validateReadmeStructure('/test/module');
 
@@ -75,7 +73,7 @@ This is a test module.
     });
 
     it('should handle missing README', () => {
-      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      vi.mocked(fs.existsSync).mockReturnValue(false);
 
       const result = validateReadmeStructure('/test/module');
 
@@ -123,6 +121,10 @@ Example usage
 
 ## Installation
 Setup instructions
+
+\`\`\`bash
+filmbuff show test-module
+\`\`\`
 `;
 
       const mockRule = `
@@ -140,11 +142,12 @@ This is a comprehensive rule.
 \`\`\`
 `;
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
-        if (filePath.includes('README.md')) return mockReadme;
-        if (filePath.includes('rule')) return mockRule;
-        return '';
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockImplementation((filePath: fs.PathOrFileDescriptor) => {
+        const fileName = String(filePath);
+        if (fileName.includes('README.md')) return mockReadme as never;
+        if (fileName.includes('rule')) return mockRule as never;
+        return '' as never;
       });
 
       const result = validateModuleDocumentation(mockModule);
@@ -171,8 +174,8 @@ This is a comprehensive rule.
         examples: []
       };
 
-      (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (fs.readFileSync as jest.Mock).mockReturnValue('# Test\n\n## Overview\n\n## Contents\n\n## Character Count\n~5000');
+      vi.mocked(fs.existsSync).mockReturnValue(true);
+      vi.mocked(fs.readFileSync).mockReturnValue('# Test\n\n## Overview\n\n## Contents\n\n## Character Count\n~5000' as never);
 
       const result = validateModuleDocumentation(mockModule);
 
