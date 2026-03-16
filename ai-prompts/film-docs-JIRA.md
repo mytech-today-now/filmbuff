@@ -12,11 +12,65 @@ This ticket introduces an AI-powered pipeline that preserves creative context ac
 
 #### Key Requirements
 
-**Workflow Commands**
-- `filmbuff start` — begin a new project pipeline. Prompts the user for the project name, genre, tone, target audience, budget tier, and desired outcome, then generates documents in sequence.
-- `filmbuff continue` — resume the pipeline from the last successfully completed document. Uses previously generated documents as context for subsequent steps.
-- `filmbuff complete` — mark the current document as accepted and advance to the next step without regenerating.
-- `filmbuff retry` — discard the last generated document and regenerate it using updated inputs or a different prompt.
+**Workflow Commands and CLI Arguments**
+
+`filmbuff start` — begin a new project pipeline. Prompts the user interactively for any required inputs not supplied via flags, then generates all documents in sequence.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--name <title>` | string | interactive | Project/film slug name used for state files and default output folder |
+| `--title <title>` | string | same as `--name` | Display title of the film; may differ from the slug name |
+| `--genre <genre>` | string | interactive | Genre of the film: `drama`, `thriller`, `comedy`, `sci-fi`, `horror`, `documentary`, `commercial`, `social`, `episodic` |
+| `--tone <description>` | string | interactive | Tone and stylistic direction (e.g. `"dark and gritty"`, `"light-hearted comedy"`) |
+| `--audience <description>` | string | interactive | Target audience (e.g. `"adults 18-35"`, `"family-friendly"`) |
+| `--budget <tier>` | string | interactive | Budget tier: `micro`, `low`, `mid`, `studio` — influences script breakdown and shot list recommendations |
+| `--outcome <description>` | string | interactive | Desired creative or commercial outcome (e.g. `"festival submission"`, `"brand awareness campaign"`) |
+| `--logline <text>` | string | _(generated)_ | Pre-supply the logline text; skips step 1 generation |
+| `--synopsis <file>` | path | _(generated)_ | Path to a pre-written synopsis file; skips step 2 generation |
+| `--treatment <file>` | path | _(generated)_ | Path to a pre-written treatment file; skips step 3 generation |
+| `--input <file>` | path | — | Pre-written creative brief (`.md` or `.txt`); populates project fields and skips all interactive prompts |
+| `--output <dir>` | path | `./output/<name>/` | Output directory for all generated files |
+| `--format <format>` | string | per-document default | Global output format override: `md`, `json`, `fountain`, `pdf` |
+| `--detail <level>` | string | `standard` | Generation detail level: `brief`, `standard`, `detailed` — applies to all documents |
+| `--style <module-path>` | string | — | Cinematic style module path (repeatable); e.g. `writing-standards/screenplay/cinematic-styles/directors/kubrick` |
+| `--steps <list>` | string | all | Comma-separated list of step names or numbers to run; all others are skipped (e.g. `logline,synopsis,beat-sheet`) |
+| `--skip <step>` | string | — | Skip one named step (repeatable); e.g. `--skip storyboards` |
+| `--from <step>` | string/int | `1` | Begin pipeline at a named step or step number `1`–`10` |
+| `--no-interactive` | flag | false | Suppress per-step review prompts; auto-accept all generated output |
+| `--ai-provider <id>` | string | active provider | Override the active AI provider (`anthropic`, `openai`, `google`, or a registered custom provider ID) |
+| `--ai-profile <name>` | string | active profile | Override the active AI profile name |
+
+---
+
+`filmbuff continue` — resume the pipeline from the last successfully completed document, feeding accepted documents as context for subsequent steps.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--from <step>` | string/int | last completed | Resume from a specific named step or step number instead of the last completed one |
+| `--output <dir>` | path | original value | Override the output directory for remaining steps |
+| `--no-interactive` | flag | false | Auto-accept all remaining generated output without per-step review |
+| `--ai-provider <id>` | string | active provider | Override the active AI provider for remaining steps |
+| `--ai-profile <name>` | string | active profile | Override the active AI profile for remaining steps |
+
+---
+
+`filmbuff complete` — mark the current (or a specified) step as accepted and advance to the next step without regenerating.
+
+| Flag / Arg | Type | Default | Description |
+|------------|------|---------|-------------|
+| `[step]` | string/int | current step | Positional: name or number (`1`–`10`) of the step to mark complete |
+| `--step <step>` | string/int | current step | Alternative flag form; equivalent to the positional argument |
+
+---
+
+`filmbuff retry` — discard the last (or a specified) generated document and regenerate it, optionally with new instructions or a different provider.
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--step <step>` | string/int | last step | Name or number of the step to retry (defaults to the most recently generated step) |
+| `--instructions <text>` | string | — | Additional or replacement guidance passed to the AI for this retry attempt |
+| `--ai-provider <id>` | string | active provider | Override the active AI provider for this retry |
+| `--ai-profile <name>` | string | active profile | Override the active AI profile for this retry |
 
 **Document Pipeline — Sequential Steps**
 1. `logline.md` — one-sentence premise, conflict, and hook
@@ -43,7 +97,7 @@ This ticket introduces an AI-powered pipeline that preserves creative context ac
 - After each generation step the user is shown the output and offered the options: accept, edit, retry with new instructions, or skip.
 - The user may override any generated value — project name, logline text, character names — before the pipeline advances.
 - Output directory, file names, and per-document format (`.md`, `.json`, `.fountain`, `.pdf`) must be configurable, with sensible defaults.
-- `filmbuff start --input <brief.md>` should accept a pre-written creative brief file to skip the interactive setup prompts.
+- `filmbuff start --input <brief.md>` accepts a pre-written creative brief file to skip interactive setup prompts. All project fields (`--name`, `--genre`, `--tone`, `--audience`, `--budget`, `--outcome`) can be supplied as flags or entered interactively.
 
 **Commercial and Narrative Support**
 - Genre support must include narrative (drama, thriller, comedy, sci-fi, horror), documentary, branded commercial, social/short-form video, and episodic/series formats.
@@ -52,7 +106,7 @@ This ticket introduces an AI-powered pipeline that preserves creative context ac
 
 **Output Formats**
 - Each document must be exportable in the format appropriate to its type: `.md` for prose documents, `.json` for structured data, `.fountain` for scripts, `.pdf` for storyboards and final deliverables.
-- `filmbuff start --format pdf` should convert all compatible documents to PDF at the end of the pipeline.
+- `filmbuff start --format pdf` converts all compatible documents to PDF at the end of the pipeline. Per-document format defaults remain in effect when no global `--format` is supplied.
 
 **Testing and Documentation**
 - Unit tests for project state persistence, context assembly, provider resolution per step, and retry/resume logic.
@@ -63,15 +117,19 @@ This ticket introduces an AI-powered pipeline that preserves creative context ac
 - `filmbuff start` prompts for creative inputs and generates all ten pipeline documents in sequence using the active AI provider.
 - `filmbuff continue` resumes from the last accepted document without losing creative context.
 - `filmbuff complete` and `filmbuff retry` advance or regenerate individual steps reliably.
-- All generation steps use the shared provider abstraction (`resolveActiveProvider`) and respect `--ai-provider` / `--ai-profile` overrides.
+- All generation steps use the shared provider abstraction (`resolveActiveProvider`) and respect `--ai-provider` / `--ai-profile` overrides on every command.
 - Creative context (tone, genre, characters, prior documents) is preserved automatically across all steps.
-- Users can override any generated document before the pipeline advances.
-- Output formats `.md`, `.json`, `.fountain`, and `.pdf` are supported per document type.
+- Users can override any generated document before the pipeline advances; `--no-interactive` auto-accepts all output.
+- Output formats `.md`, `.json`, `.fountain`, and `.pdf` are supported per document type; `--format` overrides the default globally.
+- `--detail` controls generation verbosity (`brief`, `standard`, `detailed`) for all documents in a run.
+- `--steps`, `--skip`, and `--from` allow partial pipeline execution and targeted reruns.
+- `--style` applies cinematic-style modules from the FilmBuff extension system to all generation prompts in a run.
 - Genre modes cover narrative, documentary, branded commercial, social/short-form, and episodic content.
-- Cinematic-style modules from the FilmBuff extension system can be applied to generation prompts.
-- Budget tier influences shot list and script breakdown recommendations.
-- Project state survives a restart so `filmbuff continue` works across sessions.
-- Documentation and automated tests cover pipeline sequencing, context assembly, provider routing, override behavior, and retry/resume logic.
+- Budget tier (`--budget`) influences shot list and script breakdown recommendations.
+- Project state survives a restart so `filmbuff continue --from <step>` works reliably across sessions.
+- `filmbuff retry --instructions <text>` allows refined AI guidance without restarting from step 1.
+- All four commands expose `--help` for argument discovery.
+- Documentation and automated tests cover pipeline sequencing, context assembly, provider routing, argument validation, override behavior, and retry/resume logic.
 
 ### Estimated Effort
 - Design and Planning: 8 hours
