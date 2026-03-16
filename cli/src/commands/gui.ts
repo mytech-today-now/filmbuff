@@ -12,6 +12,7 @@ import * as path from 'path';
 import { discoverModules, discoverCollections, Module, Collection } from '../utils/module-system.js';
 import { linkCommand } from './link.js';
 import { unlinkCommand } from './unlink.js';
+import { providerStatusCommand, configureCommand } from './provider.js';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Keyboard shortcuts help
@@ -71,6 +72,9 @@ export async function guiCommand(options: Record<string, unknown> = {}): Promise
           { name: '📦 Link Modules', value: 'link-modules' },
           { name: '📚 Link Collection', value: 'link-collection' },
           { name: '🔍 Search Modules', value: 'search' },
+          { name: '🎬 Directors', value: 'directors' },
+          { name: '🎭 Franchises', value: 'franchises' },
+          { name: '🤖 AI Providers', value: 'providers' },
           { name: '❓ Keyboard Shortcuts', value: 'help' },
           { name: '❌ Exit', value: 'exit' },
         ],
@@ -91,6 +95,12 @@ export async function guiCommand(options: Record<string, unknown> = {}): Promise
       await linkCollectionInteractive(collections, linkedModules);
     } else if (action === 'search') {
       await searchModulesInteractive(modules);
+    } else if (action === 'directors') {
+      await listSubmodulesInteractive('directors', '🎬 Directors', linkedModules);
+    } else if (action === 'franchises') {
+      await listSubmodulesInteractive('franchises', '🎭 Franchises', linkedModules);
+    } else if (action === 'providers') {
+      await providerMenuInteractive();
     }
   } catch (error: any) {
     // Gracefully handle Ctrl+C (prompt cancelled)
@@ -232,3 +242,115 @@ async function searchModulesInteractive(modules: Module[]): Promise<void> {
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Directors / Franchises submodule browser
+// ──────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Resolves the augment-extensions root directory (same logic as other commands:
+ * prefer the project's local copy, fall back to the bundled package copy).
+ */
+function resolveModulesDir(): string {
+  const cwdDir = path.join(process.cwd(), 'augment-extensions');
+  const pkgDir = path.join(__dirname, '../../../augment-extensions');
+  return fs.existsSync(cwdDir) ? cwdDir : pkgDir;
+}
+
+async function listSubmodulesInteractive(
+  subtype: 'directors' | 'franchises',
+  label: string,
+  linkedModules: string[],
+): Promise<void> {
+  const modulesDir = resolveModulesDir();
+  const containerPath = path.join(
+    modulesDir,
+    'writing-standards', 'screenplay', 'cinematic-styles', subtype,
+  );
+
+  if (!fs.existsSync(containerPath)) {
+    console.log(chalk.yellow(`\nNo ${subtype} directory found at:\n  ${containerPath}\n`));
+    return;
+  }
+
+  // Each subdirectory that contains a module.json is a selectable item
+  const entries = fs.readdirSync(containerPath, { withFileTypes: true })
+    .filter(d => d.isDirectory())
+    .map(d => {
+      const fullName = `writing-standards/screenplay/cinematic-styles/${subtype}/${d.name}`;
+      const moduleJsonPath = path.join(containerPath, d.name, 'module.json');
+      let description = '';
+      try {
+        const meta = JSON.parse(fs.readFileSync(moduleJsonPath, 'utf-8'));
+        description = meta.description ?? meta.displayName ?? '';
+      } catch {
+        // ignore missing/malformed module.json
+      }
+      return { name: d.name, fullName, description };
+    });
+
+  if (entries.length === 0) {
+    console.log(chalk.yellow(`No ${subtype} found.`));
+    return;
+  }
+
+  console.log(chalk.bold.cyan(`\n${label} (${entries.length} available)\n`));
+
+  const choices = entries.map(e => ({
+    name: `${e.name}${e.description ? chalk.gray(` — ${e.description}`) : ''}`,
+    value: e.fullName,
+    checked: linkedModules.includes(e.fullName),
+  }));
+
+  const { selected } = await inquirer.prompt([
+    {
+      type: 'checkbox',
+      name: 'selected',
+      message: `Select ${subtype} to link (Space to toggle, Enter to confirm):`,
+      choices,
+      pageSize: 20,
+    },
+  ]);
+
+  const toLink: string[] = selected.filter((n: string) => !linkedModules.includes(n));
+  const toUnlink: string[] = linkedModules.filter(n =>
+    entries.some(e => e.fullName === n) && !selected.includes(n)
+  );
+
+  for (const name of toLink) {
+    await linkCommand(name, {});
+  }
+  for (const name of toUnlink) {
+    await unlinkCommand(name, {});
+  }
+
+  if (toLink.length === 0 && toUnlink.length === 0) {
+    console.log(chalk.gray('No changes made.'));
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// AI Provider menu
+// ──────────────────────────────────────────────────────────────────────────────
+
+async function providerMenuInteractive(): Promise<void> {
+  console.log(chalk.bold.cyan('\n🤖 AI Providers\n'));
+
+  // Show current status
+  providerStatusCommand();
+
+  const { providerAction } = await inquirer.prompt([
+    {
+      type: 'select',
+      name: 'providerAction',
+      message: 'Provider action:',
+      choices: [
+        { name: '⚙️  Run guided setup (filmbuff configure)', value: 'configure' },
+        { name: '↩  Back to main menu', value: 'back' },
+      ],
+    },
+  ]);
+
+  if (providerAction === 'configure') {
+    await configureCommand();
+  }
+}
