@@ -1,7 +1,7 @@
 # JIRA Ticket: TBD - AI-Powered Narrative Document Pipeline for FilmBuff (`filmbuff start`)
 
 ### Summary
-Introduce a sequential, AI-powered document generation pipeline to FilmBuff that takes a user's creative brief and produces every development artifact a commercial or narrative film project needs — from a one-sentence logline through a production-ready shot list — using the same configurable AI provider abstraction already powering `filmbuff generate-shot-list`. New commands `filmbuff start`, `filmbuff continue`, `filmbuff complete`, and `filmbuff retry` drive the workflow so users can generate, review, override, and resume at any step without restarting from scratch.
+Introduce a sequential, AI-powered document generation pipeline to FilmBuff that takes a user's creative brief and produces every development artifact a commercial or narrative film project needs — from a one-sentence logline through a production-ready shot list — using the same configurable AI provider abstraction already powering `filmbuff generate-shot-list`. New commands `filmbuff start`, `filmbuff continue`, `filmbuff complete`, `filmbuff retry`, and `filmbuff status` drive the workflow so users can generate, review, override, resume, and inspect progress at any step without restarting from scratch.
 
 ### Description
 
@@ -72,6 +72,38 @@ This ticket introduces an AI-powered pipeline that preserves creative context ac
 | `--ai-provider <id>` | string | active provider | Override the active AI provider for this retry |
 | `--ai-profile <name>` | string | active profile | Override the active AI profile for this retry |
 
+---
+
+`filmbuff status` — display the current state of the pipeline: all steps with their completion status, the active step, remaining steps, and all context and inputs required to run the next step. Reads from the project state file (`.filmbuff/project.json`) and requires no AI provider access.
+
+| Flag / Arg | Type | Default | Description |
+|------------|------|---------|-------------|
+| `[step]` | string/int | — | Positional: show full details for a specific step by name or number (`1`–`10`) |
+| `--step <step>` | string/int | — | Alternative flag form; equivalent to the positional argument |
+| `--next` | flag | false | Show only the next incomplete step — its name, required inputs, context documents needed, AI provider in use, and the exact `filmbuff continue` command to run it |
+| `--remaining` | flag | false | List only the steps that have not yet been completed, in order |
+| `--completed` | flag | false | List only the steps that have been marked complete, with their output file paths and accepted-at timestamps |
+| `--all` | flag | false | Show full details for every step: status, output file path, accepted-at timestamp, and the context it contributes to downstream steps |
+| `--project <dir>` | path | CWD | Path to the project directory containing `.filmbuff/project.json`; useful when running from outside the project folder |
+| `--format <format>` | string | `table` | Output format: `table` (default terminal view), `json` (machine-readable state dump), `md` (markdown report) |
+
+**Step status indicators shown in `table` output:**
+
+| Symbol | Meaning |
+|--------|---------|
+| `✓` | Completed — output file accepted and written |
+| `➤` | In progress — generation started but not yet accepted |
+| `✗` | Failed — last generation attempt errored |
+| `○` | Pending — not yet started |
+| `—` | Skipped — explicitly skipped via `--skip` |
+
+**`--next` output includes:**
+- Step number, name, and output filename
+- Required project-level inputs (e.g. genre, tone, budget) with their current values
+- List of prior documents used as AI context for this step, with their file paths
+- Active AI provider ID and profile name
+- The exact command to run the step: e.g. `filmbuff continue --from screenplay`
+
 **Document Pipeline — Sequential Steps**
 1. `logline.md` — one-sentence premise, conflict, and hook
 2. `synopsis.md` — 1-to-2 page plot and character summary
@@ -128,17 +160,26 @@ This ticket introduces an AI-powered pipeline that preserves creative context ac
 - Budget tier (`--budget`) influences shot list and script breakdown recommendations.
 - Project state survives a restart so `filmbuff continue --from <step>` works reliably across sessions.
 - `filmbuff retry --instructions <text>` allows refined AI guidance without restarting from step 1.
-- All four commands expose `--help` for argument discovery.
-- Documentation and automated tests cover pipeline sequencing, context assembly, provider routing, argument validation, override behavior, and retry/resume logic.
+- `filmbuff status` reads the project state file without requiring an AI provider and exits cleanly if no project is initialised.
+- `filmbuff status` (default) prints a table of all 10 steps with their status symbol (✓ ➤ ✗ ○ —), output file path, and accepted-at timestamp.
+- `filmbuff status --next` prints the step name, required inputs with current values, list of context documents, active provider/profile, and the exact `filmbuff continue` command needed to proceed.
+- `filmbuff status --remaining` lists only incomplete steps in pipeline order.
+- `filmbuff status --completed` lists only accepted steps with their output file paths and timestamps.
+- `filmbuff status --all` shows full details for every step regardless of status.
+- `filmbuff status --format json` outputs the raw project state suitable for scripting or CI integration.
+- `filmbuff status [step]` / `--step <step>` shows step-level detail for any named or numbered step.
+- All five commands expose `--help` for argument discovery.
+- Documentation and automated tests cover pipeline sequencing, context assembly, provider routing, argument validation, status reporting, override behavior, and retry/resume logic.
 
 ### Estimated Effort
 - Design and Planning: 8 hours
 - Pipeline State and Context Engine: 10 hours
 - Per-Step AI Generation and Prompt Engineering: 20 hours
 - User Override and Review UX: 8 hours
+- Status and Inspection Commands (`filmbuff status`): 6 hours
 - Format Export (fountain, PDF, JSON): 8 hours
 - Testing and Documentation: 10 hours
-- Total: 64 hours
+- Total: 70 hours
 
 ### Attachments
 - Source prompt: `ai-prompts/film-docs-prompt.md`
