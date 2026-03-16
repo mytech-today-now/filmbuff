@@ -154,13 +154,19 @@ async function updateCLI(): Promise<void> {
 
 async function updateModule(linkedModule: LinkedModule, config: any): Promise<'updated' | 'up-to-date' | 'error'> {
   try {
-    const modulesDir = path.join(__dirname, '../../../filmbuff');
+    // Look for modules relative to the current working directory (the user's project).
+    // Fall back to the path bundled with the CLI package for globally-installed scenarios.
+    const cwdModulesDir = path.join(process.cwd(), 'augment-extensions');
+    const pkgModulesDir = path.join(__dirname, '../../../augment-extensions');
+    const modulesDir = fs.existsSync(cwdModulesDir) ? cwdModulesDir : pkgModulesDir;
+
     const modulePath = path.join(modulesDir, linkedModule.name);
     const moduleJsonPath = path.join(modulePath, 'module.json');
 
     if (!fs.existsSync(moduleJsonPath)) {
-      console.log(chalk.red(`✗ ${linkedModule.name}: Module not found`));
-      return 'error';
+      // Module has no local source — it was linked externally. Treat as up-to-date.
+      console.log(chalk.gray(`○ ${linkedModule.name}: No local source (externally managed, skipping)`));
+      return 'up-to-date';
     }
 
     const moduleData = JSON.parse(fs.readFileSync(moduleJsonPath, 'utf-8'));
