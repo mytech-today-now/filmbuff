@@ -358,11 +358,95 @@ export async function providerEditCommand(
 }
 
 // ---------------------------------------------------------------------------
-// configure (guided setup flow)
+// configure (guided setup flow + direct CLI flags)
 // ---------------------------------------------------------------------------
 
-export async function configureCommand(): Promise<void> {
+export interface ConfigureOptions {
+  /** List all registered AI providers */
+  listProviders?: boolean;
+  /** List all saved profiles across every provider */
+  listProfiles?: boolean;
+  /** List profiles for a specific provider (value = providerId) */
+  listProfilesForProvider?: string;
+  /** Create a new profile  – value format: "providerId/profileName" */
+  createProfile?: string;
+  /** Edit an existing profile – value format: "providerId/profileName" */
+  editProfile?: string;
+  /** Delete a profile – value format: "providerId/profileName" */
+  deleteProfile?: string;
+  /** Activate a profile – value format: "providerId/profileName" */
+  activateProfile?: string;
+}
+
+/** Split a "providerId/profileName" option value into its two parts. */
+function parseProviderProfile(value: string): { providerId: string; profileName: string } {
+  const slashIdx = value.indexOf('/');
+  if (slashIdx < 0) {
+    console.error(chalk.red(`Expected format "providerId/profileName", got: "${value}"`));
+    process.exit(1);
+  }
+  return { providerId: value.slice(0, slashIdx), profileName: value.slice(slashIdx + 1) };
+}
+
+export async function configureCommand(options: ConfigureOptions = {}): Promise<void> {
   ensureProviders();
+
+  // ── Direct flag dispatch ──────────────────────────────────────────────────
+
+  if (options.listProviders) {
+    providerListCommand({ profiles: false });
+    return;
+  }
+
+  if (options.listProfiles) {
+    providerListCommand({ profiles: true });
+    return;
+  }
+
+  if (options.listProfilesForProvider) {
+    const providerId = options.listProfilesForProvider;
+    const all = profileStore.listAll().filter((p) => p.providerId === providerId);
+    const active = profileStore.getActive();
+    if (all.length === 0) {
+      console.log(chalk.yellow(`  No profiles found for provider "${providerId}".`));
+    } else {
+      console.log(chalk.bold.blue(`\nProfiles for "${providerId}":\n`));
+      all.forEach((p) => {
+        const isActive =
+          active?.providerId === p.providerId && active?.profileName === p.profileName;
+        const marker = isActive ? chalk.green(' ★ ACTIVE') : '';
+        console.log(`  ${chalk.bold(p.profileName)}${marker}`);
+      });
+      console.log();
+    }
+    return;
+  }
+
+  if (options.createProfile) {
+    const { providerId, profileName } = parseProviderProfile(options.createProfile);
+    await providerCreateCommand(providerId, profileName, {});
+    return;
+  }
+
+  if (options.editProfile) {
+    const { providerId, profileName } = parseProviderProfile(options.editProfile);
+    await providerEditCommand(providerId, profileName, {});
+    return;
+  }
+
+  if (options.deleteProfile) {
+    const { providerId, profileName } = parseProviderProfile(options.deleteProfile);
+    providerDeleteCommand(providerId, profileName);
+    return;
+  }
+
+  if (options.activateProfile) {
+    const { providerId, profileName } = parseProviderProfile(options.activateProfile);
+    providerActivateCommand(providerId, profileName);
+    return;
+  }
+
+  // ── No flags: run the guided interactive wizard ───────────────────────────
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 

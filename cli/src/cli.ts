@@ -421,8 +421,15 @@ providerCmd
 // Guided configure command (shortcut to provider setup flow)
 program
   .command('configure')
-  .description('Guided AI provider setup wizard')
-  .action(() => configureCommand());
+  .description('Guided AI provider setup wizard, or use flags for direct configuration')
+  .option('--list-providers', 'List all registered AI providers')
+  .option('--list-profiles', 'List all saved profiles')
+  .option('--list-profiles-for-provider <providerId>', 'List profiles for a specific provider')
+  .option('--create-profile <providerId/profileName>', 'Create a new profile interactively')
+  .option('--edit-profile <providerId/profileName>', 'Edit an existing profile interactively')
+  .option('--delete-profile <providerId/profileName>', 'Delete a profile')
+  .option('--activate-profile <providerId/profileName>', 'Activate a profile as the active provider')
+  .action((options) => configureCommand(options));
 
 // Generate Shot List command
 program
