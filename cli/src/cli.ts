@@ -19,6 +19,7 @@ import { validateCommand } from './commands/validate';
 import { catalogCommand, catalogHookCommand } from './commands/catalog';
 import { unlinkCommand } from './commands/unlink';
 import { generateShotListCommand } from './commands/generate-shot-list';
+import { guiCommand } from './commands/gui';
 import {
   providerListCommand,
   providerShowCommand,
@@ -254,6 +255,11 @@ program
   .description('Search for extension modules')
   .option('--type <type>', 'Filter by module type')
   .action(searchCommand);
+
+program
+  .command('gui')
+  .description('Interactive terminal GUI for browsing and linking extension modules')
+  .action(() => guiCommand());
 
 program
   .command('create <name>')
