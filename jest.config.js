@@ -8,7 +8,8 @@ module.exports = {
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
   moduleNameMapper: {
     '^uuid$': '<rootDir>/__mocks__/uuid.js',  // Mock uuid module
-    '^chalk$': '<rootDir>/__mocks__/chalk.js'  // Mock chalk module for ESM compatibility
+    '^chalk$': '<rootDir>/__mocks__/chalk.js',  // Mock chalk module for ESM compatibility
+    '^(\\.{1,2}/.+)\\.js$': '$1'  // Strip .js extensions so ts-jest resolves .ts sources
   },
   collectCoverageFrom: [
     'cli/src/**/*.ts',
