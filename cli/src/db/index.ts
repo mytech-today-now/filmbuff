@@ -15,10 +15,12 @@
  *   • migration-runner — runMigrations()                                  [bd-db-a2]
  *   • provider-shim   — migrateProvidersFromJson()                        [bd-db-a12]
  *
- * Upcoming exports (wired in by subsequent tasks):
- *   • ProjectRepository                            [bd-db-a5]
- *   • DocumentRepository                           [bd-db-a6]
+ * Current exports (Batch 3):
+ *   • ProjectRepository   (+ ProjectStepPatch)     [bd-db-a5]
+ *   • DocumentRepository  (+ CompleteAttemptPatch, SaveRevisionInput) [bd-db-a6]
  *   • ProviderRepository                           [bd-db-a7]
+ *
+ * Current exports (Batch 4):
  *   • SessionRepository                            [bd-db-a8]
  *
  * Satisfies: bd-db-a11 buff-core.01.03.02 - Export public DB API from
@@ -107,6 +109,19 @@ export { runMigrations } from './migration-runner.js';
 // Provider JSON-to-DB migration shim (bd-db-a12)
 // ---------------------------------------------------------------------------
 export { migrateProvidersFromJson } from './provider-shim.js';
+
+// ---------------------------------------------------------------------------
+// Repository classes (Batch 3)
+// ---------------------------------------------------------------------------
+export { ProjectRepository }    from './project-repository.js';
+export type { ProjectStepPatch } from './project-repository.js';
+
+export { DocumentRepository }    from './document-repository.js';
+export type { CompleteAttemptPatch, SaveRevisionInput } from './document-repository.js';
+
+export { ProviderRepository }    from './provider-repository.js';
+
+export { SessionRepository }     from './session-repository.js';
 
 // ---------------------------------------------------------------------------
 // Migration path constant

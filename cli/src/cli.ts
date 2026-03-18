@@ -20,6 +20,8 @@ import { catalogCommand, catalogHookCommand } from './commands/catalog';
 import { unlinkCommand } from './commands/unlink';
 import { generateShotListCommand } from './commands/generate-shot-list';
 import { guiCommand } from './commands/gui';
+import { startCommand } from './commands/start';
+import { continueCommand } from './commands/continue';
 import {
   providerListCommand,
   providerShowCommand,
@@ -430,6 +432,62 @@ program
   .option('--delete-profile <providerId/profileName>', 'Delete a profile')
   .option('--activate-profile <providerId/profileName>', 'Activate a profile as the active provider')
   .action((options) => configureCommand(options));
+
+// Start command — initialise a new FilmBuff project (bd-pipe-c1)
+program
+  .command('start')
+  .description('Initialise a new FilmBuff film project and seed all pipeline steps')
+  .requiredOption('--title <title>', 'Project display title (e.g. "My Screenplay")')
+  .requiredOption('--genre <genre>', 'Film genre (e.g. thriller, drama, comedy)')
+  .option('--slug <slug>', 'URL-safe project identifier (derived from title if omitted)')
+  .option('--tone <tone>', 'Tone description (e.g. dark, comedic, hopeful)')
+  .option('--audience <audience>', 'Target audience description')
+  .option('--budget <tier>', 'Budget tier: micro | low | mid | studio')
+  .option('--outcome <outcome>', 'Desired outcome or logline intent')
+  .option('--output-dir <dir>', 'Directory for generated output files')
+  .option('--format <fmt>', 'Default output format: md | json | fountain | pdf')
+  .option('--detail <level>', 'Detail level: brief | standard | detailed')
+  .option(
+    '--style <module>',
+    'Style module path (repeatable)',
+    (val: string, prev: string[] = []) => [...prev, val]
+  )
+  .option('--provider <id>', 'AI provider id to use for this project')
+  .option('--profile <name>', 'AI provider profile name')
+  .action((options) =>
+    startCommand({
+      title:     options.title,
+      genre:     options.genre,
+      slug:      options.slug,
+      tone:      options.tone,
+      audience:  options.audience,
+      budget:    options.budget,
+      outcome:   options.outcome,
+      outputDir: options.outputDir,
+      format:    options.format,
+      detail:    options.detail,
+      styles:    options.style,
+      provider:  options.provider,
+      profile:   options.profile,
+    })
+  );
+
+// Continue command — resume at the next pending pipeline step (bd-pipe-c2)
+program
+  .command('continue')
+  .description('Resume a FilmBuff project at its next pending pipeline step')
+  .requiredOption('--project <slug>', 'Project slug (or id) to continue')
+  .option('--provider <id>', 'Override AI provider for this session')
+  .option('--profile <name>', 'Override AI provider profile for this session')
+  .option('--dry-run', 'Assemble context without persisting snapshots or running generation')
+  .action((options) =>
+    continueCommand({
+      project:  options.project,
+      provider: options.provider,
+      profile:  options.profile,
+      dryRun:   options.dryRun,
+    })
+  );
 
 // Generate Shot List command
 program
