@@ -188,7 +188,7 @@ describe('module-system legacy compatibility', () => {
     it('discovers modules and filters out collection directories', () => {
       mockExistsSync.mockImplementation((target) => {
         const current = normalize(target);
-        return current.includes('augment-extensions');
+        return current.includes('filmbuff');
       });
 
       mockReadFileSync.mockImplementation((target) => {
@@ -212,26 +212,26 @@ describe('module-system legacy compatibility', () => {
           return [] as any;
         }
 
-        if (current.endsWith('/augment-extensions')) {
+        if (current.endsWith('/filmbuff')) {
           return [
             { name: 'coding-standards', isDirectory: () => true, isFile: () => false },
             { name: 'collections', isDirectory: () => true, isFile: () => false }
           ] as any;
         }
 
-        if (current.endsWith('/augment-extensions/coding-standards')) {
+        if (current.endsWith('/filmbuff/coding-standards')) {
           return [{ name: 'html', isDirectory: () => true, isFile: () => false }] as any;
         }
 
-        if (current.endsWith('/augment-extensions/coding-standards/html')) {
+        if (current.endsWith('/filmbuff/coding-standards/html')) {
           return [{ name: 'module.json', isDirectory: () => false, isFile: () => true }] as any;
         }
 
-        if (current.endsWith('/augment-extensions/collections')) {
+        if (current.endsWith('/filmbuff/collections')) {
           return [{ name: 'starter-kit', isDirectory: () => true, isFile: () => false }] as any;
         }
 
-        if (current.endsWith('/augment-extensions/collections/starter-kit')) {
+        if (current.endsWith('/filmbuff/collections/starter-kit')) {
           return [{ name: 'module.json', isDirectory: () => false, isFile: () => true }] as any;
         }
 

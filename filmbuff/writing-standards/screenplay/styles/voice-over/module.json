@@ -1,0 +1,47 @@
+{
+  "name": "screenplay-style-voice-over",
+  "version": "1.0.0",
+  "displayName": "Voice-Over Style",
+  "description": "Voice-over driven narrative style using narrator perspective and internal monologue",
+  "type": "writing-standards",
+  "category": "screenplay/styles",
+  "tags": [
+    "screenplay",
+    "style",
+    "narrative",
+    "voice-over"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-styles",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/styles/voice-over"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "voice-over.md"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-genre-documentary",
+  "version": "1.0.0",
+  "displayName": "Documentary Genre",
+  "description": "Documentary genre conventions for fact-based screenplay writing",
+  "type": "writing-standards",
+  "category": "screenplay/genres",
+  "tags": [
+    "screenplay",
+    "genre",
+    "documentary"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-genres",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/genres/documentary"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "documentary.md"
+    ]
+  }
+}

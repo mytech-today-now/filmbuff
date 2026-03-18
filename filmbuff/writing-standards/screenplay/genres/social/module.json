@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-genre-social",
+  "version": "1.0.0",
+  "displayName": "Social Drama Genre",
+  "description": "Social drama genre conventions for socially-conscious screenplay writing",
+  "type": "writing-standards",
+  "category": "screenplay/genres",
+  "tags": [
+    "screenplay",
+    "genre",
+    "social"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-genres",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/genres/social"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "social.md"
+    ]
+  }
+}

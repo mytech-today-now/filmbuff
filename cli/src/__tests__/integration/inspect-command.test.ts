@@ -32,7 +32,7 @@ describe('Inspect Command Integration Tests', () => {
         maxDepth: 5
       },
       modules: {
-        searchPaths: ['augment-extensions'],
+        searchPaths: ['filmbuff'],
         autoDiscover: true
       },
       hooks: {

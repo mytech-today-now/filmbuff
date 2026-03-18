@@ -6,6 +6,11 @@
  * The resolver loads the active selection, loads the profile, validates
  * required settings and capabilities, and returns a ready ProviderExecutor.
  *
+ * Also re-exports secret-handling utilities so command handlers have a single
+ * import point for all provider-resolution concerns.
+ *
+ * Satisfies: bd-prov-b3  buff-core.02.02.01 - Implement resolveSecrets() and
+ *            runtime-resolver.ts
  * Satisfies: bd-ai-providers.6 – Phase 4: Route AI-powered commands through
  *            active provider resolution
  * OpenSpec: openspec/changes/configurable-ai-providers/specs/provider-routing/spec.md
@@ -16,6 +21,17 @@ import { profileStore } from './profile-store.js';
 import { providerRegistry } from './provider-registry.js';
 import { customProviderStore } from './custom-provider-store.js';
 import { validateAndResolve } from './provider-validator.js';
+
+// Re-export secret-handling utilities so callers don't need to import from profile-store.
+export {
+  resolveSecrets,
+  encryptSecret,
+  isEnvRef,
+  isEncRef,
+  ENV_REF_PREFIX,
+  ENC_REF_PREFIX,
+  MASTER_KEY_ENV,
+} from './profile-store.js';
 
 // ---------------------------------------------------------------------------
 // Errors

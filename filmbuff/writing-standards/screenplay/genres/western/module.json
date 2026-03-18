@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-genre-western",
+  "version": "1.0.0",
+  "displayName": "Western Genre",
+  "description": "Western genre conventions for frontier and cowboy screenplay writing",
+  "type": "writing-standards",
+  "category": "screenplay/genres",
+  "tags": [
+    "screenplay",
+    "genre",
+    "western"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-genres",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/genres/western"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "western.md"
+    ]
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "name": "screenplay-style-experimental",
+  "version": "1.0.0",
+  "displayName": "Experimental Style",
+  "description": "Experimental narrative style breaking conventional storytelling rules",
+  "type": "writing-standards",
+  "category": "screenplay/styles",
+  "tags": [
+    "screenplay",
+    "style",
+    "narrative",
+    "experimental"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-styles",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/styles/experimental"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "experimental.md"
+    ]
+  }
+}

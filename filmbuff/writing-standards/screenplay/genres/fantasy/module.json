@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-genre-fantasy",
+  "version": "1.0.0",
+  "displayName": "Fantasy Genre",
+  "description": "Fantasy genre conventions for magical and world-building screenplay writing",
+  "type": "writing-standards",
+  "category": "screenplay/genres",
+  "tags": [
+    "screenplay",
+    "genre",
+    "fantasy"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-genres",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/genres/fantasy"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "fantasy.md"
+    ]
+  }
+}

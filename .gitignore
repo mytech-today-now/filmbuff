@@ -128,3 +128,14 @@ cli/evaluation/
 # Dolt database files (added by bd init)
 .dolt/
 *.db
+
+
+.tmp-global-prefix-20260308-180537/
+.tmp-smoke-pack-20260308-180537/
+beads_bd
+tmp_restore_patches/
+find_ready_tasks.js
+mytechtoday-filmbuff-1.0.0.tgz
+mytechtoday-filmbuff-1.0.1.tgz
+release.ps1
+test-all.ts

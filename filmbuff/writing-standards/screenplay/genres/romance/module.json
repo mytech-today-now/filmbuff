@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-genre-romance",
+  "version": "1.0.0",
+  "displayName": "Romance Genre",
+  "description": "Romance genre conventions for love story screenplay writing",
+  "type": "writing-standards",
+  "category": "screenplay/genres",
+  "tags": [
+    "screenplay",
+    "genre",
+    "romance"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-genres",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/genres/romance"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "romance.md"
+    ]
+  }
+}

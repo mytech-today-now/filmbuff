@@ -1,0 +1,47 @@
+{
+  "name": "screenplay-style-linear",
+  "version": "1.0.0",
+  "displayName": "Linear Narrative Style",
+  "description": "Linear narrative style following straightforward chronological story structure",
+  "type": "writing-standards",
+  "category": "screenplay/styles",
+  "tags": [
+    "screenplay",
+    "style",
+    "narrative",
+    "linear"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-styles",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/styles/linear"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "linear.md"
+    ]
+  }
+}

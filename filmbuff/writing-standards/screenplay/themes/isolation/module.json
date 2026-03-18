@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-theme-isolation",
+  "version": "1.0.0",
+  "displayName": "Isolation Theme",
+  "description": "Isolation, loneliness, and the search for belonging in screenwriting",
+  "type": "writing-standards",
+  "category": "screenplay/themes",
+  "tags": [
+    "screenplay",
+    "theme",
+    "isolation"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-themes",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/themes/isolation"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "isolation.md"
+    ]
+  }
+}

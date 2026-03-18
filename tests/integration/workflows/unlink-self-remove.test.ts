@@ -239,8 +239,8 @@ describe('Unlink and Self-Remove Integration Tests', () => {
       const module1 = await testEnv.createModule({ name: 'module-1', type: 'coding-standards' });
       const module2 = await testEnv.createModule({ name: 'module-2', type: 'coding-standards' });
 
-      // Create collection in the global augment-extensions directory
-      const collectionsDir = join(process.cwd(), 'augment-extensions', 'collections');
+      // Create collection in the global filmbuff directory
+      const collectionsDir = join(process.cwd(), 'filmbuff', 'collections');
       const collectionPath = join(collectionsDir, 'test-collection');
       await mkdir(collectionPath, { recursive: true });
 

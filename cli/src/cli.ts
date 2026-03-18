@@ -24,6 +24,7 @@ import { startCommand } from './commands/start';
 import { continueCommand } from './commands/continue';
 import { retryCommand } from './commands/retry';
 import { completeCommand } from './commands/complete';
+import { statusCommand } from './commands/status';
 import {
   providerListCommand,
   providerShowCommand,
@@ -33,6 +34,8 @@ import {
   providerDeleteCommand,
   providerActivateCommand,
   providerStatusCommand,
+  providerAddCommand,
+  providerSetCommand,
   configureCommand,
 } from './commands/provider';
 
@@ -412,6 +415,29 @@ providerCmd
   .action((providerId, profileName) => providerActivateCommand(providerId, profileName));
 
 providerCmd
+  .command('set <providerId> <profileName>')
+  .description('Set the active AI provider/profile (alias for activate)')
+  .action((providerId, profileName) => providerSetCommand(providerId, profileName));
+
+providerCmd
+  .command('add <providerId> <profileName>')
+  .description('Add a new provider profile with explicit key storage options')
+  .option('--key-env <VAR>', 'Store API key as env-var reference (e.g. MY_ANTHROPIC_KEY)')
+  .option('--key-encrypt', 'Encrypt the API key with AES-256-GCM (prompts for key; requires FILMBUFF_MASTER_KEY)')
+  .option('--model <model>', 'Model override for this profile')
+  .option('--endpoint <url>', 'Endpoint URL override for this profile')
+  .option('--json', 'Output as JSON')
+  .action((providerId, profileName, options) =>
+    providerAddCommand(providerId, profileName, {
+      keyEnv:     options.keyEnv,
+      keyEncrypt: options.keyEncrypt,
+      model:      options.model,
+      endpoint:   options.endpoint,
+      json:       options.json,
+    })
+  );
+
+providerCmd
   .command('delete <providerId> <profileName>')
   .description('Delete a saved profile')
   .action((providerId, profileName) => providerDeleteCommand(providerId, profileName));
@@ -454,8 +480,10 @@ program
     'Style module path (repeatable)',
     (val: string, prev: string[] = []) => [...prev, val]
   )
-  .option('--provider <id>', 'AI provider id to use for this project')
-  .option('--profile <name>', 'AI provider profile name')
+  .option('--ai-provider <id>', 'AI provider id to use for this project')
+  .option('--ai-profile <name>', 'AI provider profile name')
+  .option('--provider <id>', 'AI provider id (alias for --ai-provider)')
+  .option('--profile <name>', 'AI provider profile name (alias for --ai-profile)')
   .action((options) =>
     startCommand({
       title:     options.title,
@@ -469,8 +497,8 @@ program
       format:    options.format,
       detail:    options.detail,
       styles:    options.style,
-      provider:  options.provider,
-      profile:   options.profile,
+      provider:  options.aiProvider ?? options.provider,
+      profile:   options.aiProfile  ?? options.profile,
     })
   );
 
@@ -479,14 +507,16 @@ program
   .command('continue')
   .description('Resume a FilmBuff project at its next pending pipeline step')
   .requiredOption('--project <slug>', 'Project slug (or id) to continue')
-  .option('--provider <id>', 'Override AI provider for this session')
-  .option('--profile <name>', 'Override AI provider profile for this session')
+  .option('--ai-provider <id>', 'Override AI provider for this session')
+  .option('--ai-profile <name>', 'Override AI provider profile for this session')
+  .option('--provider <id>', 'Override AI provider for this session (alias for --ai-provider)')
+  .option('--profile <name>', 'Override AI provider profile (alias for --ai-profile)')
   .option('--dry-run', 'Assemble context without persisting snapshots or running generation')
   .action((options) =>
     continueCommand({
       project:  options.project,
-      provider: options.provider,
-      profile:  options.profile,
+      provider: options.aiProvider ?? options.provider,
+      profile:  options.aiProfile  ?? options.profile,
       dryRun:   options.dryRun,
     })
   );
@@ -497,14 +527,16 @@ program
   .description('Re-queue the last failed or rejected pipeline step for a FilmBuff project')
   .requiredOption('--project <slug>', 'Project slug (or id)')
   .option('--step <name>', 'Step name to retry (defaults to last failed/in-progress step)')
-  .option('--provider <id>', 'Override AI provider for this session')
-  .option('--profile <name>', 'Override AI provider profile for this session')
+  .option('--ai-provider <id>', 'Override AI provider for this session')
+  .option('--ai-profile <name>', 'Override AI provider profile for this session')
+  .option('--provider <id>', 'Override AI provider for this session (alias for --ai-provider)')
+  .option('--profile <name>', 'Override AI provider profile (alias for --ai-profile)')
   .action((options) =>
     retryCommand({
       project:  options.project,
       step:     options.step,
-      provider: options.provider,
-      profile:  options.profile,
+      provider: options.aiProvider ?? options.provider,
+      profile:  options.aiProfile  ?? options.profile,
     })
   );
 
@@ -517,8 +549,10 @@ program
   .requiredOption('--file <path>', 'Path to the accepted output file')
   .option('--format <fmt>', 'Document format: md, json, fountain, pdf (default: md)')
   .option('--notes <text>', 'Revision notes')
-  .option('--provider <id>', 'AI provider used (for session record)')
-  .option('--profile <name>', 'AI provider profile (for session record)')
+  .option('--ai-provider <id>', 'AI provider used (for session record)')
+  .option('--ai-profile <name>', 'AI provider profile (for session record)')
+  .option('--provider <id>', 'AI provider used (alias for --ai-provider)')
+  .option('--profile <name>', 'AI provider profile (alias for --ai-profile)')
   .action((options) =>
     completeCommand({
       project:  options.project,
@@ -526,8 +560,29 @@ program
       file:     options.file,
       format:   options.format,
       notes:    options.notes,
-      provider: options.provider,
-      profile:  options.profile,
+      provider: options.aiProvider ?? options.provider,
+      profile:  options.aiProfile  ?? options.profile,
+    })
+  );
+
+// Status command — show pipeline step statuses (bd-pipe-c6)
+program
+  .command('status')
+  .description('Display pipeline step statuses for a FilmBuff project')
+  .requiredOption('--project <slug>', 'Project slug (or id)')
+  .option('--next', 'Show info about the next pending step')
+  .option('--remaining', 'Show only pending/in-progress steps')
+  .option('--completed', 'Show only completed/skipped steps')
+  .option('--all', 'Show all steps (default)')
+  .option('--format <fmt>', 'Output format: table (default) | json')
+  .action((options) =>
+    statusCommand({
+      project:   options.project,
+      next:      options.next,
+      remaining: options.remaining,
+      completed: options.completed,
+      all:       options.all,
+      format:    options.format,
     })
   );
 
@@ -546,21 +601,23 @@ program
     (value: string, previous: string[] = []) => [...previous, value]
   )
   .option('--mute-sfx', 'Remove all MUSIC and SOUND EFFECT content from the output')
-  .option('--ai-provider <provider>', 'AI provider for shot list generation')
-  .option('--ai-model <model>', 'AI model for the selected provider')
+  .option('--ai-provider <provider>', 'AI provider id for shot list generation')
+  .option('--ai-profile <name>', 'AI provider profile name (requires --ai-provider)')
+  .option('--ai-model <model>', 'AI model override for the selected provider')
   .option('--logging', 'Enable comprehensive error logging to JSONL file')
   .action((options) => {
     return generateShotListCommand({
-      input: options.input,
-      format: options.format,
-      output: options.output,
+      input:         options.input,
+      format:        options.format,
+      output:        options.output,
       maxCharacters: parseInt(options.maxCharacters, 10),
       maxShotLength: parseInt(options.maxShotLength, 10),
-      logging: options.logging,
-      style: options.style,
-      muteSfx: options.muteSfx,
-      aiProvider: options.aiProvider,
-      aiModel: options.aiModel
+      logging:       options.logging,
+      style:         options.style,
+      muteSfx:       options.muteSfx,
+      aiProvider:    options.aiProvider,
+      aiProfile:     options.aiProfile,
+      aiModel:       options.aiModel,
     });
   });
 

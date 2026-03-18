@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-theme-love",
+  "version": "1.0.0",
+  "displayName": "Love Theme",
+  "description": "Love in all its forms as a central theme in screenwriting",
+  "type": "writing-standards",
+  "category": "screenplay/themes",
+  "tags": [
+    "screenplay",
+    "theme",
+    "love"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-themes",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/themes/love"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "love.md"
+    ]
+  }
+}

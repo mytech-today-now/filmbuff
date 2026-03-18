@@ -509,3 +509,27 @@ For more details, see README.md and docs/QUICKSTART.md.
 - If push fails, resolve and retry until it succeeds
 
 <!-- END BEADS INTEGRATION -->
+
+
+# Filmbuff Integration
+
+This project uses Filmbuff for additional AI coding guidelines.
+
+## For AI Agents
+
+Use the `filmbuff` CLI to discover and apply extension modules:
+
+```bash
+# List linked modules
+filmbuff list --linked
+
+# Show module details
+filmbuff show <module-name>
+
+# Search for modules
+filmbuff search <keyword>
+```
+
+## Linked Modules
+
+Check `.augment/extensions.json` for currently linked modules.

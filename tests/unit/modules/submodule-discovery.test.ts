@@ -20,7 +20,7 @@ describe('Submodule Discovery', () => {
   describe('Submodule Detection', () => {
     it('should detect screenplay cinematic-styles as a submodule', () => {
       // Load the actual screenplay module
-      const screenplayPath = join(process.cwd(), 'augment-extensions', 'writing-standards', 'screenplay');
+      const screenplayPath = join(process.cwd(), 'filmbuff', 'writing-standards', 'screenplay');
       const screenplay = loadModule(screenplayPath);
 
       expect(screenplay).not.toBeNull();
@@ -37,10 +37,10 @@ describe('Submodule Discovery', () => {
 
     it('should detect cinematic-styles as a submodule with parent reference', () => {
       const cinematicStylesPath = join(
-        process.cwd(), 
-        'augment-extensions', 
-        'writing-standards', 
-        'screenplay', 
+        process.cwd(),
+        'filmbuff',
+        'writing-standards',
+        'screenplay',
         'cinematic-styles'
       );
       const cinematicStyles = loadModule(cinematicStylesPath);
@@ -51,7 +51,7 @@ describe('Submodule Discovery', () => {
     });
 
     it('should detect all screenplay submodules', () => {
-      const screenplayPath = join(process.cwd(), 'augment-extensions', 'writing-standards', 'screenplay');
+      const screenplayPath = join(process.cwd(), 'filmbuff', 'writing-standards', 'screenplay');
       const screenplay = loadModule(screenplayPath);
 
       expect(screenplay?.subModules).toBeDefined();

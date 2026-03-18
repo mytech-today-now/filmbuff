@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-theme-justice",
+  "version": "1.0.0",
+  "displayName": "Justice Theme",
+  "description": "Justice, morality, and the rule of law themes in screenwriting",
+  "type": "writing-standards",
+  "category": "screenplay/themes",
+  "tags": [
+    "screenplay",
+    "theme",
+    "justice"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-themes",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/themes/justice"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "justice.md"
+    ]
+  }
+}

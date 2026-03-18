@@ -129,7 +129,7 @@ export const DEFAULT_CONFIG: AugmentConfig = {
     syntaxHighlighting: true
   },
   modules: {
-    searchPaths: ['augment-extensions'],
+    searchPaths: ['filmbuff'],
     autoDiscover: true,
     linkedModulesFile: '.augment/extensions.json'
   },

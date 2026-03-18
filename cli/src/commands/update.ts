@@ -156,8 +156,8 @@ async function updateModule(linkedModule: LinkedModule, config: any): Promise<'u
   try {
     // Look for modules relative to the current working directory (the user's project).
     // Fall back to the path bundled with the CLI package for globally-installed scenarios.
-    const cwdModulesDir = path.join(process.cwd(), 'augment-extensions');
-    const pkgModulesDir = path.join(__dirname, '../../../augment-extensions');
+    const cwdModulesDir = path.join(process.cwd(), 'filmbuff');
+    const pkgModulesDir = path.join(__dirname, '../../../filmbuff');
     const modulesDir = fs.existsSync(cwdModulesDir) ? cwdModulesDir : pkgModulesDir;
 
     const modulePath = path.join(modulesDir, linkedModule.name);

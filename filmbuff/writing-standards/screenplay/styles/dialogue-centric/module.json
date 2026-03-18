@@ -1,0 +1,47 @@
+{
+  "name": "screenplay-style-dialogue-centric",
+  "version": "1.0.0",
+  "displayName": "Dialogue-Centric Style",
+  "description": "Dialogue-centric narrative style driven by sharp, character-defining conversation",
+  "type": "writing-standards",
+  "category": "screenplay/styles",
+  "tags": [
+    "screenplay",
+    "style",
+    "narrative",
+    "dialogue-centric"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-styles",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/styles/dialogue-centric"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "dialogue-centric.md"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-genre-historical",
+  "version": "1.0.0",
+  "displayName": "Historical Genre",
+  "description": "Historical genre conventions for period-accurate screenplay writing",
+  "type": "writing-standards",
+  "category": "screenplay/genres",
+  "tags": [
+    "screenplay",
+    "genre",
+    "historical"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-genres",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/genres/historical"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "historical.md"
+    ]
+  }
+}

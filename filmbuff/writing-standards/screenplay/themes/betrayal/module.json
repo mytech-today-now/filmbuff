@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-theme-betrayal",
+  "version": "1.0.0",
+  "displayName": "Betrayal Theme",
+  "description": "Betrayal and broken trust as a central dramatic force in screenwriting",
+  "type": "writing-standards",
+  "category": "screenplay/themes",
+  "tags": [
+    "screenplay",
+    "theme",
+    "betrayal"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-themes",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/themes/betrayal"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "betrayal.md"
+    ]
+  }
+}

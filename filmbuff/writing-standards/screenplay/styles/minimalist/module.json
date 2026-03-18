@@ -1,0 +1,47 @@
+{
+  "name": "screenplay-style-minimalist",
+  "version": "1.0.0",
+  "displayName": "Minimalist Style",
+  "description": "Minimalist narrative style using restraint and economy of expression",
+  "type": "writing-standards",
+  "category": "screenplay/styles",
+  "tags": [
+    "screenplay",
+    "style",
+    "narrative",
+    "minimalist"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-styles",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/styles/minimalist"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "minimalist.md"
+    ]
+  }
+}

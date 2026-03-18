@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-theme-fate",
+  "version": "1.0.0",
+  "displayName": "Fate Theme",
+  "description": "Fate, destiny, and free will as philosophical themes in screenwriting",
+  "type": "writing-standards",
+  "category": "screenplay/themes",
+  "tags": [
+    "screenplay",
+    "theme",
+    "fate"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-themes",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/themes/fate"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "fate.md"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-genre-mystery",
+  "version": "1.0.0",
+  "displayName": "Mystery Genre",
+  "description": "Mystery genre conventions for whodunit and detective screenplay writing",
+  "type": "writing-standards",
+  "category": "screenplay/genres",
+  "tags": [
+    "screenplay",
+    "genre",
+    "mystery"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-genres",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/genres/mystery"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "mystery.md"
+    ]
+  }
+}

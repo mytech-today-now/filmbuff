@@ -212,7 +212,7 @@ describe('CLI Command Execution', () => {
       const listResult = await executeCommand('node', [CLI_PATH, 'list'], project.path);
       expect(listResult.exitCode).toBe(0);
 
-      // Then show a real module from augment-extensions
+      // Then show a real module from filmbuff
       // Use a module that actually exists in the global modules directory
       const showResult = await executeCommand(
         'node',

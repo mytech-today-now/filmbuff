@@ -476,3 +476,9 @@
 {"id":"bd-pipe-c3","title":"Implement per-step review loop","completed_at":"2026-03-18T12:02:45Z","batch":"batch-5","files":["cli/src/commands/review.ts"]}
 {"id":"bd-pipe-c4","title":"Implement filmbuff retry command","completed_at":"2026-03-18T12:02:45Z","batch":"batch-5","files":["cli/src/commands/retry.ts","cli/src/cli.ts"]}
 {"id":"bd-pipe-c5","title":"Implement filmbuff complete command","completed_at":"2026-03-18T12:02:45Z","batch":"batch-5","files":["cli/src/commands/complete.ts","cli/src/cli.ts"]}
+{"id":"bd-pipe-c6","title":"Implement filmbuff status command","completed_at":"2026-03-18T12:33:25Z","batch":"batch-6","files":["cli/src/commands/status.ts","cli/src/cli.ts"]}
+{"id":"bd-prov-b1","title":"Implement ProviderRegistry","completed_at":"2026-03-18T12:33:25Z","batch":"batch-6","files":["cli/src/providers/ProviderRegistry.ts","cli/src/providers/types.ts","cli/src/providers/index.ts"]}
+{"id":"bd-prov-b2","title":"Implement built-in provider adapters","completed_at":"2026-03-18T12:33:25Z","batch":"batch-6","files":["cli/src/providers/builtin/anthropic.ts","cli/src/providers/builtin/openai.ts","cli/src/providers/builtin/google.ts"]}
+{"id":"bd-prov-b3","title":"Implement resolveSecrets() and runtime-resolver.ts","completed_at":"2026-03-18T12:46:58Z","batch":"batch-7","files":["cli/src/utils/profile-store.ts","cli/src/utils/runtime-resolver.ts"]}
+{"id":"bd-prov-b5","title":"Implement CLI provider management commands","completed_at":"2026-03-18T12:46:58Z","batch":"batch-7","files":["cli/src/commands/provider.ts","cli/src/cli.ts"]}
+{"id":"bd-prov-b6","title":"Add --ai-provider and --ai-profile override flags to all AI commands","completed_at":"2026-03-18T12:46:58Z","batch":"batch-7","files":["cli/src/commands/generate-shot-list.ts","cli/src/cli.ts"]}

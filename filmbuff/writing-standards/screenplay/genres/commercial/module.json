@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-genre-commercial",
+  "version": "1.0.0",
+  "displayName": "Commercial Genre",
+  "description": "Commercial screenplay conventions for advertising and branded content",
+  "type": "writing-standards",
+  "category": "screenplay/genres",
+  "tags": [
+    "screenplay",
+    "genre",
+    "commercial"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-genres",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/genres/commercial"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "commercial.md"
+    ]
+  }
+}

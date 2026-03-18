@@ -1,6 +1,6 @@
 module.exports = {
   testEnvironment: 'node',
-  roots: ['<rootDir>/cli/src', '<rootDir>/augment-extensions', '<rootDir>/__tests__'],
+  roots: ['<rootDir>/cli/src', '<rootDir>/filmbuff', '<rootDir>/__tests__'],
   testMatch: ['**/__tests__/**/*.test.ts'],
   transform: {
     '^.+\\.tsx?$': [require.resolve('ts-jest'), {}]
@@ -13,11 +13,11 @@ module.exports = {
   },
   collectCoverageFrom: [
     'cli/src/**/*.ts',
-    'augment-extensions/**/*.ts',
+    'filmbuff/**/*.ts',
     '!cli/src/**/*.d.ts',
-    '!augment-extensions/**/*.d.ts',
+    '!filmbuff/**/*.d.ts',
     '!cli/src/**/__tests__/**',
-    '!augment-extensions/**/__tests__/**',
+    '!filmbuff/**/__tests__/**',
     '!test-all.ts'  // Exclude test-all.ts from coverage (it's a test file)
   ],
   coverageDirectory: 'coverage',

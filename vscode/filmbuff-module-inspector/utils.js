@@ -32,7 +32,7 @@ function findModuleRoot(resourcePath) {
 }
 
 function getModuleNameFromPath(moduleRoot, workspaceRoot) {
-  const modulesRoot = path.join(workspaceRoot, 'augment-extensions');
+  const modulesRoot = path.join(workspaceRoot, 'filmbuff');
   const relativePath = path.relative(modulesRoot, moduleRoot);
   if (!relativePath || relativePath.startsWith('..')) {
     return null;

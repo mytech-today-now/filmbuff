@@ -9,7 +9,7 @@ import * as path from 'path';
 import { showModuleCommand } from '../../commands/show';
 
 const TEST_MODULE_NAME = 'test-module';
-const TEST_MODULE_PATH = path.join(process.cwd(), 'augment-extensions', 'domain-rules', TEST_MODULE_NAME);
+const TEST_MODULE_PATH = path.join(process.cwd(), 'filmbuff', 'domain-rules', TEST_MODULE_NAME);
 
 function formatConsoleArgs(args: unknown[]): string {
   return args

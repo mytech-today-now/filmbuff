@@ -1,0 +1,47 @@
+{
+  "name": "screenplay-style-epic",
+  "version": "1.0.0",
+  "displayName": "Epic Style",
+  "description": "Epic narrative style for sweeping, large-scale story structures",
+  "type": "writing-standards",
+  "category": "screenplay/styles",
+  "tags": [
+    "screenplay",
+    "style",
+    "narrative",
+    "epic"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-styles",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/styles/epic"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "epic.md"
+    ]
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-theme-redemption",
+  "version": "1.0.0",
+  "displayName": "Redemption Theme",
+  "description": "Redemption, forgiveness, and second chances as themes in screenwriting",
+  "type": "writing-standards",
+  "category": "screenplay/themes",
+  "tags": [
+    "screenplay",
+    "theme",
+    "redemption"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-themes",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/themes/redemption"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "redemption.md"
+    ]
+  }
+}

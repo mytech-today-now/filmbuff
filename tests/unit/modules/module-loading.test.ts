@@ -218,12 +218,12 @@ describe('Module Loading and Discovery', () => {
       await testEnv.createModule({ name: 'module-2', type: 'domain-rules' });
       await testEnv.createModule({ name: 'module-3', type: 'workflows' });
 
-      // Note: discoverModules() discovers from the actual augment-extensions directory
+      // Note: discoverModules() discovers from the actual filmbuff directory
       // This test verifies the function works, but won't find our test modules
       const modules = discoverModules();
 
       expect(Array.isArray(modules)).toBe(true);
-      // The actual augment-extensions directory should have modules
+      // The actual filmbuff directory should have modules
       expect(modules.length).toBeGreaterThan(0);
     });
 

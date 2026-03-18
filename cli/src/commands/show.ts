@@ -1685,7 +1685,7 @@ async function getAllModules(): Promise<ModuleListItem[]> {
   const linkedModules = getLinkedModules();
 
   // Get all available modules from repository
-  const modulesDir = path.join(__dirname, '../../../augment-extensions');
+  const modulesDir = path.join(__dirname, '../../../filmbuff');
 
   if (!fs.existsSync(modulesDir)) {
     return linkedModules;

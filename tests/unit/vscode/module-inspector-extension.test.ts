@@ -25,7 +25,7 @@ describe('vscode module inspector extension', () => {
 
   it('derives module context and cli invocations from a selected resource', async () => {
     const workspaceRoot = path.join(testEnv.tempDir, 'workspace');
-    const moduleRoot = path.join(workspaceRoot, 'augment-extensions', 'coding-standards', 'demo-module');
+    const moduleRoot = path.join(workspaceRoot, 'filmbuff', 'coding-standards', 'demo-module');
     const selectedFile = path.join(moduleRoot, 'rules', 'rule.md');
 
     await mkdir(path.dirname(selectedFile), { recursive: true });

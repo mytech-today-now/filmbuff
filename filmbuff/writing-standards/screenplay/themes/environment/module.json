@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-theme-environment",
+  "version": "1.0.0",
+  "displayName": "Environmental Concerns Theme",
+  "description": "Environmental and ecological themes in socially-conscious screenwriting",
+  "type": "writing-standards",
+  "category": "screenplay/themes",
+  "tags": [
+    "screenplay",
+    "theme",
+    "environment"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-themes",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/themes/environment"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "environment.md"
+    ]
+  }
+}

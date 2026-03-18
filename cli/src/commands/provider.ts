@@ -1,10 +1,13 @@
 /**
  * Provider Command
  *
- * CLI workflows to list, create, show, validate, delete, and activate
- * named provider profiles. Also implements "filmbuff configure" as a
- * guided setup flow that shares the provider domain model.
+ * CLI workflows to list, create, show, validate, delete, activate, add (with
+ * --key-env / --key-encrypt flags), and set (alias for activate) named
+ * provider profiles.  Also implements "filmbuff configure" as a guided setup
+ * flow that shares the provider domain model.
  *
+ * Satisfies: bd-prov-b5   buff-core.02.03.01 - Implement CLI provider
+ *            management commands
  * Satisfies: bd-ai-providers.7 – Phase 4: Add CLI provider management
  *            and guided configure flow
  * OpenSpec: openspec/changes/configurable-ai-providers/specs/provider-management/spec.md
@@ -15,9 +18,10 @@ import * as readline from 'readline';
 import type { ProviderProfile } from '../types/ai-providers.js';
 import { providerRegistry } from '../utils/provider-registry.js';
 import { customProviderStore } from '../utils/custom-provider-store.js';
-import { profileStore } from '../utils/profile-store.js';
+import { profileStore, encryptSecret, isEnvRef } from '../utils/profile-store.js';
 import { validateProfile } from '../utils/provider-validator.js';
 import { redactProfile } from '../utils/redaction.js';
+import { BuiltinProviderProtectedError } from '../db/errors.js';
 import {
   DEFAULT_PROVIDER_PANEL_STATE,
   loadProviderPanelState,
@@ -200,18 +204,144 @@ export function providerDeleteCommand(
   providerId: string,
   profileName: string
 ): void {
-  const deleted = profileStore.delete(providerId, profileName);
-  if (!deleted) {
-    console.error(chalk.red(`Profile "${profileName}" not found for provider "${providerId}".`));
+  try {
+    const deleted = profileStore.delete(providerId, profileName);
+    if (!deleted) {
+      console.error(chalk.red(`Profile "${profileName}" not found for provider "${providerId}".`));
+      process.exit(1);
+    }
+    // Clear active selection if it pointed to the deleted profile
+    const active = profileStore.getActive();
+    if (active?.providerId === providerId && active?.profileName === profileName) {
+      profileStore.clearActive();
+      console.log(chalk.yellow('Active provider selection cleared.'));
+    }
+    console.log(chalk.green(`✓ Deleted profile "${profileName}" for provider "${providerId}".`));
+  } catch (err) {
+    if (err instanceof BuiltinProviderProtectedError) {
+      console.error(chalk.red(`✗ ${err.message}`));
+      console.error(chalk.yellow('  Tip: Built-in providers must retain at least one profile.'));
+      console.error(chalk.yellow('  Create a replacement profile first, then delete this one.'));
+      process.exit(1);
+    }
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// provider add  (supports --key-env and --key-encrypt)
+// ---------------------------------------------------------------------------
+
+export interface ProviderAddOptions {
+  /** Store the secret as an env-var reference: "env:MY_API_KEY". */
+  keyEnv?: string;
+  /** Store the secret encrypted: reads plaintext from stdin and AES-256-GCM encrypts it. */
+  keyEncrypt?: boolean;
+  model?: string;
+  endpoint?: string;
+  json?: boolean;
+}
+
+/**
+ * Add a new provider profile with explicit key storage flags.
+ *
+ * --key-env MY_API_KEY   → stores secretRefs.apiKey = "env:MY_API_KEY"
+ * --key-encrypt          → prompts for the secret and stores it AES-256-GCM encrypted
+ *
+ * Falls back to the interactive create flow when neither flag is supplied.
+ */
+export async function providerAddCommand(
+  providerId: string,
+  profileName: string,
+  options: ProviderAddOptions
+): Promise<void> {
+  ensureProviders();
+
+  if (!providerRegistry.has(providerId)) {
+    console.error(chalk.red(`Provider "${providerId}" is not registered. Run: filmbuff provider list`));
     process.exit(1);
   }
-  // Clear active selection if it pointed to the deleted profile
-  const active = profileStore.getActive();
-  if (active?.providerId === providerId && active?.profileName === profileName) {
-    profileStore.clearActive();
-    console.log(chalk.yellow('Active provider selection cleared.'));
+
+  const provider = providerRegistry.get(providerId)!;
+
+  // Build secretRefs from explicit flags
+  const secretRefs: Record<string, string> = {};
+
+  if (options.keyEnv) {
+    // Expect a single primary credential; use first required field from schema.
+    const primaryField = provider.credentialSchema.find((f) => f.required) ?? provider.credentialSchema[0];
+    if (!primaryField) {
+      console.error(chalk.red(`Provider "${providerId}" has no credential fields.`));
+      process.exit(1);
+    }
+    const ref = options.keyEnv.startsWith('env:') ? options.keyEnv : `env:${options.keyEnv}`;
+    secretRefs[primaryField.key] = ref;
+    console.log(chalk.gray(`  ${primaryField.label}: stored as env ref "${ref}"`));
+  } else if (options.keyEncrypt) {
+    const primaryField = provider.credentialSchema.find((f) => f.required) ?? provider.credentialSchema[0];
+    if (!primaryField) {
+      console.error(chalk.red(`Provider "${providerId}" has no credential fields.`));
+      process.exit(1);
+    }
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    const plaintext = await new Promise<string>((resolve) =>
+      rl.question(chalk.yellow(`  Enter ${primaryField.label} to encrypt: `), (ans) => {
+        rl.close();
+        resolve(ans.trim());
+      })
+    );
+    if (!plaintext) {
+      console.error(chalk.red('No value entered. Aborted.'));
+      process.exit(1);
+    }
+    try {
+      const encRef = encryptSecret(plaintext);
+      secretRefs[primaryField.key] = encRef;
+      console.log(chalk.gray(`  ${primaryField.label}: stored as encrypted ref (AES-256-GCM).`));
+    } catch (err: any) {
+      console.error(chalk.red(`Encryption failed: ${err.message}`));
+      process.exit(1);
+    }
+  } else {
+    // No key flags — delegate to the interactive create flow.
+    return providerCreateCommand(providerId, profileName, options);
   }
-  console.log(chalk.green(`✓ Deleted profile "${profileName}" for provider "${providerId}".`));
+
+  const now = new Date().toISOString();
+  const profile: ProviderProfile = {
+    providerId,
+    profileName,
+    settings: {},
+    secretRefs,
+    model: options.model,
+    endpoint: options.endpoint,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  profileStore.save(profile);
+
+  if (options.json) {
+    console.log(JSON.stringify(redactProfile(profile), null, 2));
+  } else {
+    console.log(chalk.green(`\n✓ Profile "${profileName}" added for "${providerId}".`));
+    console.log(chalk.gray(`  Run: filmbuff provider activate ${providerId} ${profileName}`));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// provider set  (alias for activate)
+// ---------------------------------------------------------------------------
+
+/**
+ * Set the active provider/profile selection.
+ * Alias for `provider activate` — satisfies spec requirement for a `set` subcommand.
+ */
+export function providerSetCommand(
+  providerId: string,
+  profileName: string
+): void {
+  providerActivateCommand(providerId, profileName);
 }
 
 

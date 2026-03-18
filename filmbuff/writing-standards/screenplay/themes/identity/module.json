@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-theme-identity",
+  "version": "1.0.0",
+  "displayName": "Identity Theme",
+  "description": "Identity, self-discovery, and authenticity themes in screenwriting",
+  "type": "writing-standards",
+  "category": "screenplay/themes",
+  "tags": [
+    "screenplay",
+    "theme",
+    "identity"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-themes",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/themes/identity"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "identity.md"
+    ]
+  }
+}

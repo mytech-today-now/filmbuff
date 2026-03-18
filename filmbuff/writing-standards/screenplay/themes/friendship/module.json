@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-theme-friendship",
+  "version": "1.0.0",
+  "displayName": "Friendship Theme",
+  "description": "Friendship, loyalty, and human connection themes in screenwriting",
+  "type": "writing-standards",
+  "category": "screenplay/themes",
+  "tags": [
+    "screenplay",
+    "theme",
+    "friendship"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-themes",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/themes/friendship"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "friendship.md"
+    ]
+  }
+}

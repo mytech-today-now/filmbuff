@@ -1,0 +1,47 @@
+{
+  "name": "screenplay-style-flashback",
+  "version": "1.0.0",
+  "displayName": "Flashback Style",
+  "description": "Flashback-heavy narrative style revealing story through memory sequences",
+  "type": "writing-standards",
+  "category": "screenplay/styles",
+  "tags": [
+    "screenplay",
+    "style",
+    "narrative",
+    "flashback"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-styles",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/styles/flashback"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "flashback.md"
+    ]
+  }
+}

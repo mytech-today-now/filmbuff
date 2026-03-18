@@ -1,7 +1,7 @@
 /**
  * Style Module Loader
- * 
- * Loads cinematic style modules from augment-extensions
+ *
+ * Loads cinematic style modules from filmbuff
  */
 
 import * as fs from 'fs';
@@ -23,8 +23,8 @@ export class CinematicStyleLoader implements StyleLoader {
   private parser: GuidelineParser;
   
   constructor(extensionsRoot?: string) {
-    // Default to augment-extensions directory
-    this.extensionsRoot = extensionsRoot || path.join(process.cwd(), 'augment-extensions');
+    // Default to filmbuff directory
+    this.extensionsRoot = extensionsRoot || path.join(process.cwd(), 'filmbuff');
     this.parser = new GuidelineParser();
   }
   

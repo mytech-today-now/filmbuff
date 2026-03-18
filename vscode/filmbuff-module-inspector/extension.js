@@ -54,7 +54,7 @@ async function openOptimizationSuggestions(uri) {
 function resolveSelection(uri) {
   const resource = uri || vscode.window.activeTextEditor?.document?.uri;
   if (!resource || resource.scheme !== 'file') {
-    throw new Error('Select or open a supported file inside augment-extensions before running FilmBuff inspection.');
+    throw new Error('Select or open a supported file inside filmbuff before running FilmBuff inspection.');
   }
 
   const workspaceFolder = vscode.workspace.getWorkspaceFolder(resource) || vscode.workspace.workspaceFolders?.[0];
@@ -70,7 +70,7 @@ function resolveSelection(uri) {
 
   const moduleName = getModuleNameFromPath(moduleRoot, workspaceRoot);
   if (!moduleName) {
-    throw new Error('The selected resource is not inside augment-extensions/<type>/<module>.');
+    throw new Error('The selected resource is not inside filmbuff/<type>/<module>.');
   }
 
   return {

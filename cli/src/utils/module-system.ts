@@ -52,7 +52,60 @@ export interface ValidationResult {
  * Get the modules directory path
  */
 export function getModulesDir(): string {
-  return path.join(__dirname, '../../../augment-extensions');
+  // Prefer local copy next to package root, fall back to bundled copy
+  const cwdDir = path.join(process.cwd(), 'filmbuff');
+  if (fs.existsSync(cwdDir)) {
+    return cwdDir;
+  }
+  return path.join(__dirname, '../../../filmbuff');
+}
+
+/**
+ * Resolve a module alias (filename without extension) to a full Module.
+ *
+ * The alias is the bare stem of any .md rules file anywhere inside the
+ * filmbuff/ tree.  For example:
+ *   "commercial"       → writing-standards/screenplay/genres/rules/commercial.md
+ *   "david-fincher"    → writing-standards/screenplay/cinematic-styles/directors/david-fincher.md
+ *   "saturday-night-live" → writing-standards/screenplay/cinematic-styles/comedy-formats/saturday-night-live/rules/saturday-night-live.md
+ *
+ * When the alias matches a directory that itself contains a module.json the
+ * directory's module is returned.  Otherwise the nearest enclosing directory
+ * that contains a module.json is returned.
+ */
+export function resolveAlias(alias: string): Module | null {
+  const modulesDir = getModulesDir();
+  if (!fs.existsSync(modulesDir)) {
+    return null;
+  }
+
+  const aliasLower = alias.toLowerCase();
+
+  // Walk the full module list and score each candidate
+  const allModules = discoverModules();
+
+  // 1. Exact match on the last path segment of fullName (directory alias)
+  const directoryMatch = allModules.find(m => {
+    const segments = m.fullName.split('/');
+    return segments[segments.length - 1].toLowerCase() === aliasLower;
+  });
+  if (directoryMatch) {
+    return directoryMatch;
+  }
+
+  // 2. Match on a rules/*.md filename stem within any discovered module
+  for (const module of allModules) {
+    const rulesDir = path.join(module.path, 'rules');
+    if (!fs.existsSync(rulesDir)) continue;
+
+    const rulesFiles = fs.readdirSync(rulesDir).filter(f => f.endsWith('.md'));
+    const hit = rulesFiles.find(f => path.basename(f, '.md').toLowerCase() === aliasLower);
+    if (hit) {
+      return module;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -796,20 +849,32 @@ export function discoverCollections(): Collection[] {
 }
 
 /**
- * Find module by name (supports both "category/module" and "module" formats)
+ * Find module by name (supports full path, "category/module", bare name, or filename alias)
  */
 export function findModule(moduleName: string): Module | null {
   const modulesDir = getModulesDir();
 
-  // If moduleName includes category (e.g., "coding-standards/typescript")
+  // If moduleName includes a path separator, try as a direct path first
   if (moduleName.includes('/')) {
     const modulePath = path.join(modulesDir, moduleName);
-    return loadModule(modulePath);
+    const directResult = loadModule(modulePath);
+    if (directResult) {
+      return directResult;
+    }
   }
 
-  // Search all categories for the module
+  // Search all categories for the module by fullName suffix
   const modules = discoverModules();
-  return modules.find(m => m.fullName.endsWith(`/${moduleName}`)) || null;
+  const byFullName = modules.find(m =>
+    m.fullName.toLowerCase() === moduleName.toLowerCase() ||
+    m.fullName.toLowerCase().endsWith(`/${moduleName.toLowerCase()}`)
+  );
+  if (byFullName) {
+    return byFullName;
+  }
+
+  // Fall back to alias resolution (filename stem matching)
+  return resolveAlias(moduleName);
 }
 
 /**

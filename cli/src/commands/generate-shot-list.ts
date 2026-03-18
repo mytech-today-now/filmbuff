@@ -33,6 +33,7 @@ interface GenerateShotListOptions {
   style?: string | string[];  // Can be single string or array of strings
   muteSfx?: boolean;  // Remove all MUSIC and SOUND EFFECT content from output
   aiProvider?: string;
+  aiProfile?: string;
   aiModel?: string;
   help?: boolean;
   h?: boolean;
@@ -68,7 +69,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
     let aiModel: string;
 
     const explicitProvider = normalizeAIProvider(options.aiProvider);
-    const explicitProfile = (options as any).aiProfile as string | undefined;
+    const explicitProfile = options.aiProfile;
 
     if (explicitProvider && explicitProfile) {
       // Explicit --ai-provider + --ai-profile: resolve named profile

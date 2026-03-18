@@ -1,0 +1,47 @@
+{
+  "name": "screenplay-style-surreal",
+  "version": "1.0.0",
+  "displayName": "Surreal Style",
+  "description": "Surreal narrative style blending reality with dreamlike or absurdist elements",
+  "type": "writing-standards",
+  "category": "screenplay/styles",
+  "tags": [
+    "screenplay",
+    "style",
+    "narrative",
+    "surreal"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-styles",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/styles/surreal"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "surreal.md"
+    ]
+  }
+}

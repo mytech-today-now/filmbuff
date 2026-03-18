@@ -1,0 +1,47 @@
+{
+  "name": "screenplay-style-satirical",
+  "version": "1.0.0",
+  "displayName": "Satirical Style",
+  "description": "Satirical narrative style using irony and humor to critique society",
+  "type": "writing-standards",
+  "category": "screenplay/styles",
+  "tags": [
+    "screenplay",
+    "style",
+    "narrative",
+    "satirical"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-styles",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/styles/satirical"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "satirical.md"
+    ]
+  }
+}

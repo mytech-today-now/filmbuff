@@ -1,0 +1,46 @@
+{
+  "name": "screenplay-genre-noir",
+  "version": "1.0.0",
+  "displayName": "Film Noir Genre",
+  "description": "Film noir genre conventions for dark, cynical screenplay writing",
+  "type": "writing-standards",
+  "category": "screenplay/genres",
+  "tags": [
+    "screenplay",
+    "genre",
+    "noir"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-genres",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/genres/noir"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "noir.md"
+    ]
+  }
+}

@@ -72,8 +72,13 @@ export async function guiCommand(options: Record<string, unknown> = {}): Promise
           { name: '📦 Link Modules', value: 'link-modules' },
           { name: '📚 Link Collection', value: 'link-collection' },
           { name: '🔍 Search Modules', value: 'search' },
-          { name: '🎬 Directors', value: 'directors' },
-          { name: '🎭 Franchises', value: 'franchises' },
+          new inquirer.Separator('-- Screenplay ------------------------'),
+          { name: '🎬 Genres', value: 'genres' },
+          { name: '🎨 Styles', value: 'styles' },
+          { name: '🎭 Themes', value: 'themes' },
+          { name: '🎥 Directors', value: 'directors' },
+          { name: '🏛 Franchises', value: 'franchises' },
+          new inquirer.Separator('-------------------------------------'),
           { name: '🤖 AI Providers', value: 'providers' },
           { name: '❓ Keyboard Shortcuts', value: 'help' },
           { name: '❌ Exit', value: 'exit' },
@@ -95,10 +100,36 @@ export async function guiCommand(options: Record<string, unknown> = {}): Promise
       await linkCollectionInteractive(collections, linkedModules);
     } else if (action === 'search') {
       await searchModulesInteractive(modules);
+    } else if (action === 'genres') {
+      await listSubmodulesInteractive(
+        'writing-standards/screenplay/genres',
+        '🎬 Genres',
+        linkedModules,
+      );
+    } else if (action === 'styles') {
+      await listSubmodulesInteractive(
+        'writing-standards/screenplay/styles',
+        '🎨 Styles',
+        linkedModules,
+      );
+    } else if (action === 'themes') {
+      await listSubmodulesInteractive(
+        'writing-standards/screenplay/themes',
+        '🎭 Themes',
+        linkedModules,
+      );
     } else if (action === 'directors') {
-      await listSubmodulesInteractive('directors', '🎬 Directors', linkedModules);
+      await listSubmodulesInteractive(
+        'writing-standards/screenplay/cinematic-styles/directors',
+        '🎥 Directors',
+        linkedModules,
+      );
     } else if (action === 'franchises') {
-      await listSubmodulesInteractive('franchises', '🎭 Franchises', linkedModules);
+      await listSubmodulesInteractive(
+        'writing-standards/screenplay/cinematic-styles/franchises',
+        '🏛️  Franchises',
+        linkedModules,
+      );
     } else if (action === 'providers') {
       await providerMenuInteractive();
     }
@@ -117,20 +148,72 @@ export async function guiCommand(options: Record<string, unknown> = {}): Promise
 // Interactive helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Returns the short alias (last path segment) of a module fullName.
+ * e.g. "writing-standards/screenplay/genres/action" → "action"
+ */
+function moduleAlias(fullName: string): string {
+  const parts = fullName.split('/');
+  return parts[parts.length - 1];
+}
+
+/**
+ * Returns a human-readable group label for a module's full path.
+ * Screenplay sub-categories (Genres, Styles, Themes, Directors, Franchises)
+ * get dedicated labels; everything else uses the top-level category.
+ */
+function getGroupLabel(fullName: string): string {
+  const p = fullName.split('/');
+  if (p[0] === 'writing-standards' && p[1] === 'screenplay') {
+    if (p[2] === 'genres')           return 'Screenplay > Genres';
+    if (p[2] === 'styles')           return 'Screenplay > Styles';
+    if (p[2] === 'themes')           return 'Screenplay > Themes';
+    if (p[2] === 'cinematic-styles') {
+      if (p[3] === 'directors')      return 'Screenplay > Directors';
+      if (p[3] === 'franchises')     return 'Screenplay > Franchises';
+      return 'Screenplay > Cinematic Styles';
+    }
+    return 'Screenplay';
+  }
+  return p[0].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+/**
+ * Groups modules by smart category label.
+ */
+function groupModulesByCategory(modules: Module[]): Map<string, Module[]> {
+  const grouped = new Map<string, Module[]>();
+  for (const m of modules) {
+    const cat = getGroupLabel(m.fullName);
+    if (!grouped.has(cat)) grouped.set(cat, []);
+    grouped.get(cat)!.push(m);
+  }
+  return grouped;
+}
+
 async function linkModulesInteractive(modules: Module[], linkedModules: string[]): Promise<void> {
   if (modules.length === 0) {
-    console.log(chalk.yellow('No modules found in augment-extensions directory.'));
+    console.log(chalk.yellow('No modules found in filmbuff directory.'));
     return;
   }
 
-  // Group modules by type for display
-  const topLevel = modules.filter(m => !m.isSubModule);
+  // Group by smart category and insert separators for clarity
+  const grouped = groupModulesByCategory(modules);
+  const choices: any[] = [];
 
-  const choices = topLevel.map(m => ({
-    name: `${m.fullName}${chalk.gray(` — ${m.metadata.description ?? ''}`)}`,
-    value: m.fullName,
-    checked: linkedModules.includes(m.fullName),
-  }));
+  for (const [category, mods] of grouped) {
+    choices.push(new inquirer.Separator(`-- ${category} `));
+    for (const m of mods) {
+      const alias = moduleAlias(m.fullName);
+      const desc = m.metadata.description ?? m.metadata.displayName ?? '';
+      const short = desc.length > 55 ? desc.slice(0, 52) + '...' : desc;
+      choices.push({
+        name: `${chalk.cyan(alias.padEnd(28))}${chalk.gray(short)}`,
+        value: m.fullName,
+        checked: linkedModules.includes(m.fullName),
+      });
+    }
+  }
 
   const { selected } = await inquirer.prompt([
     {
@@ -138,7 +221,7 @@ async function linkModulesInteractive(modules: Module[], linkedModules: string[]
       name: 'selected',
       message: 'Select modules to link (Space to toggle, Enter to confirm):',
       choices,
-      pageSize: 20,
+      pageSize: 25,
     },
   ]);
 
@@ -160,7 +243,7 @@ async function linkModulesInteractive(modules: Module[], linkedModules: string[]
 
 async function linkCollectionInteractive(collections: Collection[], linkedModules: string[]): Promise<void> {
   if (collections.length === 0) {
-    console.log(chalk.yellow('No collections found in augment-extensions/collections directory.'));
+    console.log(chalk.yellow('No collections found in filmbuff/collections directory.'));
     return;
   }
 
@@ -243,40 +326,46 @@ async function searchModulesInteractive(modules: Module[]): Promise<void> {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Directors / Franchises submodule browser
+// Generic submodule browser (Genres, Styles, Themes, Directors, Franchises)
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
- * Resolves the augment-extensions root directory (same logic as other commands:
+ * Resolves the filmbuff root directory (same logic as other commands:
  * prefer the project's local copy, fall back to the bundled package copy).
  */
 function resolveModulesDir(): string {
-  const cwdDir = path.join(process.cwd(), 'augment-extensions');
-  const pkgDir = path.join(__dirname, '../../../augment-extensions');
+  const cwdDir = path.join(process.cwd(), 'filmbuff');
+  const pkgDir = path.join(__dirname, '../../../filmbuff');
   return fs.existsSync(cwdDir) ? cwdDir : pkgDir;
 }
 
+/**
+ * Browse and link/unlink submodules in any container directory.
+ *
+ * @param relPath  Path relative to the filmbuff root, e.g.
+ *                 "writing-standards/screenplay/genres"
+ * @param label    Display label for the menu header
+ * @param linkedModules  Currently-linked module names
+ */
 async function listSubmodulesInteractive(
-  subtype: 'directors' | 'franchises',
+  relPath: string,
   label: string,
   linkedModules: string[],
 ): Promise<void> {
   const modulesDir = resolveModulesDir();
-  const containerPath = path.join(
-    modulesDir,
-    'writing-standards', 'screenplay', 'cinematic-styles', subtype,
-  );
+  const containerPath = path.join(modulesDir, ...relPath.split('/'));
 
   if (!fs.existsSync(containerPath)) {
-    console.log(chalk.yellow(`\nNo ${subtype} directory found at:\n  ${containerPath}\n`));
+    console.log(chalk.yellow(`\nDirectory not found:\n  ${containerPath}\n`));
     return;
   }
 
   // Each subdirectory that contains a module.json is a selectable item
   const entries = fs.readdirSync(containerPath, { withFileTypes: true })
     .filter(d => d.isDirectory())
+    .sort((a, b) => a.name.localeCompare(b.name))
     .map(d => {
-      const fullName = `writing-standards/screenplay/cinematic-styles/${subtype}/${d.name}`;
+      const fullName = `${relPath}/${d.name}`;
       const moduleJsonPath = path.join(containerPath, d.name, 'module.json');
       let description = '';
       try {
@@ -289,25 +378,29 @@ async function listSubmodulesInteractive(
     });
 
   if (entries.length === 0) {
-    console.log(chalk.yellow(`No ${subtype} found.`));
+    console.log(chalk.yellow(`No items found in ${relPath}.`));
     return;
   }
 
   console.log(chalk.bold.cyan(`\n${label} (${entries.length} available)\n`));
 
-  const choices = entries.map(e => ({
-    name: `${e.name}${e.description ? chalk.gray(` — ${e.description}`) : ''}`,
-    value: e.fullName,
-    checked: linkedModules.includes(e.fullName),
-  }));
+  const choices = entries.map(e => {
+    const alias = chalk.cyan(e.name.padEnd(26));
+    const desc = e.description.length > 50 ? e.description.slice(0, 47) + '...' : e.description;
+    return {
+      name: `${alias}${chalk.gray(desc)}`,
+      value: e.fullName,
+      checked: linkedModules.includes(e.fullName),
+    };
+  });
 
   const { selected } = await inquirer.prompt([
     {
       type: 'checkbox',
       name: 'selected',
-      message: `Select ${subtype} to link (Space to toggle, Enter to confirm):`,
+      message: `Select items to link (Space to toggle, Enter to confirm):`,
       choices,
-      pageSize: 20,
+      pageSize: 25,
     },
   ]);
 

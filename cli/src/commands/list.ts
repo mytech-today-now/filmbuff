@@ -19,6 +19,34 @@ interface Module {
   availableVersions?: string[];
 }
 
+/** Returns the short alias (last path segment) of a module name. */
+function alias(name: string): string {
+  const parts = name.split('/');
+  return parts[parts.length - 1];
+}
+
+/**
+ * Maps a full module path to a human-readable group label.
+ * Handles screenplay sub-categories (Genres, Styles, Themes, Directors, Franchises)
+ * and top-level categories (Domain Rules, Workflows, Writing Standards).
+ */
+function getGroupLabel(fullName: string): string {
+  const p = fullName.split('/');
+  if (p[0] === 'writing-standards' && p[1] === 'screenplay') {
+    if (p[2] === 'genres')          return 'Screenplay  >  Genres';
+    if (p[2] === 'styles')          return 'Screenplay  >  Styles';
+    if (p[2] === 'themes')          return 'Screenplay  >  Themes';
+    if (p[2] === 'cinematic-styles') {
+      if (p[3] === 'directors')     return 'Screenplay  >  Directors';
+      if (p[3] === 'franchises')    return 'Screenplay  >  Franchises';
+      return 'Screenplay  >  Cinematic Styles';
+    }
+    return 'Screenplay';
+  }
+  // Default: prettify first segment
+  return p[0].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export async function listCommand(options: ListOptions): Promise<void> {
   try {
     const modules = await getModules(options.linked, options.versions || false);
@@ -35,21 +63,36 @@ export async function listCommand(options: ListOptions): Promise<void> {
 
     console.log(chalk.bold.blue(`\n${options.linked ? 'Linked' : 'Available'} Modules:\n`));
 
-    modules.forEach((module) => {
-      const status = module.linked ? chalk.green('✓') : chalk.gray('○');
-      console.log(`${status} ${chalk.bold(module.name)} ${chalk.gray(`(v${module.version})`)}`);
-      console.log(`  ${chalk.gray(module.description)}`);
-      console.log(`  ${chalk.cyan(`Type: ${module.type}`)}`);
+    // Group by smart category label (preserves insertion order)
+    const grouped = new Map<string, Module[]>();
+    for (const m of modules) {
+      const cat = getGroupLabel(m.name);
+      if (!grouped.has(cat)) grouped.set(cat, []);
+      grouped.get(cat)!.push(m);
+    }
 
-      // Show available versions if --versions flag is set
-      if (options.versions && module.availableVersions && module.availableVersions.length > 0) {
-        console.log(`  ${chalk.gray('Available versions:')} ${chalk.yellow(module.availableVersions.join(', '))}`);
+    for (const [category, mods] of grouped) {
+      console.log(chalk.bold.cyan(`  ${category}`));
+      console.log(chalk.gray('  ' + '-'.repeat(62)));
+
+      for (const m of mods) {
+        const status = m.linked ? chalk.green('[linked]') : chalk.gray('        ');
+        const shortAlias = chalk.bold(alias(m.name).padEnd(26));
+        const desc = (m.description ?? '').length > 45
+          ? (m.description ?? '').slice(0, 42) + '...'
+          : (m.description ?? '');
+        const version = chalk.gray(`v${m.version}`);
+        console.log(`  ${status} ${shortAlias} ${chalk.gray(desc)} ${version}`);
+
+        if (options.versions && m.availableVersions && m.availableVersions.length > 0) {
+          console.log(`              ${chalk.gray('Versions:')} ${chalk.yellow(m.availableVersions.join(', '))}`);
+        }
       }
-
       console.log('');
-    });
+    }
 
-    console.log(chalk.gray(`Total: ${modules.length} module(s)\n`));
+    console.log(chalk.gray(`Total: ${modules.length} module(s)`));
+    console.log(chalk.gray(`Tip: Use ${chalk.white('filmbuff link <alias>')} to link a module by its short name.\n`));
   } catch (error) {
     console.error(chalk.red('Error listing modules:'), error);
     process.exit(1);

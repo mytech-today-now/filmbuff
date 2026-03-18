@@ -1,0 +1,47 @@
+{
+  "name": "screenplay-style-non-linear",
+  "version": "1.0.0",
+  "displayName": "Non-Linear Style",
+  "description": "Non-linear narrative style with fragmented or reordered chronology",
+  "type": "writing-standards",
+  "category": "screenplay/styles",
+  "tags": [
+    "screenplay",
+    "style",
+    "narrative",
+    "non-linear"
+  ],
+  "dependencies": {
+    "required": [],
+    "optional": [
+      "writing-standards/screenplay"
+    ]
+  },
+  "augment": {
+    "characterCount": 5000,
+    "priority": "medium",
+    "category": "screenplay-styles",
+    "appliesTo": {
+      "filePatterns": [
+        "**/*.fountain",
+        "**/*.screenplay",
+        "**/screenplay/**/*.md"
+      ],
+      "languages": [
+        "fountain",
+        "markdown"
+      ]
+    }
+  },
+  "installation": {
+    "required": false,
+    "steps": [
+      "Link module: filmbuff link writing-standards/screenplay/styles/non-linear"
+    ]
+  },
+  "contents": {
+    "rules": [
+      "non-linear.md"
+    ]
+  }
+}
