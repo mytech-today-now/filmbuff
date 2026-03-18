@@ -22,6 +22,8 @@ import { generateShotListCommand } from './commands/generate-shot-list';
 import { guiCommand } from './commands/gui';
 import { startCommand } from './commands/start';
 import { continueCommand } from './commands/continue';
+import { retryCommand } from './commands/retry';
+import { completeCommand } from './commands/complete';
 import {
   providerListCommand,
   providerShowCommand,
@@ -486,6 +488,46 @@ program
       provider: options.provider,
       profile:  options.profile,
       dryRun:   options.dryRun,
+    })
+  );
+
+// Retry command — re-queue the last failed/rejected step (bd-pipe-c4)
+program
+  .command('retry')
+  .description('Re-queue the last failed or rejected pipeline step for a FilmBuff project')
+  .requiredOption('--project <slug>', 'Project slug (or id)')
+  .option('--step <name>', 'Step name to retry (defaults to last failed/in-progress step)')
+  .option('--provider <id>', 'Override AI provider for this session')
+  .option('--profile <name>', 'Override AI provider profile for this session')
+  .action((options) =>
+    retryCommand({
+      project:  options.project,
+      step:     options.step,
+      provider: options.provider,
+      profile:  options.profile,
+    })
+  );
+
+// Complete command — manually accept a step output (bd-pipe-c5)
+program
+  .command('complete')
+  .description('Mark a FilmBuff pipeline step as completed using a supplied output file')
+  .requiredOption('--project <slug>', 'Project slug (or id)')
+  .requiredOption('--step <name>', 'Pipeline step name to complete')
+  .requiredOption('--file <path>', 'Path to the accepted output file')
+  .option('--format <fmt>', 'Document format: md, json, fountain, pdf (default: md)')
+  .option('--notes <text>', 'Revision notes')
+  .option('--provider <id>', 'AI provider used (for session record)')
+  .option('--profile <name>', 'AI provider profile (for session record)')
+  .action((options) =>
+    completeCommand({
+      project:  options.project,
+      step:     options.step,
+      file:     options.file,
+      format:   options.format,
+      notes:    options.notes,
+      provider: options.provider,
+      profile:  options.profile,
     })
   );
 
