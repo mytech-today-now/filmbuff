@@ -23,8 +23,12 @@
  * Current exports (Batch 4):
  *   • SessionRepository                            [bd-db-a8]
  *
- * Satisfies: bd-db-a11 buff-core.01.03.02 - Export public DB API from
+ * Current exports (Batch 5 — bd-int-d3):
+ *   • performance — measure(), measureAsync(), walStats(), pragmaReport()
+ *
+ * Satisfies: bd-db-a11  buff-core.01.03.02 - Export public DB API from
  *            cli/src/db/index.ts
+ *            bd-int-d3  buff-core.04.01.03 - Performance profiling and WAL tuning
  */
 
 // ---------------------------------------------------------------------------
@@ -122,6 +126,18 @@ export type { CompleteAttemptPatch, SaveRevisionInput } from './document-reposit
 export { ProviderRepository }    from './provider-repository.js';
 
 export { SessionRepository }     from './session-repository.js';
+
+// ---------------------------------------------------------------------------
+// Performance profiling (bd-int-d3)
+// ---------------------------------------------------------------------------
+export {
+  measure,
+  measureAsync,
+  walStats,
+  pragmaReport,
+} from './performance.js';
+
+export type { ProfileResult, WalStats, PragmaReport } from './performance.js';
 
 // ---------------------------------------------------------------------------
 // Migration path constant

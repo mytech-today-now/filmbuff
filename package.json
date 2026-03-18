@@ -43,7 +43,9 @@
         "prepublishOnly": "npm run verify:dist",
         "install:cli": "npm install && npm run verify:dist && npm install -g .",
         "uninstall:cli": "npm uninstall -g @mytechtoday/filmbuff",
-        "reinstall:cli": "npm run uninstall:cli && npm run install:cli"
+        "reinstall:cli": "npm run uninstall:cli && npm run install:cli",
+        "lint": "eslint cli/src",
+        "lint:providers": "eslint cli/src/providers/builtin"
     },
     "keywords": [
         "filmbuff",

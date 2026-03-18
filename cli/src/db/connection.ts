@@ -10,8 +10,9 @@
  *   closeDatabase()         — Closes and resets the singleton (for tests).
  *   withTransaction(db, fn) — Runs fn inside a SQLite transaction.
  *
- * Satisfies: bd-db-a3 buff-core.01.01.03 — Implement DatabaseContext
+ * Satisfies: bd-db-a3  buff-core.01.01.03 — Implement DatabaseContext
  *            singleton and connection factory
+ *            bd-int-d3 buff-core.04.01.03 — Performance profiling and WAL tuning
  */
 
 import Database from 'better-sqlite3';
@@ -19,6 +20,22 @@ import { translateSQLiteError } from './errors.js';
 
 // ---------------------------------------------------------------------------
 // PRAGMAs — applied immediately after every new connection is opened.
+//
+// WAL tuning rationale (bd-int-d3):
+//   journal_mode = WAL      — Enables Write-Ahead Logging for concurrent reads.
+//   synchronous  = NORMAL   — Safest setting compatible with WAL; full fsync
+//                             only at WAL checkpoints, not every write.
+//   wal_autocheckpoint = 100— Checkpoint every 100 pages (~400 KB). Keeps WAL
+//                             file from growing unbounded without degrading
+//                             write throughput.
+//   cache_size   = -8000    — Negative value = kibibytes → 8 MB page cache.
+//                             Reduces disk I/O on repeated reads.
+//   mmap_size    = 134217728— 128 MB memory-mapped I/O window. Allows the OS
+//                             to serve reads from the mmap region directly.
+//   temp_store   = MEMORY   — Keeps temporary tables and indices in RAM,
+//                             avoiding temp-file I/O during complex queries.
+//   foreign_keys = ON       — Enforce referential integrity.
+//   busy_timeout = 5000     — Retry for up to 5 s before returning SQLITE_BUSY.
 // ---------------------------------------------------------------------------
 
 /**
@@ -26,9 +43,17 @@ import { translateSQLiteError } from './errors.js';
  * Called automatically by `openDatabase()`.
  */
 function applyPragmas(db: Database.Database): void {
+  // Core reliability
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
+
+  // WAL performance tuning (bd-int-d3)
+  db.pragma('synchronous = NORMAL');
+  db.pragma('wal_autocheckpoint = 100');
+  db.pragma('cache_size = -8000');       // 8 MB page cache
+  db.pragma('mmap_size = 134217728');    // 128 MB mmap window
+  db.pragma('temp_store = MEMORY');
 }
 
 // ---------------------------------------------------------------------------
