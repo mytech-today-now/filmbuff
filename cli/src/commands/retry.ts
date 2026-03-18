@@ -61,6 +61,7 @@ export async function retryCommand(options: RetryOptions): Promise<void> {
     console.error(chalk.red(`✗ Project not found: "${options.project}"`));
     console.error(chalk.gray('  Use filmbuff start to create a new project.'));
     process.exit(1);
+    return;
   }
 
   const sessionId = crypto.randomUUID();

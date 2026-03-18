@@ -60,6 +60,7 @@ export async function completeCommand(options: CompleteOptions): Promise<void> {
   if (!fs.existsSync(options.file)) {
     console.error(chalk.red(`✗ Output file not found: "${options.file}"`));
     process.exit(1);
+    return;
   }
 
   const db = openDatabase();
@@ -78,6 +79,7 @@ export async function completeCommand(options: CompleteOptions): Promise<void> {
     console.error(chalk.red(`✗ Project not found: "${options.project}"`));
     console.error(chalk.gray('  Use filmbuff start to create a new project.'));
     process.exit(1);
+    return;
   }
 
   const sessionId = crypto.randomUUID();

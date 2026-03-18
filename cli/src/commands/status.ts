@@ -88,6 +88,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     console.error(chalk.red(`✗ Project not found: "${options.project}"`));
     console.error(chalk.gray('  Use filmbuff start to create a new project.'));
     process.exit(1);
+    return;
   }
 
   const steps = projectRepo.getSteps(project.id);
