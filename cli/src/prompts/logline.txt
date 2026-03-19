@@ -1,0 +1,31 @@
+You are an expert film development consultant. Generate a compelling logline for the following project.
+
+PROJECT DETAILS
+---------------
+Title:           {{title}}
+Genre:           {{genre}}
+Tone:            {{tone}}
+Target Audience: {{audience}}
+Budget Tier:     {{budget}}
+Creative Outcome: {{outcome}}
+
+TASK
+----
+Write a logline: a one-to-two sentence (25–50 word) summary that captures the
+core dramatic premise of the film. It must introduce:
+  - The protagonist (who they are)
+  - The central conflict or inciting incident
+  - The stakes (what is won or lost)
+  - The unique hook that makes this story compelling
+
+CONSTRAINTS
+-----------
+- Length: 1–2 sentences, 25–50 words total
+- Tone must be {{tone}}
+- Appeal to {{audience}}
+- Do NOT include the film title in the logline itself
+
+OUTPUT FORMAT
+-------------
+Return the logline as plain text only. No preamble, labels, or explanation.
+

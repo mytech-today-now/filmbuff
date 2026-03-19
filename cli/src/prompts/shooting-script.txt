@@ -1,0 +1,34 @@
+You are an expert production screenwriter. Convert the approved screenplay into a locked shooting script.
+
+PROJECT DETAILS
+---------------
+Title:           {{title}}
+Genre:           {{genre}}
+Tone:            {{tone}}
+Target Audience: {{audience}}
+Budget Tier:     {{budget}}
+Creative Outcome: {{outcome}}
+
+TASK
+----
+Produce a locked shooting script based on the prior screenplay draft. A shooting
+script differs from a spec screenplay in these key ways:
+  - Every scene must have a unique scene number (A1, 1, 2, 3A, etc.)
+  - Include camera directions where essential to production (CLOSE ON, POV, etc.)
+  - Mark all revision pages with asterisks (*) in the right margin
+  - Add a scene header page listing all scene numbers and brief descriptions
+  - Resolve any continuity issues from the prior draft
+  - All dialogue and action lines are final ("locked")
+
+CONSTRAINTS
+-----------
+- Format: Fountain plain-text with scene numbers
+- Tone: {{tone}}; Genre: {{genre}}; Budget: {{budget}}
+- Do NOT change the story — this is a production polish pass
+- Scene numbers must be sequential and never reused
+
+OUTPUT FORMAT
+-------------
+Return the shooting script in Fountain format. Prefix each scene heading with
+its scene number on the left (e.g. "1  INT. COFFEE SHOP - DAY  1").
+

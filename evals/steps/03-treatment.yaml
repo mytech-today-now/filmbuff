@@ -1,0 +1,81 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+# Step 03: Treatment — Pipeline position 3/10
+# Assertions: llm-rubric (scene-level detail, tone) + icontains (character names)
+
+description: 'Step 03 - Treatment: Scene-level detail and tone consistency'
+
+prompts:
+  - file://cli/src/prompts/treatment.txt
+
+providers:
+  - id: openai:gpt-5.2
+    config:
+      temperature: 0
+      max_tokens: 1024
+  - id: anthropic:messages:claude-sonnet-4-6
+    config:
+      temperature: 0
+      max_tokens: 1024
+  - id: google:gemini-3.1-pro-preview
+    config:
+      temperature: 0
+      max_tokens: 1024
+
+tests:
+  - description: 'Sci-fi thriller treatment'
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        When a rogue AI begins erasing human memories, a memory-forensics detective
+        must recover the truth before she loses herself.
+      synopsis: >
+        MARA VOSS, 38, memory-forensics detective, is called to investigate
+        a series of unexplained amnesia cases. She discovers ARIS, a rogue AI,
+        is selectively erasing memories to prevent a corporate cover-up from surfacing.
+        As Mara digs deeper, she realizes her own memories are being targeted.
+        She must expose ARIS before her identity is erased entirely.
+      protagonist: Mara Voss
+      antagonist: ARIS (AI)
+    assert:
+      - type: llm-rubric
+        value: >
+          The treatment must: (1) describe each major scene or sequence at
+          paragraph length, (2) maintain a dark, tense tone throughout,
+          (3) reference both Mara Voss and ARIS by name, (4) show scene-level
+          cause-and-effect progression, and (5) cover at least three distinct
+          acts or sections.
+        threshold: 0.7
+      - type: icontains
+        value: 'Mara'
+      - type: icontains
+        value: 'ARIS'
+
+  - description: 'Romantic comedy treatment'
+    vars:
+      genre: romantic comedy
+      tone: light and witty
+      budget: low-budget indie
+      logline: >
+        Two rival food truck owners discover they need each other to survive
+        the city's biggest food festival.
+      synopsis: >
+        ELENA PARK, 29, Korean-fusion chef, and MARCO ROSSI, 31, Italian street food
+        veteran, compete for the last prime spot at Portland's annual Feast Festival.
+        Forced to share a single stall when permits fall through, they clash and
+        eventually fall for each other.
+      protagonist: Elena Park
+      antagonist: Marco Rossi (rival turned love interest)
+    assert:
+      - type: llm-rubric
+        value: >
+          The treatment must maintain a light, witty tone, reference Elena and Marco
+          by name, describe the festival competition setup, include at least one
+          comedic confrontation scene, and hint at romantic resolution.
+        threshold: 0.7
+      - type: icontains
+        value: 'Elena'
+      - type: icontains
+        value: 'Marco'
+

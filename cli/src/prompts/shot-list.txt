@@ -1,0 +1,38 @@
+You are an expert director of photography and first assistant director. Generate a detailed shot list for the following project.
+
+PROJECT DETAILS
+---------------
+Title:           {{title}}
+Genre:           {{genre}}
+Tone:            {{tone}}
+Target Audience: {{audience}}
+Budget Tier:     {{budget}}
+Creative Outcome: {{outcome}}
+
+TASK
+----
+Produce a comprehensive shot list as a JSON array. Each shot object must include:
+  - shot_id: string (e.g. "3-A", "3-B")
+  - scene_number: string
+  - scene_heading: string
+  - shot_number: integer (within scene)
+  - shot_type: string (WIDE / MEDIUM / CLOSE-UP / INSERT / POV / OTS / etc.)
+  - lens: string (suggested focal length, e.g. "35mm", "85mm")
+  - camera_movement: string (STATIC / DOLLY IN / PAN LEFT / HANDHELD / etc.)
+  - framing: string (brief description of frame composition)
+  - action: string (what happens on screen)
+  - dialogue_cue: string | null (first few words of any dialogue on this shot)
+  - estimated_duration_seconds: number
+  - notes: string (lighting, grip, special equipment notes)
+
+CONSTRAINTS
+-----------
+- Every scene from the shooting script must have at least one shot
+- Budget {{budget}}: be realistic about equipment and crew needs
+- Optimise for shoot efficiency (group similar setups together where noted)
+- Tone: {{tone}}; Genre: {{genre}}
+
+OUTPUT FORMAT
+-------------
+Return a JSON array of shot objects. Valid, parseable JSON only. No prose.
+

@@ -1,0 +1,101 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://filmbuff.ai/schemas/shot-list.schema.json",
+  "title": "FilmBuff Shot List",
+  "description": "JSON schema for the FilmBuff shot-list pipeline step output",
+  "type": "object",
+  "required": ["title", "shots"],
+  "additionalProperties": true,
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Screenplay title"
+    },
+    "totalShots": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Total number of shots in the list"
+    },
+    "shots": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Ordered list of shots",
+      "items": {
+        "type": "object",
+        "required": ["id", "scene", "type", "description"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Unique shot identifier (e.g. 'S001', '1A')"
+          },
+          "scene": {
+            "type": ["string", "integer"],
+            "description": "Scene number or heading this shot belongs to"
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Shot type (e.g. 'WIDE', 'CU', 'MCU', 'OTS', 'POV', 'INSERT')"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10,
+            "description": "Detailed shot description including blocking and action"
+          },
+          "camera": {
+            "type": "object",
+            "description": "Camera movement and angle details",
+            "properties": {
+              "angle":    { "type": "string" },
+              "movement": { "type": "string" },
+              "lens":     { "type": "string" }
+            }
+          },
+          "characters": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Characters visible in the shot"
+          },
+          "dialogue": {
+            "type": "string",
+            "description": "Dialogue spoken in the shot, or 'No dialogue in this shot.'"
+          },
+          "duration": {
+            "type": "string",
+            "description": "Estimated shot duration (e.g. '3s', '0:05')"
+          },
+          "notes": {
+            "type": "string",
+            "description": "Director or DP notes"
+          },
+          "subShots": {
+            "type": "array",
+            "description": "Optional sub-shots within the same setup",
+            "items": {
+              "type": "object",
+              "required": ["id", "type", "description"],
+              "properties": {
+                "id":          { "type": "string" },
+                "type":        { "type": "string" },
+                "description": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "locations": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "All shooting locations referenced in the shot list"
+    },
+    "cast": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "All characters/actors appearing in the shot list"
+    }
+  }
+}
+

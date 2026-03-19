@@ -1,0 +1,76 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+# Step 07: Script Breakdown — Pipeline position 7/10
+# Assertions: llm-rubric (locations, cast, props sections) + icontains (location name)
+
+description: 'Step 07 - Script Breakdown: Element completeness validation'
+
+prompts:
+  - file://cli/src/prompts/script-breakdown.txt
+
+providers:
+  - id: openai:gpt-5.2
+    config:
+      temperature: 0
+      max_tokens: 1024
+  - id: anthropic:messages:claude-sonnet-4-6
+    config:
+      temperature: 0
+      max_tokens: 1024
+  - id: google:gemini-3.1-pro-preview
+    config:
+      temperature: 0
+      max_tokens: 1024
+
+tests:
+  - description: 'Sci-fi thriller script breakdown'
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        Detective Mara Voss must expose a rogue AI erasing memories before
+        she loses herself.
+      shooting_script_excerpt: |
+        1  INT. MEMORY FORENSICS LAB - NIGHT
+           MARA VOSS studies floating memory fragments. Lights flicker.
+           Props: holographic display unit, memory drive (evidence), coffee mug.
+
+        2  EXT. MEGACORP HEADQUARTERS - DAY
+           Mara approaches the glass tower, briefcase in hand.
+    assert:
+      - type: llm-rubric
+        value: >
+          The script breakdown must include clearly labeled sections for:
+          (1) LOCATIONS listing all shooting locations from the shooting script,
+          (2) CAST listing all characters with their scene appearances,
+          (3) PROPS listing all physical props by scene,
+          and optionally WARDROBE, VFX, or SPECIAL EQUIPMENT sections.
+        threshold: 0.7
+      - type: icontains
+        value: 'Memory Forensics Lab'
+
+  - description: 'Romantic comedy script breakdown'
+    vars:
+      genre: romantic comedy
+      tone: light and witty
+      budget: low-budget indie
+      logline: >
+        Two rival food truck owners discover they need each other to win
+        Portland's biggest food festival.
+      shooting_script_excerpt: |
+        1  EXT. PORTLAND FOOD FESTIVAL - DAY
+           Elena and Marco reach for permit window simultaneously.
+           Props: permit forms, pens, Elena's apron (Korean-fusion branding).
+
+        2  INT. SHARED FOOD TRUCK - DAY
+           Elena and Marco argue over kitchen setup. Props: wok, pasta maker, knives.
+    assert:
+      - type: llm-rubric
+        value: >
+          The breakdown must list all locations (Portland Food Festival, Shared Food Truck),
+          both cast members (Elena Park, Marco Rossi) with their scenes,
+          and all props by scene. Budget notes appropriate for low-budget indie are a plus.
+        threshold: 0.7
+      - type: icontains
+        value: 'Portland Food Festival'
+

@@ -1,0 +1,36 @@
+You are an expert storyboard artist and visual storyteller. Generate visual panel descriptions for the following project.
+
+PROJECT DETAILS
+---------------
+Title:           {{title}}
+Genre:           {{genre}}
+Tone:            {{tone}}
+Target Audience: {{audience}}
+Budget Tier:     {{budget}}
+Creative Outcome: {{outcome}}
+
+TASK
+----
+Write storyboard panel descriptions for every major scene in the film. For each
+panel group (scene), describe:
+  - Panel number and scene reference (e.g. "Scene 3 / Panel 1")
+  - Shot type: WIDE / MEDIUM / CLOSE-UP / EXTREME CLOSE-UP / POV / AERIAL
+  - Camera angle: EYE LEVEL / LOW ANGLE / HIGH ANGLE / DUTCH / OVERHEAD
+  - Camera movement: STATIC / PAN / TILT / DOLLY / ZOOM / HANDHELD / CRANE
+  - Composition: what is in the frame, foreground/background elements
+  - Action: what happens in this panel
+  - Dialogue/Sound: any key audio or line tied to this image
+  - Mood/Lighting notes: lighting style and emotional atmosphere
+
+CONSTRAINTS
+-----------
+- Cover all key story beats — focus on cinematically important moments
+- Tone: {{tone}}; Genre: {{genre}}
+- Budget {{budget}}: avoid impractical camera setups for this tier
+- Write descriptions vividly enough for an artist to draw from
+
+OUTPUT FORMAT
+-------------
+Use Markdown. Each scene is a ## heading. Each panel is a numbered list item
+with the fields as bold labels (e.g. **Shot Type:** WIDE).
+

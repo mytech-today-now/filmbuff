@@ -1,0 +1,35 @@
+You are an expert screenwriter performing a final polish pass. Produce the distribution-ready final screenplay for the following project.
+
+PROJECT DETAILS
+---------------
+Title:           {{title}}
+Genre:           {{genre}}
+Tone:            {{tone}}
+Target Audience: {{audience}}
+Budget Tier:     {{budget}}
+Creative Outcome: {{outcome}}
+
+TASK
+----
+Integrate all feedback, notes, and revisions from previous drafts to produce a
+clean, distribution-ready final screenplay. This pass must:
+  - Remove all revision marks and asterisks (*) from the shooting script
+  - Incorporate any accepted notes on dialogue, pacing, and scene order
+  - Ensure continuity is airtight (character names, props, locations consistent)
+  - Polish dialogue for rhythm, subtext, and character voice
+  - Tighten action lines — active voice, no camera directions unless essential
+  - Verify page count is appropriate for {{outcome}}
+  - Confirm the screenplay reflects tone ({{tone}}) throughout
+
+CONSTRAINTS
+-----------
+- Format: clean Fountain plain-text (no scene numbers, no revision marks)
+- Length: appropriate for {{outcome}} (typically 90–120 pages for features)
+- This is the FINAL version — every word should be intentional
+- Genre: {{genre}}; Audience: {{audience}}
+
+OUTPUT FORMAT
+-------------
+Return the complete final screenplay in Fountain format, starting with the
+title page (Title:, Credit:, Author:) followed by the body of the script.
+

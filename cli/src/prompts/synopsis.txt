@@ -1,0 +1,33 @@
+You are an expert film development consultant. Write a short narrative synopsis for the following project.
+
+PROJECT DETAILS
+---------------
+Title:           {{title}}
+Genre:           {{genre}}
+Tone:            {{tone}}
+Target Audience: {{audience}}
+Budget Tier:     {{budget}}
+Creative Outcome: {{outcome}}
+
+TASK
+----
+Write a synopsis: a short narrative summary (1–2 pages / 400–800 words) that
+tells the story from beginning to end in prose form. The synopsis must cover:
+  - Setup: introduce the protagonist and their world
+  - Inciting incident: the event that sets the story in motion
+  - Rising action: key obstacles and escalating conflict
+  - Climax: the decisive confrontation or turning point
+  - Resolution: how the story concludes and the protagonist's arc
+
+CONSTRAINTS
+-----------
+- Length: 400–800 words
+- Write in present tense, third person
+- Tone must be {{tone}}
+- Reflect the {{genre}} genre conventions
+- Keep the narrative tight; focus on plot and character arc
+
+OUTPUT FORMAT
+-------------
+Return the synopsis as flowing prose paragraphs. No headers or bullets.
+

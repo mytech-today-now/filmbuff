@@ -1,0 +1,111 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://filmbuff.ai/schemas/beat-sheet.schema.json",
+  "title": "FilmBuff Beat Sheet",
+  "description": "JSON schema for the FilmBuff beat-sheet pipeline step output",
+  "type": "object",
+  "required": ["title", "acts", "beats"],
+  "additionalProperties": true,
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Screenplay title"
+    },
+    "genre": {
+      "type": "string",
+      "description": "Primary genre of the screenplay"
+    },
+    "tone": {
+      "type": "string",
+      "description": "Tone or mood of the screenplay"
+    },
+    "acts": {
+      "type": "array",
+      "minItems": 2,
+      "description": "Three-act (or two-act) structure divisions",
+      "items": {
+        "type": "object",
+        "required": ["number", "name"],
+        "properties": {
+          "number": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string"
+          },
+          "pageRange": {
+            "type": "object",
+            "properties": {
+              "start": { "type": "integer", "minimum": 1 },
+              "end":   { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "beats": {
+      "type": "array",
+      "minItems": 5,
+      "description": "Story beats in sequential order",
+      "items": {
+        "type": "object",
+        "required": ["id", "name", "act", "description"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Unique beat identifier (e.g. 'B01')"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Beat name (e.g. 'Opening Image', 'Inciting Incident')"
+          },
+          "act": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Act number this beat belongs to"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Approximate page number"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 10,
+            "description": "Narrative description of what happens at this beat"
+          },
+          "characters": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Characters involved in this beat"
+          },
+          "emotionalShift": {
+            "type": "string",
+            "description": "How the protagonist's emotional state changes"
+          }
+        }
+      }
+    },
+    "protagonist": {
+      "type": "string",
+      "description": "Main character name"
+    },
+    "antagonist": {
+      "type": "string",
+      "description": "Antagonist or opposing force"
+    },
+    "theme": {
+      "type": "string",
+      "description": "Central thematic statement"
+    }
+  }
+}
+

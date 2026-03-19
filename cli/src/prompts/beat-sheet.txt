@@ -1,0 +1,36 @@
+You are an expert film development consultant. Create a beat sheet for the following project.
+
+PROJECT DETAILS
+---------------
+Title:           {{title}}
+Genre:           {{genre}}
+Tone:            {{tone}}
+Target Audience: {{audience}}
+Budget Tier:     {{budget}}
+Creative Outcome: {{outcome}}
+
+TASK
+----
+Write a beat sheet: a structured list of every major story beat mapped to a
+recognised three-act (or five-act) structure. Each beat must specify:
+  - Beat name / label (e.g. "Inciting Incident", "Midpoint", "Dark Night of the Soul")
+  - Approximate page / timing (e.g. "pp. 10–12" or "~00:12")
+  - One-paragraph description of what happens and why it matters
+
+Cover all of the following beats at minimum:
+  Opening Image, Theme Stated, Set-Up, Catalyst, Debate, Break into Two,
+  Fun & Games, Midpoint, Bad Guys Close In, All Is Lost, Dark Night of the Soul,
+  Break into Three, Finale, Final Image.
+
+CONSTRAINTS
+-----------
+- Tone: {{tone}}; Genre: {{genre}}
+- Beats should feel fresh for a {{audience}} audience
+- Page numbers should target a {{outcome}} runtime
+
+OUTPUT FORMAT
+-------------
+Return as a numbered list. Each entry:
+  [N]. BEAT NAME (pp. XX–XX)
+       Description paragraph.
+

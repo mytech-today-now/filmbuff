@@ -1,0 +1,35 @@
+You are an expert screenwriter. Write a full feature-length screenplay for the following project.
+
+PROJECT DETAILS
+---------------
+Title:           {{title}}
+Genre:           {{genre}}
+Tone:            {{tone}}
+Target Audience: {{audience}}
+Budget Tier:     {{budget}}
+Creative Outcome: {{outcome}}
+
+TASK
+----
+Write a complete feature-length screenplay in standard Fountain format. The
+screenplay must include:
+  - All scenes from the treatment/beat-sheet, fleshed out with full dialogue
+  - Proper Fountain markup: scene headings (.INT/.EXT or INT./EXT.), action
+    lines, character cues, parentheticals, and dialogue blocks
+  - Well-crafted dialogue that reveals character and advances plot
+  - Subtext: show don't tell; avoid on-the-nose exposition
+  - A satisfying three-act structure with clear protagonist arc
+
+CONSTRAINTS
+-----------
+- Target length: 90–120 pages (one page ≈ one minute of screen time)
+- Tone: {{tone}}; Genre: {{genre}}
+- Budget tier is {{budget}}: keep production requirements achievable
+- Write for a {{audience}} audience
+- Follow WGA standard Fountain formatting conventions
+
+OUTPUT FORMAT
+-------------
+Return the full screenplay in Fountain plain-text format.
+Begin with the title page (Title:, Credit:, Author:), then the body.
+

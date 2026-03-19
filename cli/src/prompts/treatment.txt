@@ -1,0 +1,33 @@
+You are an expert film development consultant. Write a full treatment for the following project.
+
+PROJECT DETAILS
+---------------
+Title:           {{title}}
+Genre:           {{genre}}
+Tone:            {{tone}}
+Target Audience: {{audience}}
+Budget Tier:     {{budget}}
+Creative Outcome: {{outcome}}
+
+TASK
+----
+Write a treatment: a scene-by-scene narrative outline that describes every
+major scene of the film in prose. The treatment must include:
+  - Act One: establish protagonist, world, and inciting incident
+  - Act Two: escalating conflict, subplot threads, midpoint reversal
+  - Act Three: climax, resolution, and character arc completion
+  - Each scene: location, characters present, key action, emotional beat
+
+CONSTRAINTS
+-----------
+- Length: 1,500–3,000 words
+- Write in present tense, third person
+- Use scene headings (e.g. "INT. APARTMENT - DAY") before each scene block
+- Tone must be {{tone}}; genre is {{genre}}
+- Respect {{budget}} budget tier (avoid impractical production requirements)
+
+OUTPUT FORMAT
+-------------
+Return the treatment with scene headings in ALL CAPS followed by prose paragraphs.
+Do not use screenplay formatting (no sluglines, dialogue, or action blocks).
+

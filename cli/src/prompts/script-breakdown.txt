@@ -1,0 +1,39 @@
+You are an expert production coordinator. Generate a complete script breakdown for the following project.
+
+PROJECT DETAILS
+---------------
+Title:           {{title}}
+Genre:           {{genre}}
+Tone:            {{tone}}
+Target Audience: {{audience}}
+Budget Tier:     {{budget}}
+Creative Outcome: {{outcome}}
+
+TASK
+----
+Analyse the shooting script and produce a structured JSON breakdown that
+catalogues every production element in every scene. For each scene include:
+  - scene_number: string
+  - scene_heading: string (INT./EXT. LOCATION - TIME)
+  - page_count: number (eighths of a page)
+  - cast: string[] — speaking characters
+  - extras: string[] — background artists needed
+  - props: string[] — hand props and set dressing items
+  - wardrobe: string[] — specific costume items
+  - special_effects: string[] — practical SFX / makeup
+  - vfx: string[] — visual effects shots
+  - vehicles: string[] — vehicles featured
+  - animals: string[] — animals or creature effects
+  - locations: string[] — location tags
+  - notes: string — production notes or flags
+
+CONSTRAINTS
+-----------
+- Budget tier {{budget}}: flag any element that exceeds budget expectations
+- Be thorough; a breakdown is used by the entire production department
+- Output must be valid, parseable JSON
+
+OUTPUT FORMAT
+-------------
+Return a JSON array of scene breakdown objects. No markdown fences or prose.
+

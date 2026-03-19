@@ -26,6 +26,7 @@ import {
   MIGRATIONS_DIR,
 } from '../db/index.js';
 import type { Project, ProjectStep, ContextSnapshotInput } from '../db/index.js';
+import { loadPrompt, promptExists } from '../utils/prompt-loader.js';
 
 // ---------------------------------------------------------------------------
 // Public options interface
@@ -159,7 +160,33 @@ export async function continueCommand(options: ContinueOptions): Promise<void> {
     const placeholderAttemptId = crypto.randomUUID();
     const metaSnapshot  = buildMetadataSnapshot(project, placeholderAttemptId, 0);
     const priorDocSnaps = buildPriorDocumentSnapshots(completedSteps, placeholderAttemptId, 1);
-    const allSnapshots  = [metaSnapshot, ...priorDocSnaps];
+    const allSnapshots: ContextSnapshotInput[] = [metaSnapshot, ...priorDocSnaps];
+
+    // Load the step-specific prompt and append it as a user_brief snapshot.
+    if (promptExists(nextStep.step_name)) {
+      try {
+        const promptText = loadPrompt(nextStep.step_name, {
+          title:        project.display_title,
+          genre:        project.genre,
+          tone:         project.tone         ?? 'not specified',
+          audience:     project.target_audience ?? 'general audience',
+          budget:       project.budget_tier  ?? 'not specified',
+          outcome:      project.outcome      ?? 'not specified',
+          detail_level: project.detail_level,
+        });
+        allSnapshots.push({
+          id:                    crypto.randomUUID(),
+          generation_attempt_id: placeholderAttemptId,
+          context_type:          'user_brief',
+          source_step_name:      nextStep.step_name,
+          content:               promptText,
+          sequence_order:        allSnapshots.length,
+        });
+      } catch {
+        // Prompt loading is best-effort; a missing or unreadable file is
+        // non-fatal — the pipeline can still proceed without it.
+      }
+    }
 
     // Persist snapshots unless dry-run
     if (!options.dryRun) {
