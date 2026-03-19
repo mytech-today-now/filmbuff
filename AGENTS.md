@@ -372,31 +372,6 @@ filmbuff mcp discover beads
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 
-
-
-# Augment Extensions Integration
-
-This project uses Augment Extensions for additional AI coding guidelines.
-
-## For AI Agents
-
-Use the `augx` CLI to discover and apply extension modules:
-
-```bash
-# List linked modules
-augx list --linked
-
-# Show module details
-augx show <module-name>
-
-# Search for modules
-augx search <keyword>
-```
-
-## Linked Modules
-
-Check `.augment/extensions.json` for currently linked modules.
-
 <!-- BEGIN BEADS INTEGRATION -->
 ## Issue Tracking with bd (beads)
 
@@ -530,6 +505,3 @@ filmbuff show <module-name>
 filmbuff search <keyword>
 ```
 
-## Linked Modules
-
-Check `.augment/extensions.json` for currently linked modules.

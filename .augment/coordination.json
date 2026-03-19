@@ -16,12 +16,10 @@
       ],
       "relatedRules": [
         "module-development.md",
-        "character-count-management.md",
-        "augment-extensions-workflow.md"
+        "character-count-management.md"
       ],
       "affectedFiles": [
         "openspec/changes/bash-coding-standards/**/*",
-        "augment-extensions/coding-standards/bash/**/*",
         ".augment/coordination.json"
       ],
       "dependencies": []
@@ -40,8 +38,6 @@
         "character-count-management.md"
       ],
       "affectedFiles": [
-        "augment-extensions/domain-rules/wordpress-plugin/**",
-        "augment-extensions/workflows/wordpress-plugin/**",
         ".augment/coordination.json"
       ],
       "dependencies": []
@@ -65,8 +61,6 @@
         "module-development.md"
       ],
       "affectedFiles": [
-        "augment-extensions/**/*",
-        "augment-extensions/**/*",
         "cli/src/**/*.ts",
         "package.json",
         "README.md",
@@ -109,7 +103,6 @@
       "affectedFiles": [
         "openspec/specs/beads/naming-convention.md",
         ".augment/rules/coordination-system.md",
-        "augment-extensions/workflows/beads/rules/workflow.md",
         "scripts/validate-beads-prefix.ps1",
         "openspec/project-context.md",
         ".beads/issues.jsonl",
@@ -134,8 +127,7 @@
       ],
       "relatedRules": [
         "coordination-system.md",
-        "no-unnecessary-docs.md",
-        "augment-extensions-workflow.md"
+        "no-unnecessary-docs.md"
       ],
       "affectedFiles": [
         "openspec/changes/configurable-ai-providers/**/*",
@@ -152,23 +144,7 @@
         "character-count-management.md"
       ],
       "affectedFiles": [
-        "tests/functional-tests.ps1",
-        "augment-extensions/**/module.json"
-      ],
-      "dependencies": []
-    },
-    "augment-extensions/spec": {
-      "path": "openspec/specs/augment-extensions/spec.md",
-      "status": "active",
-      "relatedTasks": [],
-      "relatedRules": [
-        "module-development.md",
-        "augment-extensions-workflow.md"
-      ],
-      "affectedFiles": [
-        "augment-extensions/**/*",
-        "cli/**/*",
-        "package.json"
+        "tests/functional-tests.ps1"
       ],
       "dependencies": []
     },
@@ -198,9 +174,7 @@
         ".augment/rules/coordination-system.md",
         "AGENTS.md",
         ".beads/issues.jsonl",
-        "openspec/specs/**/*.md",
-        "augment-extensions/workflows/beads/**/*",
-        "augment-extensions/workflows/openspec/**/*"
+        "openspec/specs/**/*.md"
       ],
       "dependencies": []
     },
@@ -211,7 +185,6 @@
       "relatedRules": [
         "character-count-management.md",
         "module-development.md",
-        "augment-extensions-workflow.md",
         "no-unnecessary-docs.md",
         "coordination-system.md"
       ],
@@ -241,11 +214,9 @@
       ],
       "relatedRules": [
         "module-development.md",
-        "character-count-management.md",
-        "augment-extensions-workflow.md"
+        "character-count-management.md"
       ],
       "affectedFiles": [
-        "augment-extensions/coding-standards/powershell/**/*",
         "MODULES.md",
         ".augment/coordination.json"
       ],
@@ -278,7 +249,7 @@
       "dependencies": []
     },
     "bd-rename1": {
-      "title": "Rename modules/ to augment-extensions/",
+      "title": "Rename modules/ folder",
       "status": "open",
       "relatedSpecs": [
         "rename-modules-folder"
@@ -464,35 +435,7 @@
         "module-development.md",
         "character-count-management.md"
       ],
-      "outputFiles": [
-        "augment-extensions/domain-rules/wordpress-plugin/module.json",
-        "augment-extensions/domain-rules/wordpress-plugin/README.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/plugin-structure.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/plugin-architecture.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/activation-hooks.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/admin-interface.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/frontend-functionality.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/gutenberg-blocks.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/rest-api.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/ajax-handlers.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/database-management.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/cron-jobs.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/security-best-practices.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/performance-optimization.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/testing-patterns.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/documentation-standards.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/wordpress-org-submission.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/scaffolding-workflow.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/woocommerce-integration.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/internationalization.md",
-        "augment-extensions/domain-rules/wordpress-plugin/rules/asset-management.md",
-        "augment-extensions/workflows/wordpress-plugin/module.json",
-        "augment-extensions/workflows/wordpress-plugin/README.md",
-        "augment-extensions/workflows/wordpress-plugin/rules/development-workflow.md",
-        "augment-extensions/workflows/wordpress-plugin/rules/testing-workflow.md",
-        "augment-extensions/workflows/wordpress-plugin/rules/submission-workflow.md",
-        "augment-extensions/workflows/wordpress-plugin/rules/best-practices.md"
-      ]
+      "outputFiles": []
     },
     "bd-wp10-1": {
       "title": "Update coordination manifest",
@@ -537,8 +480,7 @@
         "configurable-ai-providers"
       ],
       "relatedRules": [
-        "coordination-system.md",
-        "augment-extensions-workflow.md"
+        "coordination-system.md"
       ],
       "outputFiles": [],
       "dependencies": []
@@ -565,8 +507,7 @@
         "configurable-ai-providers"
       ],
       "relatedRules": [
-        "coordination-system.md",
-        "augment-extensions-workflow.md"
+        "coordination-system.md"
       ],
       "outputFiles": [],
       "dependencies": [
@@ -581,8 +522,7 @@
         "configurable-ai-providers"
       ],
       "relatedRules": [
-        "coordination-system.md",
-        "augment-extensions-workflow.md"
+        "coordination-system.md"
       ],
       "outputFiles": [],
       "dependencies": [
@@ -598,8 +538,7 @@
         "configurable-ai-providers"
       ],
       "relatedRules": [
-        "coordination-system.md",
-        "augment-extensions-workflow.md"
+        "coordination-system.md"
       ],
       "outputFiles": [],
       "dependencies": [
@@ -615,8 +554,7 @@
         "configurable-ai-providers"
       ],
       "relatedRules": [
-        "coordination-system.md",
-        "augment-extensions-workflow.md"
+        "coordination-system.md"
       ],
       "outputFiles": [],
       "dependencies": [
@@ -632,8 +570,7 @@
         "configurable-ai-providers"
       ],
       "relatedRules": [
-        "coordination-system.md",
-        "augment-extensions-workflow.md"
+        "coordination-system.md"
       ],
       "outputFiles": [],
       "dependencies": [
@@ -649,8 +586,7 @@
         "configurable-ai-providers"
       ],
       "relatedRules": [
-        "coordination-system.md",
-        "augment-extensions-workflow.md"
+        "coordination-system.md"
       ],
       "outputFiles": [],
       "dependencies": [
@@ -666,8 +602,7 @@
         "configurable-ai-providers"
       ],
       "relatedRules": [
-        "coordination-system.md",
-        "augment-extensions-workflow.md"
+        "coordination-system.md"
       ],
       "outputFiles": [],
       "dependencies": [
@@ -695,6 +630,6 @@
       ]
     }
   },
-  "rules":{"character-count-management.md":{"path":".augment/rules/character-count-management.md","appliesTo":{"filePatterns":[".augment/**/*","augment-extensions/**/module.json"],"specs":["testing/functional-tests","augment-extensions/spec"],"tasks":[]},"priority":"high"},"no-unnecessary-docs.md":{"path":".augment/rules/no-unnecessary-docs.md","appliesTo":{"filePatterns":["**/*.md"],"specs":[],"tasks":[]},"priority":"high"},"module-development.md":{"path":".augment/rules/module-development.md","appliesTo":{"filePatterns":["augment-extensions/**/*"],"specs":["testing/functional-tests","augment-extensions/spec"],"tasks":[]},"priority":"medium"},"augment-extensions-workflow.md":{"path":".augment/rules/augment-extensions-workflow.md","appliesTo":{"filePatterns":["**/*"],"specs":["augment-extensions/spec"],"tasks":[]},"priority":"medium"},"coordination-system.md":{"path":".augment/rules/coordination-system.md","appliesTo":{"filePatterns":[".augment/coordination.json","openspec/**/*",".beads/issues.jsonl"],"specs":["harmonize-workflows","augment-config/standardized-structure"],"tasks":[]},"priority":"high"}},
-  "files":{"augment-extensions/domain-rules/wordpress-plugin/module.json":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md","character-count-management.md"]},"augment-extensions/domain-rules/wordpress-plugin/README.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md","no-unnecessary-docs.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/plugin-structure.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/plugin-architecture.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/activation-hooks.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/admin-interface.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/frontend-functionality.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/gutenberg-blocks.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/rest-api.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/ajax-handlers.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/database-management.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/cron-jobs.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/security-best-practices.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/performance-optimization.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/testing-patterns.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/documentation-standards.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/wordpress-org-submission.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/scaffolding-workflow.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/woocommerce-integration.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/internationalization.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/domain-rules/wordpress-plugin/rules/asset-management.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/workflows/wordpress-plugin/module.json":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md","character-count-management.md"]},"augment-extensions/workflows/wordpress-plugin/README.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md","no-unnecessary-docs.md"]},"augment-extensions/workflows/wordpress-plugin/rules/development-workflow.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/workflows/wordpress-plugin/rules/testing-workflow.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/workflows/wordpress-plugin/rules/submission-workflow.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},"augment-extensions/workflows/wordpress-plugin/rules/best-practices.md":{"createdBy":"bd-wp1","modifiedBy":[],"governedBy":["wordpress-plugin-module/core"],"rulesApplied":["module-development.md"]},".augment/coordination.json":{"createdBy":"bd-coord1","modifiedBy":["bd-wp10-1","bd-ps6.3"],"governedBy":["harmonize-workflows","wordpress-plugin-module/core","powershell-coding-standards","configurable-ai-providers"],"rulesApplied":["coordination-system.md"]},"openspec/changes/configurable-ai-providers/README.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/proposal.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/design.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/implementation.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/tasks.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/tests.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/jira/TBD.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/specs/provider-registry/spec.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/specs/provider-routing/spec.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/specs/provider-management/spec.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"augment-extensions/coding-standards/powershell/module.json":{"createdBy":"bd-4t4f","modifiedBy":["bd-ps6.4"],"governedBy":["powershell-coding-standards"],"rulesApplied":["module-development.md","character-count-management.md"]},"augment-extensions/coding-standards/powershell/README.md":{"createdBy":"bd-4t4f","modifiedBy":["bd-ps6.4"],"governedBy":["powershell-coding-standards"],"rulesApplied":["module-development.md","no-unnecessary-docs.md"]},"MODULES.md":{"createdBy":null,"modifiedBy":["bd-ps6.1","bd-ps6.4"],"governedBy":["powershell-coding-standards"],"rulesApplied":["module-development.md"]},"augment-extensions/coding-standards/powershell/rules/configuration-schema.md":{"createdBy":"bd-ps6.2","modifiedBy":[],"governedBy":["powershell-coding-standards"],"rulesApplied":["module-development.md"]},"openspec/archive/powershell-coding-standards/README.md":{"createdBy":null,"modifiedBy":["bd-ps6.5"],"governedBy":["powershell-coding-standards"],"rulesApplied":["augment-extensions-workflow.md"]},"openspec/changes/bash-coding-standards/jira/AUG-9013.md":{"createdBy":"bd-0bqd.3","modifiedBy":[],"governedBy":["bash-coding-standards"],"rulesApplied":["augment-extensions-workflow.md"]},"openspec/changes/bash-coding-standards/proposal.md":{"createdBy":null,"modifiedBy":["bd-0bqd.4"],"governedBy":["bash-coding-standards"],"rulesApplied":["augment-extensions-workflow.md"]}}
+  "rules":{"character-count-management.md":{"path":".augment/rules/character-count-management.md","appliesTo":{"filePatterns":[".augment/**/*"],"specs":["testing/functional-tests"],"tasks":[]},"priority":"high"},"no-unnecessary-docs.md":{"path":".augment/rules/no-unnecessary-docs.md","appliesTo":{"filePatterns":["**/*.md"],"specs":[],"tasks":[]},"priority":"high"},"module-development.md":{"path":".augment/rules/module-development.md","appliesTo":{"filePatterns":[],"specs":["testing/functional-tests"],"tasks":[]},"priority":"medium"},"coordination-system.md":{"path":".augment/rules/coordination-system.md","appliesTo":{"filePatterns":[".augment/coordination.json","openspec/**/*",".beads/issues.jsonl"],"specs":["harmonize-workflows","augment-config/standardized-structure"],"tasks":[]},"priority":"high"}},
+  "files":{".augment/coordination.json":{"createdBy":"bd-coord1","modifiedBy":["bd-wp10-1","bd-ps6.3"],"governedBy":["harmonize-workflows","wordpress-plugin-module/core","powershell-coding-standards","configurable-ai-providers"],"rulesApplied":["coordination-system.md"]},"openspec/changes/configurable-ai-providers/README.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/proposal.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/design.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/implementation.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/tasks.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/tests.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/jira/TBD.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/specs/provider-registry/spec.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/specs/provider-routing/spec.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"openspec/changes/configurable-ai-providers/specs/provider-management/spec.md":{"createdBy":null,"modifiedBy":[],"governedBy":["configurable-ai-providers"],"rulesApplied":["coordination-system.md","no-unnecessary-docs.md"]},"MODULES.md":{"createdBy":null,"modifiedBy":["bd-ps6.1","bd-ps6.4"],"governedBy":["powershell-coding-standards"],"rulesApplied":["module-development.md"]},"openspec/archive/powershell-coding-standards/README.md":{"createdBy":null,"modifiedBy":["bd-ps6.5"],"governedBy":["powershell-coding-standards"],"rulesApplied":[]},"openspec/changes/bash-coding-standards/jira/AUG-9013.md":{"createdBy":"bd-0bqd.3","modifiedBy":[],"governedBy":["bash-coding-standards"],"rulesApplied":[]},"openspec/changes/bash-coding-standards/proposal.md":{"createdBy":null,"modifiedBy":["bd-0bqd.4"],"governedBy":["bash-coding-standards"],"rulesApplied":[]}}
 }
