@@ -40,13 +40,8 @@ tests:
       antagonist: ARIS (AI)
     assert:
       - type: llm-rubric
-        value: >
-          The treatment must: (1) describe each major scene or sequence at
-          paragraph length, (2) maintain a dark, tense tone throughout,
-          (3) reference both Mara Voss and ARIS by name, (4) show scene-level
-          cause-and-effect progression, and (5) cover at least three distinct
-          acts or sections.
-        threshold: 0.7
+        value: file://evals/rubrics/03-treatment.md
+        threshold: 0.75
       - type: icontains
         value: 'Mara'
       - type: icontains
@@ -69,11 +64,8 @@ tests:
       antagonist: Marco Rossi (rival turned love interest)
     assert:
       - type: llm-rubric
-        value: >
-          The treatment must maintain a light, witty tone, reference Elena and Marco
-          by name, describe the festival competition setup, include at least one
-          comedic confrontation scene, and hint at romantic resolution.
-        threshold: 0.7
+        value: file://evals/rubrics/03-treatment.md
+        threshold: 0.75
       - type: icontains
         value: 'Elena'
       - type: icontains

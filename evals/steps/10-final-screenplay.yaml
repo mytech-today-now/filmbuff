@@ -41,14 +41,8 @@ tests:
       - type: contains
         value: 'FADE OUT'
       - type: llm-rubric
-        value: >
-          The final screenplay must: (1) use correct Fountain format throughout
-          with INT./EXT. scene headings in ALL CAPS, (2) include all three
-          characters (Mara Voss, ARIS, Director Chen), (3) reference all three
-          locations, (4) incorporate any VFX or props noted in the script breakdown,
-          (5) end with FADE OUT, and (6) demonstrate a complete three-act structure
-          with a clear climax and resolution.
-        threshold: 0.7
+        value: file://evals/rubrics/10-final-screenplay.md
+        threshold: 0.82
 
   - description: 'Romantic comedy final screenplay'
     vars:
@@ -70,10 +64,6 @@ tests:
       - type: contains
         value: 'FADE OUT'
       - type: llm-rubric
-        value: >
-          The final screenplay must include Elena and Marco by name, reference all
-          three locations, maintain a light witty tone throughout all dialogue,
-          include a comedic climax at the festival, a romantic resolution,
-          and end correctly with FADE OUT.
-        threshold: 0.7
+        value: file://evals/rubrics/10-final-screenplay.md
+        threshold: 0.82
 

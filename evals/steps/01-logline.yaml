@@ -30,11 +30,8 @@ tests:
       logline_seed: 'A rogue AI begins rewriting human memories.'
     assert:
       - type: llm-rubric
-        value: >
-          The output must be a single sentence (no more than 35 words),
-          clearly state the protagonist and antagonist or opposing force,
-          convey a central conflict, and include an emotional or dramatic hook.
-        threshold: 0.7
+        value: file://evals/rubrics/01-logline.md
+        threshold: 0.80
       - type: regex
         value: '^[A-Z].{10,200}[.!?]$'
 
@@ -46,10 +43,8 @@ tests:
       logline_seed: 'Two rival food truck owners compete for the same prime spot.'
     assert:
       - type: llm-rubric
-        value: >
-          The output must be a single sentence that introduces two characters
-          with opposing goals, a comedic conflict, and a romantic stakes element.
-        threshold: 0.7
+        value: file://evals/rubrics/01-logline.md
+        threshold: 0.80
       - type: regex
         value: '^[A-Z].{10,200}[.!?]$'
 

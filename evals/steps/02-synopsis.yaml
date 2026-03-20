@@ -32,11 +32,8 @@ tests:
         must recover the truth before she loses herself.
     assert:
       - type: llm-rubric
-        value: >
-          The synopsis must: (1) introduce the protagonist by name or role,
-          (2) introduce an antagonist or opposing force, (3) describe the central conflict,
-          (4) show a clear character arc or transformation, and (5) end with the stakes.
-        threshold: 0.7
+        value: file://evals/rubrics/02-synopsis.md
+        threshold: 0.75
       - type: icontains
         value: 'sci-fi'
 
@@ -50,11 +47,8 @@ tests:
         discover they need each other to survive the city's biggest food festival.
     assert:
       - type: llm-rubric
-        value: >
-          The synopsis must introduce both protagonists, establish their rivalry,
-          show the inciting incident that forces them together, and hint at the
-          romantic resolution without spoiling the ending.
-        threshold: 0.7
+        value: file://evals/rubrics/02-synopsis.md
+        threshold: 0.75
       - type: icontains
         value: 'comedy'
 

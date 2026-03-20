@@ -43,11 +43,8 @@ tests:
         value:
           $ref: 'file://evals/schemas/beat-sheet.schema.json'
       - type: llm-rubric
-        value: >
-          The JSON beat sheet must include at least 8 distinct beats covering
-          the three-act structure, each beat must have a meaningful description
-          of at least 15 words, and the acts array must have 2-3 entries.
-        threshold: 0.7
+        value: file://evals/rubrics/04-beat-sheet.md
+        threshold: 0.78
 
   - description: 'Romantic comedy beat sheet (JSON output)'
     vars:

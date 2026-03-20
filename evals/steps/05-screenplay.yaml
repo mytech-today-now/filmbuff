@@ -40,12 +40,8 @@ tests:
       - type: contains
         value: 'INT.'
       - type: llm-rubric
-        value: >
-          The screenplay excerpt must: (1) use correct Fountain format with
-          INT./EXT. scene headings in ALL CAPS, (2) include at least one dialogue
-          exchange between named characters, (3) include action lines describing
-          character behavior and setting, and (4) demonstrate a three-act progression.
-        threshold: 0.7
+        value: file://evals/rubrics/05-screenplay.md
+        threshold: 0.80
 
   - description: 'Romantic comedy screenplay excerpt'
     vars:
@@ -63,9 +59,6 @@ tests:
       - type: contains
         value: 'EXT.'
       - type: llm-rubric
-        value: >
-          The screenplay excerpt must use correct Fountain format with scene headings,
-          include witty dialogue between Elena and Marco, show comedic conflict,
-          and maintain a light, upbeat tone.
-        threshold: 0.7
+        value: file://evals/rubrics/05-screenplay.md
+        threshold: 0.80
 

@@ -40,13 +40,8 @@ tests:
         It was here. Someone deleted it.
     assert:
       - type: llm-rubric
-        value: >
-          The shooting script must: (1) assign sequential scene numbers to each
-          scene heading (e.g. 1, 2, 3 or A1, B1), (2) include at least one
-          camera direction or technical note (e.g. CLOSE ON, WIDE SHOT, PUSH IN),
-          (3) preserve all original dialogue, and (4) add continuity notes
-          where applicable.
-        threshold: 0.7
+        value: file://evals/rubrics/06-shooting-script.md
+        threshold: 0.78
       - type: regex
         value: '^[0-9]+\s+INT\.|^[0-9]+\s+EXT\.|A[0-9]+|Scene [0-9]+'
 
@@ -71,9 +66,6 @@ tests:
         I believe you're mistaken.
     assert:
       - type: llm-rubric
-        value: >
-          The shooting script must assign scene numbers, include camera directions
-          appropriate to a low-budget production, preserve the comedic dialogue
-          exchange, and note any blocking or staging requirements.
-        threshold: 0.7
+        value: file://evals/rubrics/06-shooting-script.md
+        threshold: 0.78
 

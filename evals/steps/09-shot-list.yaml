@@ -41,12 +41,8 @@ tests:
         value:
           $ref: 'file://evals/schemas/shot-list.schema.json'
       - type: llm-rubric
-        value: >
-          The JSON shot list must contain at least 4 shots across the 2 scenes,
-          each shot must include a shot type (WIDE, CU, MCU, etc.),
-          a description of at least 10 words, and a dialogue field
-          (either dialogue text or 'No dialogue in this shot.').
-        threshold: 0.7
+        value: file://evals/rubrics/09-shot-list.md
+        threshold: 0.78
 
   - description: 'Romantic comedy shot list (JSON output)'
     vars:
@@ -68,9 +64,6 @@ tests:
         value:
           $ref: 'file://evals/schemas/shot-list.schema.json'
       - type: llm-rubric
-        value: >
-          The shot list must include reaction shots (CU) for comedic beats,
-          at least one two-shot for the romantic tension moments,
-          and all shots must have a dialogue field populated.
-        threshold: 0.7
+        value: file://evals/rubrics/09-shot-list.md
+        threshold: 0.78
 

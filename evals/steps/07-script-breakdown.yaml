@@ -39,13 +39,8 @@ tests:
            Mara approaches the glass tower, briefcase in hand.
     assert:
       - type: llm-rubric
-        value: >
-          The script breakdown must include clearly labeled sections for:
-          (1) LOCATIONS listing all shooting locations from the shooting script,
-          (2) CAST listing all characters with their scene appearances,
-          (3) PROPS listing all physical props by scene,
-          and optionally WARDROBE, VFX, or SPECIAL EQUIPMENT sections.
-        threshold: 0.7
+        value: file://evals/rubrics/07-script-breakdown.md
+        threshold: 0.72
       - type: icontains
         value: 'Memory Forensics Lab'
 
@@ -66,11 +61,8 @@ tests:
            Elena and Marco argue over kitchen setup. Props: wok, pasta maker, knives.
     assert:
       - type: llm-rubric
-        value: >
-          The breakdown must list all locations (Portland Food Festival, Shared Food Truck),
-          both cast members (Elena Park, Marco Rossi) with their scenes,
-          and all props by scene. Budget notes appropriate for low-budget indie are a plus.
-        threshold: 0.7
+        value: file://evals/rubrics/07-script-breakdown.md
+        threshold: 0.72
       - type: icontains
         value: 'Portland Food Festival'
 

@@ -35,13 +35,8 @@ tests:
         Scene 3: INT. SERVER ROOM - NIGHT (climax)
     assert:
       - type: llm-rubric
-        value: >
-          Each storyboard panel description must: (1) reference the corresponding
-          scene number and heading from the shooting script, (2) describe the
-          camera angle (e.g. WIDE, CLOSE-UP, POV), (3) describe the subject
-          and action in the frame, (4) note lighting mood (dark, high-contrast
-          for thriller), and (5) include at least 3 panel descriptions total.
-        threshold: 0.7
+        value: file://evals/rubrics/08-storyboards.md
+        threshold: 0.70
 
   - description: 'Romantic comedy storyboard descriptions'
     vars:
@@ -57,10 +52,6 @@ tests:
         Scene 3: EXT. FESTIVAL MAIN STAGE - GOLDEN HOUR (climax)
     assert:
       - type: llm-rubric
-        value: >
-          Each storyboard panel must reference its scene from the shooting script,
-          describe camera framing appropriate to the comedic beats (e.g. reaction
-          shot close-ups, wide two-shots for confrontations), note bright/warm
-          lighting for the romantic comedy tone, and cover all 3 scenes.
-        threshold: 0.7
+        value: file://evals/rubrics/08-storyboards.md
+        threshold: 0.70
 
