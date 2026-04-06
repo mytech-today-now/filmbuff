@@ -1,9 +1,13 @@
-bd-f548	EPIC	[FB-SHOT-9] filmbuff-prompt-JIRA: Video Controls + Multi-Image I2V
-bd-fefd	Phase 2	Config and Input Foundation
-bd-bae9	Phase 3	Multi-Document Input Ingestion
-bd-be70	Phase 4	Duration Derivation Logic
-bd-f5b3	Phase 5	Video Controls Block Output + References Section
-bd-b4ce	Phase 6	Pre-Export Validation (V-1 through V-6)
-bd-05fa	Phase 7	Batch Payload Serialization (POST /batch)
-bd-2bc8	Phase 8	Testing (Unit + Integration + Snapshot)
-bd-e4d2	Phase 9	CI and Documentation (AC-1 through AC-16)
+bd-08ec	EPIC	Delegate FilmBuff AI to ai-powered npm Library	0 ✅ READY
+bd-470f	Phase 1	Specification Approval (Pre-Implementation Gate)	1
+bd-3854	Phase 2	Dependency Changes (npm install ai-powered)	1
+bd-6cf4	Phase 3	Deletion Pass (5 files/dirs removed)	1
+bd-6d52	Phase 4	Central Wrapper (filmbuff-ai-client.ts)	1
+bd-551f	Phase 5	Extractor Migration (blocking + entity)	1
+bd-cfa7	Phase 6	Runtime Resolver Replacement	1
+bd-e8ad	Phase 7	Config Schema Update (ai → aiPowered)	1
+bd-6c4f	Phase 8	Video Generation (FilmbuffVideoGenerator)	3
+bd-99b2	Phase 9	CLI Changes (remove provider *, update ai status)	3
+bd-2d41	Phase 10	Test Rewrite and Extension	2
+bd-3807	Phase 11	Documentation	1
+bd-7b0b	Phase 12	Verification and Acceptance	2

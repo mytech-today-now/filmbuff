@@ -11,14 +11,12 @@ import { createStyleSystem } from './generate-shot-list/style';
 import { ConfigManager } from '../utils/config-system';
 import {
   normalizeAIModel,
-  normalizeAIProvider
-} from '../utils/ai-provider-config';
-import {
+  normalizeAIProvider,
   AI_POWERED_DEFAULT_MODEL,
-  AI_POWERED_DEFAULT_URL
-} from '../utils/ai-powered-client';
+  AI_POWERED_DEFAULT_URL,
+} from '../utils/ai-provider-config';
 // resolveActiveProvider / resolveProviderByProfile removed in bd-9uc4 Phase 2.
-// Phase 4 (bd-tcey) will introduce resolveAIClient() from runtime-resolver.
+// resolveAIClient() from runtime-resolver introduced in Phase 4 (bd-6d52).
 import { loadFilmbuffConfig, resolveProvider } from '../lib/filmbuff-config';
 import { loadPipelineInputs } from '../lib/pipeline-inputs';
 import { validateBatchPayload } from '../lib/pre-export-validator';
