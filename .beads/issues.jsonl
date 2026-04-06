@@ -790,3 +790,4 @@
 {"id":"bd-2d41","updated_at":"2026-04-06T14:12:41Z","status":"closed"}
 {"id":"bd-3807","updated_at":"2026-04-06T14:12:43Z","status":"closed"}
 {"id":"bd-7b0b","updated_at":"2026-04-06T14:17:16Z","status":"in-progress","claimed_by":"kyle_"}
+{"id":"bd-7b0b","status":"closed","close_reason":"Phase 12 complete. ESM/CJS interop fix: filmbuff-ai-client.ts now uses async lazy _load() with dynamic import(\u0027ai-powered\u0027) instead of static require(). ai-status.ts updated to await loadConfig(). filmbuff list exits 0. npm test exits 0. 565 unit tests pass. 130/130 integration test-cases pass (1 pre-existing file-level failure in unlink-self-remove.test.ts due to missing self-remove.ts intentionally deleted in 31e546f). Integration test CLI_PATH fixed from dist/index.js to dist/cli.js. Windows EBUSY cleanup fix added to TestEnvironment. Commit 5bb955e.","updated_at":"2026-04-06T15:36:35Z"}
