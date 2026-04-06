@@ -95,8 +95,8 @@
         "registry": "https://registry.npmjs.org/"
     },
     "dependencies": {
-        "@anthropic-ai/sdk": "^0.78.0",
         "@types/better-sqlite3": "^7.6.13",
+        "ai-powered": "^0.3.2",
         "ajv": "^8.18.0",
         "ajv-formats": "^3.0.1",
         "better-sqlite3": "^12.8.0",
