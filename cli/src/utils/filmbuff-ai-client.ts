@@ -36,6 +36,11 @@
 import { getAiClient } from 'ai-powered';
 import type { AiClient, AiConfig } from 'ai-powered';
 
+// Re-export loadConfig so that ai-status.ts can read the resolved config without
+// importing from 'ai-powered' directly (sole-importer rule: only this file may
+// import from 'ai-powered').
+export { loadConfig } from 'ai-powered';
+
 // ---------------------------------------------------------------------------
 // FilmBuff-wide defaults
 // ---------------------------------------------------------------------------

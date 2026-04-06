@@ -315,3 +315,92 @@ When using `--json` flag, output follows this structure:
 - `AUGX_NO_COLOR` - Disable colored output
 - `AUGX_DEBUG` - Enable debug logging
 
+---
+
+## FilmBuff CLI — AI Commands (Phase 9)
+
+These commands replaced the removed `filmbuff provider *` and `filmbuff configure`
+family in Phase 9 (bd-99b2).
+
+### `filmbuff ai status`
+
+Display the current ai-powered library integration status. No HTTP request is made.
+
+```bash
+filmbuff ai status
+```
+
+**Output:**
+```
+ai-powered Library Integration
+  Provider:  openai             [from ~/.ai-powered/config.json]
+  Model:     (provider default) [from ~/.ai-powered/config.json]
+  Mock Mode: false              [AI_MOCK env]
+  Plugins:   audit-log          [from filmbuff config]
+
+Available Models: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
+Video Providers:  lumaai
+```
+
+**Environment:**
+- `AI_MOCK=true` — reports `Mock Mode: true`; provider shown as `mock`
+
+---
+
+### `filmbuff generate-video`
+
+Generate video clips for a JSONL shot list using the ai-powered video provider.
+
+```bash
+filmbuff generate-video <shots-jsonl> [options]
+```
+
+**Arguments:**
+- `<shots-jsonl>` — Path to JSONL shot list produced by `filmbuff generate-shot-list`
+
+**Options:**
+- `--output-dir <dir>` — Directory where video manifests are written (default: `./video-output`)
+- `--shots <list>` — Comma-separated shot numbers to generate (e.g. `1,3,5`)
+- `--concurrency <n>` — Number of parallel generation calls (default: `3`)
+- `--mock` — Use the mock provider regardless of ai-powered config
+
+**Examples:**
+```bash
+# Generate all shots
+filmbuff generate-video shots.jsonl --output-dir ./videos
+
+# Generate only shots 2 and 4 in mock mode
+filmbuff generate-video shots.jsonl --shots 2,4 --mock
+
+# Limit to 1 concurrent call (useful for rate-limited providers)
+filmbuff generate-video shots.jsonl --concurrency 1
+
+# Pipe from generate-shot-list
+filmbuff generate-shot-list script.fountain --output shots.jsonl && \
+filmbuff generate-video shots.jsonl --output-dir ./videos
+```
+
+**Exit codes:**
+- `0` — All shots generated successfully
+- `1` — One or more shots failed (details printed to stderr)
+
+For provider setup, see [docs/PROVIDER_SETUP.md](PROVIDER_SETUP.md).
+
+---
+
+### Removed Commands (Phase 9)
+
+The following commands were removed and print migration guidance + exit `1`:
+
+| Removed | Replacement |
+|---------|-------------|
+| `filmbuff configure` | `ai-powered config set provider <name>` |
+| `filmbuff provider list` | `filmbuff ai status` |
+| `filmbuff provider create` | `ai-powered config set provider <name>` |
+| `filmbuff provider activate` | `ai-powered config set provider <name>` |
+| `filmbuff provider status` | `filmbuff ai status` |
+| `filmbuff provider show` | `filmbuff ai status` |
+| `filmbuff provider validate` | `ai-powered config validate` |
+| `filmbuff provider edit` | `ai-powered config set <key> <value>` |
+| `filmbuff provider delete` | `ai-powered config remove <key>` |
+

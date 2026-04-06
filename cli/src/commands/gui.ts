@@ -12,7 +12,7 @@ import * as path from 'path';
 import { discoverModules, discoverCollections, Module, Collection } from '../utils/module-system.js';
 import { linkCommand } from './link.js';
 import { unlinkCommand } from './unlink.js';
-import { providerStatusCommand, configureCommand } from './provider.js';
+import { aiStatusCommand } from './ai-status.js';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Keyboard shortcuts help
@@ -426,24 +426,30 @@ async function listSubmodulesInteractive(
 // ──────────────────────────────────────────────────────────────────────────────
 
 async function providerMenuInteractive(): Promise<void> {
-  console.log(chalk.bold.cyan('\n🤖 AI Providers\n'));
+  console.log(chalk.bold.cyan('\n🤖 AI Integration (ai-powered)\n'));
 
-  // Show current status
-  providerStatusCommand();
+  // Show current ai-powered status (Phase 9 — bd-99b2: replaces providerStatusCommand).
+  await aiStatusCommand();
 
   const { providerAction } = await inquirer.prompt([
     {
       type: 'select',
       name: 'providerAction',
-      message: 'Provider action:',
+      message: 'AI provider action:',
       choices: [
-        { name: '⚙️  Run guided setup (filmbuff configure)', value: 'configure' },
+        {
+          name: '🔑 Configure provider (run: ai-powered config set provider <name>)',
+          value: 'instructions',
+        },
         { name: '↩  Back to main menu', value: 'back' },
       ],
     },
   ]);
 
-  if (providerAction === 'configure') {
-    await configureCommand();
+  if (providerAction === 'instructions') {
+    console.log(chalk.yellow('\n  Provider configuration is managed by ai-powered:'));
+    console.log('    ai-powered config set provider <name>');
+    console.log('    ai-powered config set apiKey <key>');
+    console.log(chalk.gray('\n  See: filmbuff ai status\n'));
   }
 }

@@ -26,19 +26,8 @@ import { continueCommand } from './commands/continue';
 import { retryCommand } from './commands/retry';
 import { completeCommand } from './commands/complete';
 import { statusCommand } from './commands/status';
-import {
-  providerListCommand,
-  providerShowCommand,
-  providerCreateCommand,
-  providerEditCommand,
-  providerValidateCommand,
-  providerDeleteCommand,
-  providerActivateCommand,
-  providerStatusCommand,
-  providerAddCommand,
-  providerSetCommand,
-  configureCommand,
-} from './commands/provider';
+import { unknownProviderCommand } from './commands/provider';
+import { aiStatusCommand } from './commands/ai-status';
 
 // Read version from package.json
 const packageJson = JSON.parse(
@@ -373,94 +362,34 @@ program
 
 
 
-// Provider management command
-const providerCmd = program
-  .command('provider')
-  .description('Manage AI provider profiles (list, create, edit, validate, delete, activate)');
+// Provider commands — removed (Phase 9, bd-99b2).
+// `filmbuff provider <subcmd>` prints migration guidance and exits non-zero.
+// Provider configuration is now managed by the ai-powered library.
+program
+  .command('provider [subcmd] [args...]')
+  .description('[removed] Provider configuration is managed by ai-powered. Run: filmbuff ai status')
+  .allowUnknownOption(true)
+  .action((subcmd: string | undefined) => {
+    const cmd = subcmd ? `provider ${subcmd}` : 'provider';
+    unknownProviderCommand(cmd);
+  });
 
-providerCmd
-  .command('list')
-  .description('List registered providers and saved profiles')
-  .option('--profiles', 'Show saved profiles instead of registered providers')
-  .option('--json', 'Output as JSON')
-  .action((options) => providerListCommand(options));
-
-providerCmd
-  .command('show <providerId> <profileName>')
-  .description('Show details of a saved profile (secrets redacted)')
-  .option('--json', 'Output as JSON')
-  .action((providerId, profileName, options) => providerShowCommand(providerId, profileName, options));
-
-providerCmd
-  .command('create <providerId> <profileName>')
-  .description('Create a new provider profile (interactive)')
-  .option('--model <model>', 'Model override for this profile')
-  .option('--endpoint <url>', 'Endpoint URL override for this profile')
-  .action((providerId, profileName, options) => providerCreateCommand(providerId, profileName, options));
-
-providerCmd
-  .command('edit <providerId> <profileName>')
-  .description('Edit an existing provider profile (interactive)')
-  .option('--model <model>', 'Model override for this profile')
-  .option('--endpoint <url>', 'Endpoint URL override for this profile')
-  .action((providerId, profileName, options) => providerEditCommand(providerId, profileName, options));
-
-providerCmd
-  .command('validate <providerId> <profileName>')
-  .description('Validate a provider profile (checks credentials and settings)')
-  .action((providerId, profileName) => providerValidateCommand(providerId, profileName));
-
-providerCmd
-  .command('activate <providerId> <profileName>')
-  .description('Set a profile as the active AI provider')
-  .action((providerId, profileName) => providerActivateCommand(providerId, profileName));
-
-providerCmd
-  .command('set <providerId> <profileName>')
-  .description('Set the active AI provider/profile (alias for activate)')
-  .action((providerId, profileName) => providerSetCommand(providerId, profileName));
-
-providerCmd
-  .command('add <providerId> <profileName>')
-  .description('Add a new provider profile with explicit key storage options')
-  .option('--key-env <VAR>', 'Store API key as env-var reference (e.g. MY_ANTHROPIC_KEY)')
-  .option('--key-encrypt', 'Encrypt the API key with AES-256-GCM (prompts for key; requires FILMBUFF_MASTER_KEY)')
-  .option('--model <model>', 'Model override for this profile')
-  .option('--endpoint <url>', 'Endpoint URL override for this profile')
-  .option('--json', 'Output as JSON')
-  .action((providerId, profileName, options) =>
-    providerAddCommand(providerId, profileName, {
-      keyEnv:     options.keyEnv,
-      keyEncrypt: options.keyEncrypt,
-      model:      options.model,
-      endpoint:   options.endpoint,
-      json:       options.json,
-    })
-  );
-
-providerCmd
-  .command('delete <providerId> <profileName>')
-  .description('Delete a saved profile')
-  .action((providerId, profileName) => providerDeleteCommand(providerId, profileName));
-
-providerCmd
-  .command('status')
-  .description('Show provider management panel (GUI overview of providers and profiles)')
-  .option('--json', 'Output as JSON')
-  .action((options) => providerStatusCommand(options));
-
-// Guided configure command (shortcut to provider setup flow)
+// configure — removed (Phase 9, bd-99b2).
 program
   .command('configure')
-  .description('Guided AI provider setup wizard, or use flags for direct configuration')
-  .option('--list-providers', 'List all registered AI providers')
-  .option('--list-profiles', 'List all saved profiles')
-  .option('--list-profiles-for-provider <providerId>', 'List profiles for a specific provider')
-  .option('--create-profile <providerId/profileName>', 'Create a new profile interactively')
-  .option('--edit-profile <providerId/profileName>', 'Edit an existing profile interactively')
-  .option('--delete-profile <providerId/profileName>', 'Delete a profile')
-  .option('--activate-profile <providerId/profileName>', 'Activate a profile as the active provider')
-  .action((options) => configureCommand(options));
+  .description('[removed] Use: ai-powered config set provider <name>')
+  .allowUnknownOption(true)
+  .action(() => unknownProviderCommand('configure'));
+
+// AI commands — Phase 9 (bd-99b2)
+const aiCmd = program
+  .command('ai')
+  .description('ai-powered library integration commands');
+
+aiCmd
+  .command('status')
+  .description('Show ai-powered library integration status (provider, model, mock mode, plugins)')
+  .action(() => aiStatusCommand());
 
 // Start command — initialise a new FilmBuff project (bd-pipe-c1)
 program

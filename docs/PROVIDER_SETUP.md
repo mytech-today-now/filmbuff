@@ -1,237 +1,157 @@
-# Provider Setup & Management — FilmBuff User Guide
+# AI Provider Setup — FilmBuff User Guide
 
-> **Satisfies:** bd-int-d4 buff-core.04.02.01 — Write user documentation: provider setup and management
+> **Phase 9 (bd-99b2):** FilmBuff no longer manages AI providers internally.
+> All configuration is delegated to the
+> [`ai-powered`](https://www.npmjs.com/package/ai-powered) npm library.
 
-FilmBuff routes AI-powered commands (e.g. `generate-shot-list`) through a
-configurable **provider system**. You choose a provider (Anthropic, OpenAI,
-Google AI, or a custom endpoint), create a named profile, and activate it.
-API keys are **never stored in project files** — they are referenced by
-environment-variable name and resolved at runtime.
+FilmBuff routes AI-powered commands (`generate-shot-list`, `generate-video`)
+through the **ai-powered** library. Configure a provider once with the
+`ai-powered` CLI and all FilmBuff commands use it automatically.
 
 ---
 
 ## Table of Contents
 
-1. [Built-in Providers](#built-in-providers)
-2. [Quick Start (Interactive Wizard)](#quick-start-interactive-wizard)
-3. [Manual Provider Setup](#manual-provider-setup)
-4. [Environment Variable Reference](#environment-variable-reference)
-5. [Managing Profiles](#managing-profiles)
-6. [Switching Providers](#switching-providers)
-7. [Custom Providers](#custom-providers)
-8. [File Locations](#file-locations)
-9. [Troubleshooting](#troubleshooting)
+1. [Quick Start](#quick-start)
+2. [Supported Providers](#supported-providers)
+3. [Environment Variables](#environment-variables)
+4. [Mock Mode (No API Key)](#mock-mode-no-api-key)
+5. [Video Generation](#video-generation)
+6. [Plugin Configuration](#plugin-configuration)
+7. [Checking Status](#checking-status)
+8. [Troubleshooting](#troubleshooting)
+9. [Removed Commands](#removed-commands)
 
 ---
 
-## Built-in Providers
+## Quick Start
 
-| Provider ID  | Display Name           | Required Env Var         | Default Model          |
-|-------------|------------------------|--------------------------|------------------------|
-| `anthropic` | Anthropic (Claude)     | `ANTHROPIC_API_KEY`      | `claude-sonnet-4-6`    |
-| `openai`    | OpenAI                 | `OPENAI_API_KEY`         | `gpt-4o`               |
-| `google-ai` | Google AI (Gemini)     | `GOOGLE_AI_API_KEY`      | `gemini-1.5-pro`       |
-
-All built-in providers use **raw HTTPS** calls (no SDK installed on the
-consumer side). A custom `baseUrl` override is supported by all three so you
-can point them at local proxies or OpenAI-compatible servers.
-
----
-
-## Quick Start (Interactive Wizard)
-
-The fastest path to a working AI command:
+### Step 1 — Install ai-powered
 
 ```bash
-filmbuff configure
+npm install -g ai-powered
 ```
 
-The wizard will:
-1. Ask which provider you want to use.
-2. Prompt for a profile name (e.g. `production`, `staging`).
-3. Ask for your API key **environment variable name** (not the key value).
-4. Optionally let you override the model and base URL.
-5. Optionally activate the profile immediately.
-
----
-
-## Manual Provider Setup
-
-### Step 1 — Export your API key
-
-Add to your shell profile (`~/.zshrc`, `~/.bashrc`, PowerShell `$PROFILE`):
+### Step 2 — Configure provider and API key
 
 ```bash
-# Bash / Zsh
-export ANTHROPIC_API_KEY="sk-ant-api03-..."
-export OPENAI_API_KEY="sk-proj-..."
-export GOOGLE_AI_API_KEY="AIzaSy..."
+ai-powered config set provider openai
+ai-powered config set apiKey sk-proj-...
 ```
 
-```powershell
-# PowerShell
-$env:ANTHROPIC_API_KEY = "sk-ant-api03-..."
-```
-
-> Restart your terminal (or run `source ~/.zshrc`) for the variable to take effect.
-
-### Step 2 — Create a profile
+### Step 3 — Verify
 
 ```bash
-filmbuff provider create
+filmbuff ai status
 ```
 
-You will be prompted for:
-- **Provider ID** — e.g. `anthropic`
-- **Profile name** — e.g. `production`
-- **API key env var name** — e.g. `ANTHROPIC_API_KEY`
-- **Model** (optional) — overrides the provider default
-- **Base URL** (optional) — use for local proxies or OpenAI-compatible servers
+You should see your provider, model, and plugin settings.
 
-The profile is saved to:
-`.augment/providers/profiles/<providerId>/<profileName>.json`
-
-### Step 3 — Activate the profile
+### Step 4 — Run a command
 
 ```bash
-filmbuff provider activate anthropic production
-```
-
-The active selection is written to `.augment/providers/active.json`. Every
-AI-powered command reads this file automatically.
-
-### Step 4 — Verify
-
-```bash
-filmbuff provider status
-```
-
-Expected output:
-```
-Active provider : anthropic
-Profile         : production
-Model           : claude-sonnet-4-6
-API key source  : env:ANTHROPIC_API_KEY  [resolved ✓]
+filmbuff generate-shot-list script.fountain --output shots.jsonl
 ```
 
 ---
 
-## Environment Variable Reference
+## Supported Providers
 
-| Variable            | Provider   | Notes                                              |
-|--------------------|------------|----------------------------------------------------|
-| `ANTHROPIC_API_KEY` | anthropic  | Starts with `sk-ant-`                              |
-| `OPENAI_API_KEY`    | openai     | Starts with `sk-proj-` or `sk-`. Use `"none"` for unauthenticated local endpoints. |
-| `OPENAI_BASE_URL`   | openai     | Optional; overrides `https://api.openai.com/v1`    |
-| `GOOGLE_AI_API_KEY` | google-ai  | Starts with `AIzaSy`                               |
-
-FilmBuff stores `env:<VAR_NAME>` in profile files. The real value is resolved
-from your shell environment at the moment each command runs.
-
----
-
-## Managing Profiles
-
-```bash
-# List all providers and saved profiles
-filmbuff provider list
-
-# Show a specific profile (secrets are always redacted)
-filmbuff provider show anthropic production
-
-# Validate a profile against its provider schema
-filmbuff provider validate anthropic production
-
-# Edit an existing profile interactively
-filmbuff provider edit anthropic production
-
-# Delete a profile
-filmbuff provider delete anthropic production
-
-# Show the currently active provider/profile
-filmbuff provider status
-```
+| Provider ID  | Capabilities                        | Notes                     |
+|-------------|-------------------------------------|---------------------------|
+| `openai`    | text-generation, generate-shot-list | Default; gpt-4o family    |
+| `anthropic` | text-generation, generate-shot-list | Claude family             |
+| `xai`       | text-generation                     | Grok models               |
+| `venice`    | text-generation                     | Privacy-focused           |
+| `lumaai`    | **video-generation**, generate-video | Dream Machine / Photon   |
+| `mock`      | all (no API call)                   | `AI_MOCK=true`            |
 
 ---
 
-## Switching Providers
+## Environment Variables
 
-### Per-command override
+| Variable   | Purpose                                                      |
+|-----------|--------------------------------------------------------------|
+| `AI_MOCK`  | Set to `true` to use the mock provider (no API calls)        |
+| `AI_POWERED_CONFIG` | Override config file path (default: `~/.ai-powered/config.json`) |
 
-Pass `--provider` and `--profile` to any AI command:
-
-```bash
-filmbuff generate-shot-list input.fountain \
-  --provider openai \
-  --profile my-gpt4-profile
-```
-
-### Change the global default
-
-```bash
-filmbuff provider activate openai my-gpt4-profile
-```
-
-This updates `.augment/providers/active.json` and applies to all subsequent
-commands until you activate a different profile.
+API keys are stored in `~/.ai-powered/config.json` by `ai-powered config set apiKey`.
+They are **never** written to project files.
 
 ---
 
-## Custom Providers
-
-Register any OpenAI-compatible self-hosted endpoint as a custom provider:
+## Mock Mode (No API Key Required)
 
 ```bash
-filmbuff provider create
-# Select "custom" when prompted for provider type
+AI_MOCK=true filmbuff generate-shot-list script.fountain --output shots.jsonl
+AI_MOCK=true filmbuff generate-video shots.jsonl --mock
 ```
 
-Custom provider metadata is stored in `.augment/providers/custom-providers.json`
-and loaded automatically alongside built-in providers.
+`AI_MOCK=true` routes all AI calls to a deterministic mock — useful for CI/CD
+and development without incurring API costs.
 
-**Required contract** (`ProviderDefinition` interface):
+---
 
-```typescript
-interface ProviderDefinition {
-  id: string;                                // unique identifier
-  displayName: string;
-  capabilities: ProviderCapability[];        // e.g. ['text-generation']
-  credentialSchema: CredentialField[];       // fields for API key, etc.
-  settingsSchema:   SettingField[];          // model, base URL, etc.
-  validate(settings, credentials): ValidationResult;
-  createExecutor(settings, credentials): ProviderExecutor;
+## Video Generation
+
+To generate video clips from a shot list, use the **lumaai** provider:
+
+```bash
+ai-powered config set provider lumaai
+ai-powered config set apiKey luma-...
+
+filmbuff generate-video shots.jsonl --output-dir ./videos
+```
+
+**Options:**
+
+```bash
+filmbuff generate-video shots.jsonl \
+  --output-dir ./videos \
+  --shots 1,3,5 \        # only generate shots 1, 3, 5
+  --concurrency 3 \      # parallel generation (default: 3)
+  --mock                 # use mock provider (overrides AI_MOCK)
+```
+
+---
+
+## Plugin Configuration
+
+FilmBuff enables `audit-log` by default. To customise plugins, edit
+`.augment/augment.json`:
+
+```json
+{
+  "aiPowered": {
+    "plugins": ["audit-log"],
+    "debug": false
+  }
 }
 ```
 
-### Example: Ollama (local LLM)
-
-```bash
-# 1. Create a profile pointing at local Ollama
-filmbuff provider create
-# Provider type: openai  (Ollama is OpenAI-compatible)
-# Profile name: ollama-local
-# API key env var: OPENAI_API_KEY  (set to "none")
-# Base URL: http://localhost:11434/v1
-# Model: llama3.2
-
-# 2. Activate
-filmbuff provider activate openai ollama-local
-```
+Setting `debug: true` emits verbose ai-powered library logs to stderr.
 
 ---
 
-## File Locations
+## Checking Status
 
-| File | Purpose |
-|------|---------|
-| `.augment/providers/active.json` | Currently active provider and profile |
-| `.augment/providers/profiles/<id>/<name>.json` | Named profiles (one per provider) |
-| `.augment/providers/custom-providers.json` | Custom provider registrations |
+```bash
+filmbuff ai status
+```
 
-> **Security note:** Profile files never contain raw API key values, only
-> `env:VARIABLE_NAME` references. You may safely commit profiles to version
-> control. Add `active.json` to `.gitignore` if you want each developer to
-> maintain their own active selection.
+Output:
+```
+ai-powered Library Integration
+  Provider:  openai             [from ~/.ai-powered/config.json]
+  Model:     (provider default) [from ~/.ai-powered/config.json]
+  Mock Mode: false              [AI_MOCK env]
+  Plugins:   audit-log          [from filmbuff config]
+
+Available Models: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
+Video Providers:  lumaai
+```
+
+No HTTP request is made; all information comes from the config file and env vars.
 
 ---
 
@@ -239,23 +159,40 @@ filmbuff provider activate openai ollama-local
 
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
-| `No active AI provider is configured` | No active selection set | Run `filmbuff configure` or `filmbuff provider activate <id> <profile>` |
-| `Missing required credential: API Key` | Env var not set or misspelled | Run `echo $ANTHROPIC_API_KEY` in your terminal to verify |
-| `API key not found` in runtime | Shell env var not exported | Add `export VAR=...` to your shell profile and restart the terminal |
-| `does not support capability "vision"` | Wrong provider selected | Switch to `openai` or `google-ai` |
-| `Provider "X" is not registered` | Custom provider file missing | Re-run `filmbuff provider create` |
-| `Anthropic API error 401` | Invalid or expired API key | Regenerate key at console.anthropic.com |
-| `OpenAI API error 429` | Rate limit exceeded | Reduce concurrency or upgrade plan |
-| `fetch failed` / `ECONNREFUSED` | Local proxy / Ollama not running | Start the local server and verify the base URL |
+| `Error: No provider configured` | ai-powered config missing | `ai-powered config set provider openai` |
+| `Error: API key not found` | API key not set | `ai-powered config set apiKey <key>` |
+| `Error: Unknown command "provider ..."` | Using removed FilmBuff command | See [Removed Commands](#removed-commands) |
+| `Error: Unknown command "configure"` | Using removed FilmBuff command | `ai-powered config set provider <name>` |
+| Network timeout | Slow API, bad key, or rate limit | Try `AI_MOCK=true` to isolate |
 
-### Debug mode
+---
 
-```bash
-# Print the resolved configuration without running a command
-filmbuff provider status --verbose
+## Removed Commands
+
+The following FilmBuff commands were removed in **Phase 9 (bd-99b2)**:
+
+| Removed Command | Replacement |
+|----------------|-------------|
+| `filmbuff configure` | `ai-powered config set provider <name>` |
+| `filmbuff provider list` | `filmbuff ai status` |
+| `filmbuff provider create` | `ai-powered config set provider <name>` |
+| `filmbuff provider activate` | `ai-powered config set provider <name>` |
+| `filmbuff provider status` | `filmbuff ai status` |
+| `filmbuff provider show` | `filmbuff ai status` |
+| `filmbuff provider validate` | `ai-powered config validate` |
+| `filmbuff provider edit` | `ai-powered config set <key> <value>` |
+| `filmbuff provider delete` | `ai-powered config remove <key>` |
+
+Any removed command prints the migration guidance below and exits non-zero:
+
+```
+Error: Unknown command "<cmd>". Provider configuration is now managed by ai-powered.
+  Run: ai-powered config set provider <name>
+       ai-powered config set apiKey <key>
+  See: filmbuff ai status
 ```
 
 ---
 
-*For advanced configuration, see [cli/docs/AI_PROVIDERS.md](../cli/docs/AI_PROVIDERS.md).*
+*For internal architecture details, see [cli/docs/AI_PROVIDERS.md](../cli/docs/AI_PROVIDERS.md).*
 
