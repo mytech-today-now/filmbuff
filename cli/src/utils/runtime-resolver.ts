@@ -1,24 +1,54 @@
 /**
- * Runtime Resolver — Phase 2 Deletion Pass
+ * runtime-resolver.ts — Phase 4 rewrite
  *
- * The provider/profile resolver functions (resolveActiveProvider,
- * resolveProviderByProfile) and the profile-store re-exports have been
- * removed as part of replacing the legacy AI provider system with the
- * ai-powered integration.
+ * Thin pass-through to getFilmbuffAiClient().  Downstream command handlers
+ * that previously called resolveActiveProvider() or resolveProviderByProfile()
+ * now call resolveAIClient() which delegates directly to the ai-powered
+ * library via the single integration point in filmbuff-ai-client.ts.
  *
- * The error classes and ResolvedProvider interface are kept here so that
- * Phase 4 can build the new resolveAIClient() function in this same file
- * without changing downstream imports.
+ * Legacy error classes (NoActiveProviderError, ProfileNotFoundError) and the
+ * ResolvedProvider interface are preserved as named exports so that callers
+ * compiled against the old API continue to typecheck without changes.  They
+ * will be removed in a future cleanup pass once all callers have migrated.
  *
- * OpenSpec: openspec/changes/replace-ai-with-ai-powered/
+ * Phase 4 of ai-powered-not-local change (bd-6d52).
+ * Spec: openspec/changes/ai-powered-not-local/design.md §2
  */
 
-import type { ProviderExecutor, ProviderProfile } from '../types/ai-providers.js';
+import { getFilmbuffAiClient } from './filmbuff-ai-client.js';
+// AiClient and AiConfig are sourced from filmbuff-ai-client.ts (the sole
+// importer of 'ai-powered') so that this file never imports from 'ai-powered'.
+import type { AiClient, AiConfig } from './filmbuff-ai-client.js';
 
 // ---------------------------------------------------------------------------
-// Errors
+// Public API — thin pass-through
 // ---------------------------------------------------------------------------
 
+/**
+ * Resolve and return an AiClient for the given tool.
+ *
+ * This is the preferred entry point for command handlers.  It delegates to
+ * getFilmbuffAiClient() so that FILMBUFF_DEFAULTS are always applied and the
+ * sole import of 'ai-powered' stays in filmbuff-ai-client.ts.
+ *
+ * @param toolName  Identifies the calling feature (e.g. 'shot-list-generator').
+ * @param overrides Optional per-call config overrides (no credential fields).
+ */
+export async function resolveAIClient(
+  toolName: string,
+  overrides?: Partial<Omit<AiConfig, 'apiKey'>>,
+): Promise<AiClient> {
+  return getFilmbuffAiClient(toolName, overrides);
+}
+
+// Re-export AiClient type for callers that type their cached reference.
+export type { AiClient };
+
+// ---------------------------------------------------------------------------
+// Legacy error stubs — retained for backward-compat until callers migrate
+// ---------------------------------------------------------------------------
+
+/** @deprecated No longer thrown; retained for backward-compatibility. */
 export class NoActiveProviderError extends Error {
   constructor() {
     super(
@@ -30,6 +60,7 @@ export class NoActiveProviderError extends Error {
   }
 }
 
+/** @deprecated No longer thrown; retained for backward-compatibility. */
 export class ProfileNotFoundError extends Error {
   constructor(providerId: string, profileName: string) {
     super(
@@ -38,17 +69,6 @@ export class ProfileNotFoundError extends Error {
     );
     this.name = 'ProfileNotFoundError';
   }
-}
-
-// ---------------------------------------------------------------------------
-// Resolution Result
-// ---------------------------------------------------------------------------
-
-export interface ResolvedProvider {
-  executor: ProviderExecutor;
-  profile: ProviderProfile;
-  providerId: string;
-  profileName: string;
 }
 
 
