@@ -1,6 +1,13 @@
 /**
  * Unit tests for all repository classes.
- * Covers: ProjectRepository, DocumentRepository, ProviderRepository, SessionRepository
+ * Covers: ProjectRepository, DocumentRepository, SessionRepository
+ *
+ * NOTE: ProviderRepository tests were removed in the replace-ai-with-ai-powered
+ * migration Phase 2 (bd-9uc4). The ProviderRepository source file
+ * (cli/src/db/provider-repository.ts) was deleted as part of that pass.
+ * A dedicated test suite will be added in Phase 7 if a new repository is
+ * introduced by the ai-powered integration.
+ *
  * Satisfies: bd-db-a9 buff-core.01.02.05-01 Write unit tests for all repositories
  */
 
@@ -9,9 +16,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { ProjectRepository } from '../../db/project-repository';
 import { DocumentRepository } from '../../db/document-repository';
-import { ProviderRepository } from '../../db/provider-repository';
 import { SessionRepository } from '../../db/session-repository';
-import { DuplicateSlugError, BuiltinProviderProtectedError } from '../../db/errors';
+import { DuplicateSlugError } from '../../db/errors';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -197,102 +203,8 @@ describe('DocumentRepository', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// ProviderRepository
-// ---------------------------------------------------------------------------
-
-describe('ProviderRepository', () => {
-  let repo: ProviderRepository;
-
-  beforeEach(() => { repo = new ProviderRepository(db); });
-
-  const PROVIDER_INPUT = {
-    id: 'custom-ai',
-    display_name: 'Custom AI',
-    provider_type: 'custom' as const,
-    base_url: 'https://api.custom.ai',
-    capabilities: ['text-generation'],
-  };
-
-  it('upsertProvider inserts and returns the row', () => {
-    const p = repo.upsertProvider(PROVIDER_INPUT);
-    expect(p.id).toBe('custom-ai');
-    expect(p.display_name).toBe('Custom AI');
-    expect(p.is_enabled).toBe(1);
-  });
-
-  it('upsertProvider updates an existing provider', () => {
-    repo.upsertProvider(PROVIDER_INPUT);
-    repo.upsertProvider({ ...PROVIDER_INPUT, display_name: 'Custom AI v2' });
-    expect(repo.findProvider('custom-ai')?.display_name).toBe('Custom AI v2');
-  });
-
-  it('findProvider returns undefined for unknown id', () => {
-    expect(repo.findProvider('unknown')).toBeUndefined();
-  });
-
-  it('listProviders returns all providers including built-ins', () => {
-    const all = repo.listProviders();
-    expect(all.length).toBeGreaterThanOrEqual(3); // anthropic, openai, google seeded
-  });
-
-  it('listProviders(enabledOnly=true) excludes disabled providers', () => {
-    repo.upsertProvider(PROVIDER_INPUT);
-    repo.setProviderEnabled('custom-ai', false);
-    const enabled = repo.listProviders(true);
-    expect(enabled.find((p) => p.id === 'custom-ai')).toBeUndefined();
-  });
-
-  it('upsertProfile creates a profile for a provider', () => {
-    repo.upsertProvider(PROVIDER_INPUT);
-    const profile = repo.upsertProfile('custom-ai', { profile_name: 'fast', model_id: 'llm-fast' });
-    expect(profile.profile_name).toBe('fast');
-    expect(profile.model_id).toBe('llm-fast');
-  });
-
-  it('findProfile returns undefined for non-existent profile', () => {
-    repo.upsertProvider(PROVIDER_INPUT);
-    expect(repo.findProfile('custom-ai', 'ghost')).toBeUndefined();
-  });
-
-  it('listProfiles returns all profiles for a provider', () => {
-    repo.upsertProvider(PROVIDER_INPUT);
-    repo.upsertProfile('custom-ai', { profile_name: 'p1', model_id: 'm1' });
-    repo.upsertProfile('custom-ai', { profile_name: 'p2', model_id: 'm2' });
-    expect(repo.listProfiles('custom-ai')).toHaveLength(2);
-  });
-
-  it('activateProfile sets is_active=1 and deactivates others', () => {
-    repo.upsertProvider(PROVIDER_INPUT);
-    repo.upsertProfile('custom-ai', { profile_name: 'p1', model_id: 'm1' });
-    repo.upsertProfile('custom-ai', { profile_name: 'p2', model_id: 'm2' });
-    repo.activateProfile('custom-ai', 'p1');
-    expect(repo.findProfile('custom-ai', 'p1')?.is_active).toBe(1);
-    expect(repo.findProfile('custom-ai', 'p2')?.is_active).toBe(0);
-  });
-
-  it('getActiveSelection returns provider_id and profile_name for active profile', () => {
-    repo.upsertProvider(PROVIDER_INPUT);
-    repo.upsertProfile('custom-ai', { profile_name: 'main', model_id: 'llm-1' });
-    repo.activateProfile('custom-ai', 'main');
-    const sel = repo.getActiveSelection();
-    expect(sel?.provider_id).toBe('custom-ai');
-    expect(sel?.profile_name).toBe('main');
-  });
-
-  it('deleteProfile removes a non-active profile', () => {
-    repo.upsertProvider(PROVIDER_INPUT);
-    repo.upsertProfile('custom-ai', { profile_name: 'to-delete', model_id: 'llm-x' });
-    repo.deleteProfile('custom-ai', 'to-delete');
-    expect(repo.findProfile('custom-ai', 'to-delete')).toBeUndefined();
-  });
-
-  it('deleteProfile throws BuiltinProviderProtectedError for active builtin profile', () => {
-    repo.upsertProfile('anthropic', { profile_name: 'default', model_id: 'claude-3' });
-    repo.activateProfile('anthropic', 'default');
-    expect(() => repo.deleteProfile('anthropic', 'default')).toThrow(BuiltinProviderProtectedError);
-  });
-});
+// ProviderRepository tests removed: bd-9uc4 deletion pass removed
+// cli/src/db/provider-repository.ts. See openspec/changes/replace-ai-with-ai-powered/
 
 // ---------------------------------------------------------------------------
 // SessionRepository

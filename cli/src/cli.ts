@@ -604,6 +604,11 @@ program
   .option('--ai-provider <provider>', 'AI provider id for shot list generation')
   .option('--ai-profile <name>', 'AI provider profile name (requires --ai-provider)')
   .option('--ai-model <model>', 'AI model override for the selected provider')
+  .option('--provider <id>', 'Video provider id (e.g. lumaai, mock) from filmbuff.config.json')
+  .option('--model <id>', 'Video model id override for the selected video provider')
+  .option('--offline', 'Skip URL reachability checks (V-3) and provider capability fetch; implies CI-safe mode')
+  .option('--batch-output <file>', 'Write POST /batch JSON payload to this file path')
+  .option('--jsonl', 'Write batch-output in JSONL format with _type:references sentinel (AC-16)')
   .option('--logging', 'Enable comprehensive error logging to JSONL file')
   .action((options) => {
     return generateShotListCommand({
@@ -618,6 +623,11 @@ program
       aiProvider:    options.aiProvider,
       aiProfile:     options.aiProfile,
       aiModel:       options.aiModel,
+      provider:      options.provider,
+      model:         options.model,
+      offline:       options.offline ?? (process.env['CI'] === 'true'),
+      batchOutput:   options.batchOutput,
+      jsonl:         options.jsonl ?? false,
     });
   });
 

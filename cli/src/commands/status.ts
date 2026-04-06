@@ -20,7 +20,8 @@ import {
   openDatabase,
   runMigrations,
   ProjectRepository,
-  ProviderRepository,
+  // ProviderRepository removed: bd-9uc4 Phase 2 Deletion Pass.
+  // Active provider info will come from the ai-powered config block (Phase 5+).
   MIGRATIONS_DIR,
 } from '../db/index.js';
 import type { ProjectStep, StepStatus } from '../db/index.js';
@@ -77,7 +78,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
   runMigrations(db, MIGRATIONS_DIR);
 
   const projectRepo  = new ProjectRepository(db);
-  const providerRepo = new ProviderRepository(db);
+  // providerRepo removed: bd-9uc4. Phase 5 will expose aiPowered config here.
 
   // Resolve project
   const project =
@@ -95,7 +96,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 
   // --format json — machine-readable dump
   if (options.format === 'json') {
-    const active = providerRepo.getActiveSelection();
+    // Phase 5 will surface aiPowered config here instead of providerRepo.
     const payload = {
       project: {
         id:           project.id,
@@ -103,8 +104,8 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
         display_title: project.display_title,
         genre:        project.genre,
         status:       project.status,
-        active_provider_id:  active?.provider_id  ?? project.active_provider_id,
-        active_profile_name: active?.profile_name ?? project.active_profile_name,
+        active_provider_id:  project.active_provider_id,
+        active_profile_name: project.active_profile_name,
       },
       steps: steps.map((s) => ({
         step_number:      s.step_number,
@@ -131,9 +132,9 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
       console.log(chalk.green('✓ No pending steps — project pipeline is complete.'));
       return;
     }
-    const active = providerRepo.getActiveSelection();
-    const providerId  = active?.provider_id  ?? project.active_provider_id  ?? '(none)';
-    const profileName = active?.profile_name ?? project.active_profile_name ?? '(none)';
+    // Phase 5 will resolve provider via aiPowered config. For now, use stored project fields.
+    const providerId  = project.active_provider_id  ?? '(none)';
+    const profileName = project.active_profile_name ?? '(none)';
     console.log();
     console.log(chalk.bold('Next pending step:'));
     console.log(`  Step ${nextStep.step_number}: ${chalk.cyan(nextStep.step_name)}`);

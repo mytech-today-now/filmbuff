@@ -5,6 +5,11 @@
  * SQLite in-memory database, verifying that FK relationships, cascade
  * semantics, and data-consistency guarantees hold across domains.
  *
+ * NOTE: The "Provider ↔ Project" cross-domain suite was removed in
+ * bd-9uc4 (replace-ai-with-ai-powered Phase 2 Deletion Pass) because
+ * cli/src/db/provider-repository.ts was deleted. A replacement suite
+ * targeting the ai-powered gateway will be added in Phase 7.
+ *
  * Satisfies: bd-int-d1 buff-core.04.01.01 - 01 Cross-domain integration test suite
  */
 
@@ -14,7 +19,6 @@ import * as path from 'path';
 import { ProjectRepository }  from '../../db/project-repository';
 import { DocumentRepository } from '../../db/document-repository';
 import { SessionRepository }  from '../../db/session-repository';
-import { ProviderRepository } from '../../db/provider-repository';
 
 // ---------------------------------------------------------------------------
 // Shared DB setup
@@ -35,14 +39,12 @@ let db: Database.Database;
 let projRepo: ProjectRepository;
 let docRepo:  DocumentRepository;
 let sessRepo: SessionRepository;
-let provRepo: ProviderRepository;
 
 beforeEach(() => {
   db       = makeDb();
   projRepo = new ProjectRepository(db);
   docRepo  = new DocumentRepository(db);
   sessRepo = new SessionRepository(db);
-  provRepo = new ProviderRepository(db);
 });
 
 afterEach(() => { db.close(); });
@@ -176,23 +178,6 @@ describe('Session ↔ Document cross-domain (context snapshots)', () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Cross-domain: provider + project (active provider selection)
-// ---------------------------------------------------------------------------
-
-describe('Provider ↔ Project cross-domain', () => {
-  it('project stores active provider reference that matches provider table', () => {
-    provRepo.upsertProvider({ id: 'custom-ai', display_name: 'Custom AI', provider_type: 'custom', capabilities: ['text-generation'] });
-    provRepo.upsertProfile('custom-ai', { profile_name: 'fast', model_id: 'llm-fast' });
-
-    seedProject();
-    projRepo.setActiveProvider('proj-x', 'custom-ai', 'fast');
-
-    const project  = projRepo.findById('proj-x');
-    const provider = provRepo.findProvider('custom-ai');
-
-    expect(project?.active_provider_id).toBe(provider?.id);
-    expect(project?.active_profile_name).toBe('fast');
-  });
-});
+// Provider ↔ Project cross-domain suite removed: bd-9uc4 deletion pass.
+// Will be replaced in Phase 7 with ai-powered gateway cross-domain tests.
 

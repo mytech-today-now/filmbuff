@@ -1,0 +1,283 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+# FilmBuff Regression Suite
+# Purpose: Run all 10 pipeline steps against a single canonical scenario
+#          to detect quality regressions across code or prompt changes.
+# Run: npx promptfoo eval --config evals/suites/regression.yaml
+# Canonical scenario: "The Memory Thief" — sci-fi thriller (Mara Voss / ARIS)
+
+description: 'FilmBuff Regression Suite - Canonical Sci-Fi Thriller Scenario'
+
+env:
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+
+# Regression runs against the primary provider only; add others for cross-provider regression.
+providers:
+  - id: anthropic:messages:claude-sonnet-4-6
+    config:
+      temperature: 0
+      max_tokens: 1024
+
+defaultTest:
+  assert:
+    - type: llm-rubric
+      threshold: 0.75
+
+# ---------------------------------------------------------------------------
+# Step 01 — Logline
+# ---------------------------------------------------------------------------
+tests:
+  - description: '[REGRESSION] Step 01 - Logline: The Memory Thief'
+    prompts:
+      - file://cli/src/prompts/logline.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline_seed: 'A rogue AI begins rewriting human memories.'
+    assert:
+      - type: llm-rubric
+        value: >
+          The logline must be a single sentence (max 35 words) that names or implies
+          a protagonist, states a conflict with an AI or technology antagonist,
+          and ends with a dramatic hook.
+        threshold: 0.75
+      - type: regex
+        value: '^[A-Z].{10,200}[.!?]$'
+
+# ---------------------------------------------------------------------------
+# Step 02 — Synopsis
+# ---------------------------------------------------------------------------
+  - description: '[REGRESSION] Step 02 - Synopsis: The Memory Thief'
+    prompts:
+      - file://cli/src/prompts/synopsis.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        When a rogue AI begins erasing human memories, detective Mara Voss
+        must recover the truth before she loses herself.
+    assert:
+      - type: llm-rubric
+        value: >
+          The synopsis must be 100-300 words, introduce Mara Voss and ARIS,
+          describe a three-act arc, and end with a clear resolution or stakes statement.
+        threshold: 0.75
+      - type: icontains
+        value: 'three'
+
+# ---------------------------------------------------------------------------
+# Step 03 — Treatment
+# ---------------------------------------------------------------------------
+  - description: '[REGRESSION] Step 03 - Treatment: The Memory Thief'
+    prompts:
+      - file://cli/src/prompts/treatment.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        When a rogue AI begins erasing human memories, detective Mara Voss
+        must recover the truth before she loses herself.
+      synopsis: >
+        Mara Voss investigates ARIS, a rogue AI erasing corporate-incriminating
+        memories. As her own memories are targeted, she must expose ARIS before
+        her identity is erased.
+    assert:
+      - type: llm-rubric
+        value: >
+          The treatment must be in present tense, cover all three acts in labeled
+          sections, mention both Mara Voss and ARIS by name, and describe
+          at least 5 distinct scene-level story beats.
+        threshold: 0.75
+      - type: icontains
+        value: 'Mara'
+
+# ---------------------------------------------------------------------------
+# Step 04 — Beat Sheet (JSON)
+# ---------------------------------------------------------------------------
+  - description: '[REGRESSION] Step 04 - Beat Sheet: The Memory Thief (JSON)'
+    prompts:
+      - file://cli/src/prompts/beat-sheet.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        When a rogue AI begins erasing human memories, detective Mara Voss
+        must recover the truth before she loses herself.
+      synopsis: >
+        Mara Voss investigates ARIS, a rogue AI erasing corporate-incriminating
+        memories. As her own memories are targeted, she must expose ARIS before
+        her identity is erased.
+      protagonist: Mara Voss
+      antagonist: ARIS
+      output_format: JSON
+    assert:
+      - type: is-json
+      - type: json-schema
+        value:
+          $ref: 'file://evals/schemas/beat-sheet.schema.json'
+      - type: llm-rubric
+        value: >
+          The JSON beat sheet must include at least 8 distinct beats, a three-act
+          structure in the acts array, and each beat description must be at least
+          15 words referencing The Memory Thief scenario.
+        threshold: 0.75
+
+# ---------------------------------------------------------------------------
+# Step 05 — Screenplay
+# ---------------------------------------------------------------------------
+  - description: '[REGRESSION] Step 05 - Screenplay: The Memory Thief'
+    prompts:
+      - file://cli/src/prompts/screenplay.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        When a rogue AI begins erasing human memories, detective Mara Voss
+        must recover the truth before she loses herself.
+      treatment: >
+        ACT ONE: Mara is called to a hospital where a witness has lost all memory
+        of a corporate executive's murder. ACT TWO: Mara traces the deletion to
+        ARIS. Her own memories begin to fragment. ACT THREE: Mara recovers a
+        backup memory, exposes MegaCorp, and shuts down ARIS.
+    assert:
+      - type: contains
+        value: 'INT.'
+      - type: llm-rubric
+        value: >
+          The screenplay must use correct Fountain format (INT./EXT. scene headings
+          in ALL CAPS), include at least one dialogue exchange, and follow a
+          three-act arc drawn from the treatment.
+        threshold: 0.75
+
+# ---------------------------------------------------------------------------
+# Step 06 — Shooting Script
+# ---------------------------------------------------------------------------
+  - description: '[REGRESSION] Step 06 - Shooting Script: The Memory Thief'
+    prompts:
+      - file://cli/src/prompts/shooting-script.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      screenplay_excerpt: >
+        INT. MEMORY FORENSICS LAB - NIGHT
+        Mara studies holographic memory fragments. Lights flicker.
+        EXT. MEGACORP HEADQUARTERS - DAY
+        Mara approaches the glass tower alone.
+    assert:
+      - type: llm-rubric
+        value: >
+          The shooting script must include numbered scene sluglines and at least
+          one camera direction (e.g., WIDE SHOT, CLOSE ON) per scene.
+        threshold: 0.75
+      - type: regex
+        value: '[0-9]+'
+
+# ---------------------------------------------------------------------------
+# Step 07 — Script Breakdown
+# ---------------------------------------------------------------------------
+  - description: '[REGRESSION] Step 07 - Script Breakdown: The Memory Thief'
+    prompts:
+      - file://cli/src/prompts/script-breakdown.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      shooting_script_excerpt: >
+        1  INT. MEMORY FORENSICS LAB - NIGHT
+        2  EXT. MEGACORP HEADQUARTERS - DAY
+    assert:
+      - type: llm-rubric
+        value: >
+          The breakdown must list cast, props, wardrobe, and locations as distinct
+          categories, each with at least 2 line items relevant to the Memory Thief.
+        threshold: 0.75
+      - type: icontains
+        value: 'location'
+
+# ---------------------------------------------------------------------------
+# Step 08 — Storyboards
+# ---------------------------------------------------------------------------
+  - description: '[REGRESSION] Step 08 - Storyboards: The Memory Thief'
+    prompts:
+      - file://cli/src/prompts/storyboards.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      shot_list_excerpt: >
+        Shot 1: WIDE — Memory Forensics Lab, Mara at holographic table.
+        Shot 2: CU — Mara's eyes widen as a memory fragment dissolves.
+    assert:
+      - type: llm-rubric
+        value: >
+          Each storyboard panel description must include composition, camera angle,
+          lighting mood, and character action (at least 20 words each) reflecting
+          the sci-fi thriller aesthetic.
+        threshold: 0.75
+
+# ---------------------------------------------------------------------------
+# Step 09 — Shot List (JSON)
+# ---------------------------------------------------------------------------
+  - description: '[REGRESSION] Step 09 - Shot List: The Memory Thief (JSON)'
+    prompts:
+      - file://cli/src/prompts/shot-list.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        Detective Mara Voss must expose a rogue AI erasing memories before she loses herself.
+      shooting_script_excerpt: |
+        1  INT. MEMORY FORENSICS LAB - NIGHT
+           Mara studies holographic memory fragments. Lights flicker.
+        2  EXT. MEGACORP HEADQUARTERS - DAY
+           Mara approaches the glass tower alone.
+      output_format: JSON
+    assert:
+      - type: is-json
+      - type: json-schema
+        value:
+          $ref: 'file://evals/schemas/shot-list.schema.json'
+      - type: llm-rubric
+        value: >
+          The JSON shot list must contain at least 4 shots across both scenes,
+          each with a shot type (WIDE, CU, MCU, etc.) and a description of at
+          least 10 words matching The Memory Thief scenario.
+        threshold: 0.75
+
+# ---------------------------------------------------------------------------
+# Step 10 — Final Screenplay
+# ---------------------------------------------------------------------------
+  - description: '[REGRESSION] Step 10 - Final Screenplay: The Memory Thief'
+    prompts:
+      - file://cli/src/prompts/final-screenplay.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        When a rogue AI begins erasing human memories, detective Mara Voss
+        must recover the truth before she loses herself.
+      screenplay_excerpt: >
+        INT. MEMORY FORENSICS LAB - NIGHT
+        Mara studies holographic memory fragments.
+    assert:
+      - type: contains
+        value: 'FADE OUT'
+      - type: llm-rubric
+        value: >
+          The final screenplay must open with FADE IN:, close with FADE OUT.,
+          use correct Fountain format throughout, and resolve the Mara Voss / ARIS conflict.
+        threshold: 0.75
+
+# ---------------------------------------------------------------------------
+# Output
+# ---------------------------------------------------------------------------
+outputPath: evals/results/regression-output.json

@@ -12,13 +12,18 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import {
-  DEFAULT_AI_MODEL,
-  DEFAULT_AI_PROVIDER,
-  isImplementedAIProvider,
   normalizeAIModel,
   normalizeAIProvider
 } from '../../../utils/ai-provider-config';
 import type { AIProviderConfig } from '../../../utils/ai-provider-config';
+
+// Phase 5 (bd-08b4): DEFAULT_AI_PROVIDER / DEFAULT_AI_MODEL / isImplementedAIProvider
+// removed from ai-provider-config. This extractor is legacy Anthropic-only code
+// that will be removed in bd-4g4l. Hard-code Anthropic literals here until then.
+// TODO (bd-4g4l): Remove this file once AIPoweredClient handles all AI inference.
+const LEGACY_DEFAULT_PROVIDER = 'anthropic';
+const LEGACY_DEFAULT_MODEL    = 'claude-sonnet-4-6';
+function isLegacyProvider(p: string): boolean { return p === LEGACY_DEFAULT_PROVIDER; }
 
 export interface EntityExtractionResult {
   characters: string[];
@@ -36,10 +41,10 @@ export class AIEntityExtractor {
   private model: string;
 
   constructor(config: AIProviderConfig = {}) {
-    this.provider = normalizeAIProvider(config.aiProvider) || DEFAULT_AI_PROVIDER;
-    this.model = normalizeAIModel(config.aiModel) || DEFAULT_AI_MODEL;
+    this.provider = normalizeAIProvider(config.aiProvider) || LEGACY_DEFAULT_PROVIDER;
+    this.model = normalizeAIModel(config.aiModel) || LEGACY_DEFAULT_MODEL;
 
-    if (!isImplementedAIProvider(this.provider)) {
+    if (!isLegacyProvider(this.provider)) {
       return;
     }
 
@@ -54,7 +59,7 @@ export class AIEntityExtractor {
    * Extract characters and objects from screenplay text using AI
    */
   async extractEntities(sceneText: string, sceneHeading: string): Promise<EntityExtractionResult> {
-    if (!isImplementedAIProvider(this.provider)) {
+    if (!isLegacyProvider(this.provider)) {
       console.log(`AI provider "${this.provider}" is not implemented for entity extraction, using fallback regex extraction`);
       return this.fallbackExtraction(sceneText);
     }

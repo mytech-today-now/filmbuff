@@ -1,0 +1,197 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+# FilmBuff Model Comparison Suite
+# Purpose: Compare output quality across all three AI providers for key pipeline steps.
+#          Use to evaluate which model best serves each pipeline stage.
+# Run: npx promptfoo eval --config evals/suites/model-comparison.yaml
+# Canonical scenario: "The Memory Thief" (sci-fi) + "Festival Love" (rom-com)
+
+description: 'FilmBuff Model Comparison Suite - GPT vs Claude vs Gemini'
+
+env:
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+
+# All three providers run every test for side-by-side comparison.
+providers:
+  - id: openai:gpt-5.2
+    label: GPT-5.2
+    config:
+      temperature: 0
+      max_tokens: 1024
+  - id: anthropic:messages:claude-sonnet-4-6
+    label: Claude-Sonnet-4-6
+    config:
+      temperature: 0
+      max_tokens: 1024
+  - id: google:gemini-3.1-pro-preview
+    label: Gemini-3.1-Pro
+    config:
+      temperature: 0
+      max_tokens: 1024
+
+defaultTest:
+  assert:
+    - type: llm-rubric
+      threshold: 0.7
+
+# ---------------------------------------------------------------------------
+# Logline — model comparison (narrative hook quality)
+# ---------------------------------------------------------------------------
+tests:
+  - description: '[MODEL-CMP] Logline: sci-fi thriller — hook and brevity'
+    prompts:
+      - file://cli/src/prompts/logline.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline_seed: 'A rogue AI begins rewriting human memories.'
+    assert:
+      - type: llm-rubric
+        value: >
+          Compare model outputs: The logline must be a single sentence (max 35 words),
+          clearly state a protagonist and AI antagonist, and deliver a compelling
+          dramatic hook. Rank the output on hook strength, economy of language,
+          and originality.
+        threshold: 0.7
+      - type: regex
+        value: '^[A-Z].{10,200}[.!?]$'
+
+  - description: '[MODEL-CMP] Logline: romantic comedy — wit and warmth'
+    prompts:
+      - file://cli/src/prompts/logline.txt
+    vars:
+      genre: romantic comedy
+      tone: light and witty
+      budget: low-budget indie
+      logline_seed: 'Two rival food truck owners compete for the same prime spot.'
+    assert:
+      - type: llm-rubric
+        value: >
+          The logline must introduce two characters with opposing goals, establish
+          comedic conflict, and hint at romantic stakes — all in one sentence.
+          Evaluate wit, warmth, and word economy.
+        threshold: 0.7
+
+# ---------------------------------------------------------------------------
+# Beat Sheet — model comparison (JSON structure + narrative depth)
+# ---------------------------------------------------------------------------
+  - description: '[MODEL-CMP] Beat Sheet: sci-fi thriller — JSON + narrative depth'
+    prompts:
+      - file://cli/src/prompts/beat-sheet.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        When a rogue AI begins erasing human memories, detective Mara Voss
+        must recover the truth before she loses herself.
+      synopsis: >
+        Mara Voss investigates ARIS, a rogue AI erasing corporate-incriminating
+        memories. As her own memories are targeted, she must expose ARIS before
+        her identity is erased.
+      protagonist: Mara Voss
+      antagonist: ARIS
+      output_format: JSON
+    assert:
+      - type: is-json
+      - type: json-schema
+        value:
+          $ref: 'file://evals/schemas/beat-sheet.schema.json'
+      - type: llm-rubric
+        value: >
+          The beat sheet JSON must include at least 8 beats across a three-act
+          structure. Compare models on: (1) structural completeness, (2) narrative
+          creativity of beat descriptions, (3) adherence to sci-fi thriller genre.
+        threshold: 0.7
+
+# ---------------------------------------------------------------------------
+# Screenplay — model comparison (Fountain format + dialogue quality)
+# ---------------------------------------------------------------------------
+  - description: '[MODEL-CMP] Screenplay: sci-fi thriller — Fountain + dialogue'
+    prompts:
+      - file://cli/src/prompts/screenplay.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        When a rogue AI begins erasing human memories, detective Mara Voss
+        must recover the truth before she loses herself.
+      treatment: >
+        ACT ONE: Mara is called to a hospital where a witness has lost all memory
+        of a corporate executive's murder. ACT TWO: Mara traces the deletion to
+        ARIS; her own memories fragment. ACT THREE: Mara recovers a backup memory,
+        exposes MegaCorp, and shuts down ARIS.
+    assert:
+      - type: contains
+        value: 'INT.'
+      - type: llm-rubric
+        value: >
+          Evaluate model outputs on: (1) correct Fountain format (ALL CAPS scene
+          headings, proper action/dialogue blocks), (2) dialogue authenticity for
+          a sci-fi thriller, (3) pacing and tension building.
+        threshold: 0.7
+
+# ---------------------------------------------------------------------------
+# Shot List — model comparison (JSON schema + cinematic specificity)
+# ---------------------------------------------------------------------------
+  - description: '[MODEL-CMP] Shot List: sci-fi thriller — JSON + cinematic detail'
+    prompts:
+      - file://cli/src/prompts/shot-list.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        Detective Mara Voss must expose a rogue AI erasing memories before she loses herself.
+      shooting_script_excerpt: |
+        1  INT. MEMORY FORENSICS LAB - NIGHT
+           Mara studies holographic memory fragments. Lights flicker.
+        2  EXT. MEGACORP HEADQUARTERS - DAY
+           Mara approaches the glass tower alone.
+      output_format: JSON
+    assert:
+      - type: is-json
+      - type: json-schema
+        value:
+          $ref: 'file://evals/schemas/shot-list.schema.json'
+      - type: llm-rubric
+        value: >
+          Compare models on: (1) shot variety (WIDE, CU, MCU, tracking), (2) accuracy
+          of shot descriptions matching the scene, (3) cinematic vocabulary and
+          specificity of camera/lighting notes.
+        threshold: 0.7
+
+# ---------------------------------------------------------------------------
+# Final Screenplay — model comparison (complete arc + polish)
+# ---------------------------------------------------------------------------
+  - description: '[MODEL-CMP] Final Screenplay: sci-fi — complete arc + polish'
+    prompts:
+      - file://cli/src/prompts/final-screenplay.txt
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        When a rogue AI begins erasing human memories, detective Mara Voss
+        must recover the truth before she loses herself.
+      screenplay_excerpt: >
+        INT. MEMORY FORENSICS LAB - NIGHT
+        Mara studies holographic memory fragments.
+    assert:
+      - type: contains
+        value: 'FADE OUT'
+      - type: llm-rubric
+        value: >
+          Evaluate models on: (1) professional Fountain formatting (FADE IN:/FADE OUT.),
+          (2) complete narrative arc resolving the Mara/ARIS conflict, (3) prose
+          quality, tension, and emotional resonance of the final act.
+        threshold: 0.7
+
+# ---------------------------------------------------------------------------
+# Output
+# ---------------------------------------------------------------------------
+outputPath: evals/results/model-comparison-output.json
+

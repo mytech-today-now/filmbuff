@@ -10,16 +10,20 @@ import { createLogger } from './generate-shot-list/logger';
 import { createStyleSystem } from './generate-shot-list/style';
 import { ConfigManager } from '../utils/config-system';
 import {
-  DEFAULT_AI_MODEL,
-  DEFAULT_AI_PROVIDER,
   normalizeAIModel,
   normalizeAIProvider
 } from '../utils/ai-provider-config';
 import {
-  resolveActiveProvider,
-  resolveProviderByProfile,
-  NoActiveProviderError,
-} from '../utils/runtime-resolver';
+  AI_POWERED_DEFAULT_MODEL,
+  AI_POWERED_DEFAULT_URL
+} from '../utils/ai-powered-client';
+// resolveActiveProvider / resolveProviderByProfile removed in bd-9uc4 Phase 2.
+// Phase 4 (bd-tcey) will introduce resolveAIClient() from runtime-resolver.
+import { loadFilmbuffConfig, resolveProvider } from '../lib/filmbuff-config';
+import { loadPipelineInputs } from '../lib/pipeline-inputs';
+import { validateBatchPayload } from '../lib/pre-export-validator';
+import type { ValidatablePayload } from '../lib/pre-export-validator';
+import { serializeBatchToJsonl } from '../lib/batch-serializer';
 import type { OutputFormat } from './generate-shot-list/formatter/types';
 import type { MergedStyleGuidelines } from './generate-shot-list/style/types';
 
@@ -35,6 +39,22 @@ interface GenerateShotListOptions {
   aiProvider?: string;
   aiProfile?: string;
   aiModel?: string;
+  /** Video provider id from filmbuff.config.json (e.g. 'lumaai', 'mock') */
+  provider?: string;
+  /** Video model id override for the selected video provider */
+  model?: string;
+  /**
+   * Skip URL reachability checks (V-3) and provider capability fetch.
+   * Auto-enabled when CI=true env var is set.
+   */
+  offline?: boolean;
+  /** Path to write POST /batch JSON payload file (--batch-output). */
+  batchOutput?: string;
+  /**
+   * When true, write batch-output in JSONL format with _type:references sentinel (AC-16).
+   * Only used when batchOutput is also set.
+   */
+  jsonl?: boolean;
   help?: boolean;
   h?: boolean;
 }
@@ -64,54 +84,42 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
     const logging = options.logging || false;
     const appConfig = new ConfigManager().load();
 
-    // Resolve AI provider: CLI flags → active provider → legacy config fallback
-    let aiProvider: string;
-    let aiModel: string;
-
+    // Phase 2 (bd-9uc4): AI provider resolution (legacy CLI flags kept for backward-compat).
+    // Phase 5 (bd-08b4): DEFAULT_AI_PROVIDER / DEFAULT_AI_MODEL removed from ai-provider-config.
+    //   ai.provider/model from config are deprecated and ignored (deprecation warning emitted
+    //   by ConfigManager.load()); we fall back to ai-powered defaults.
     const explicitProvider = normalizeAIProvider(options.aiProvider);
-    const explicitProfile = options.aiProfile;
+    const aiProvider: string =
+      explicitProvider
+      || AI_POWERED_DEFAULT_URL;   // legacy "provider" concept replaced by URL
+    const aiModel: string =
+      normalizeAIModel(options.aiModel)
+      || AI_POWERED_DEFAULT_MODEL;
+    console.log(chalk.gray(`Using AI provider: ${aiProvider}, model: ${aiModel}`));
 
-    if (explicitProvider && explicitProfile) {
-      // Explicit --ai-provider + --ai-profile: resolve named profile
-      try {
-        const resolved = resolveProviderByProfile(explicitProvider, explicitProfile, 'generate-shot-list');
-        aiProvider = resolved.providerId;
-        aiModel = resolved.profile.model
-          || resolved.profile.settings['model']
-          || normalizeAIModel(options.aiModel)
-          || DEFAULT_AI_MODEL;
-        console.log(chalk.gray(`Using provider: ${resolved.providerId} / profile: ${resolved.profileName}`));
-      } catch (err: any) {
-        console.error(chalk.red(`Provider error: ${err.message}`));
-        exitWithCode(ExitCode.INVALID_ARGUMENTS);
-        return;
-      }
-    } else {
-      // Try active provider from profileStore; fall back to legacy config/defaults
-      try {
-        const resolved = resolveActiveProvider('generate-shot-list');
-        aiProvider = resolved.providerId;
-        aiModel = resolved.profile.model
-          || resolved.profile.settings['model']
-          || normalizeAIModel(options.aiModel)
-          || DEFAULT_AI_MODEL;
-        console.log(chalk.gray(`Using active provider: ${resolved.providerId} / profile: ${resolved.profileName}`));
-      } catch (err: any) {
-        if (err instanceof NoActiveProviderError) {
-          // No active provider configured – fall back to legacy defaults
-          aiProvider = explicitProvider
-            || normalizeAIProvider(appConfig.ai?.provider)
-            || DEFAULT_AI_PROVIDER;
-          aiModel = normalizeAIModel(options.aiModel)
-            || normalizeAIModel(appConfig.ai?.model)
-            || DEFAULT_AI_MODEL;
-          console.log(chalk.gray(`No active provider configured. Using default: ${aiProvider}`));
-        } else {
-          console.error(chalk.red(`Provider error: ${err.message}`));
-          exitWithCode(ExitCode.GENERAL_ERROR);
-          return;
-        }
-      }
+    // Phase 2 (bd-fefd): video provider resolution via filmbuff.config.json.
+    // CLI flags (--provider / --model) take precedence over config defaults.
+    // --offline (or CI=true env) disables URL reachability checks and capability fetch.
+    const isOffline = options.offline ?? (process.env['CI'] === 'true');
+    const filmbuffConfig = loadFilmbuffConfig();
+    const resolvedVideoProvider = resolveProvider(filmbuffConfig, {
+      provider: options.provider,
+      model:    options.model
+    });
+    console.log(chalk.gray(`Using video provider: ${resolvedVideoProvider.providerId}, model: ${resolvedVideoProvider.model}`));
+    if (isOffline) {
+      console.log(chalk.gray('Offline mode: URL reachability checks and provider capability fetch skipped.'));
+    }
+
+    // Phase 3 (bd-bae9): load optional pipeline artifacts from the project directory.
+    // Gracefully degrades when files are absent (null maps, no error).
+    const projectDir = path.dirname(path.resolve(options.input || '.'));
+    const pipelineInputs = loadPipelineInputs(projectDir);
+    if (pipelineInputs.shootingScript.size > 0) {
+      console.log(chalk.gray(`Loaded shooting-script: ${pipelineInputs.shootingScript.size} shot duration(s)`));
+    }
+    if (pipelineInputs.beatSheet.size > 0) {
+      console.log(chalk.gray(`Loaded beat-sheet: ${pipelineInputs.beatSheet.size} timing cue(s)`));
     }
 
     // Validate format
@@ -246,6 +254,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
       }
 
       // Step 3: Generate shot list
+      const generationStartMs = Date.now();
       console.log(chalk.gray('🎬 Generating shots...'));
       const generator = createGenerator(styleGuidelines, { aiProvider, aiModel });
       const shotList = await generator.generate(screenplay.scenes, {
@@ -270,7 +279,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
             shotCount: shotList.totalShots,
             duration: shotList.totalDuration,
             characterCount: shotList.totalCharacters,
-            processingTime: 0, // TODO: Track actual processing time
+            processingTime: Date.now() - generationStartMs,
             warningCount: shotList.warnings.length,
             inputFileSize: inputStats.size,
             outputFileSize: 0 // Will be updated when file is written
@@ -309,6 +318,65 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
       const formatter = createFormatter(format as OutputFormat);
       const output = formatter.format(shotList);
 
+      // Step 4b: Pre-export validation (Phase 6 / bd-b4ce — V-1 through V-6)
+      // Only runs when --batch-output is specified; halts export on blocking errors.
+      if (options.batchOutput) {
+        const batchPayload: ValidatablePayload = {
+          provider: resolvedVideoProvider.providerId,
+          model:    resolvedVideoProvider.model,
+          items:    shotList.shots.map(shot => ({
+            name: shot.heading.raw
+          }))
+        };
+
+        const validation = await validateBatchPayload(batchPayload, filmbuffConfig, {
+          offline: isOffline
+        });
+
+        // Blocking errors — halt export
+        if (validation.errors.length > 0) {
+          console.error(chalk.red('\n❌ Pre-export validation failed:'));
+          for (const err of validation.errors) {
+            console.error(chalk.red(`   [${err.rule}]${err.shotName ? ` Shot "${err.shotName}":` : ''} ${err.message}`));
+          }
+          exitWithCode(ExitCode.GENERAL_ERROR);
+        }
+
+        // Non-blocking warnings (V-6)
+        if (validation.warnings.length > 0) {
+          console.warn(chalk.yellow('\n⚠️  Pre-export warnings:'));
+          for (const warn of validation.warnings) {
+            console.warn(chalk.yellow(`   [${warn.rule}]${warn.shotName ? ` Shot "${warn.shotName}":` : ''} ${warn.message}`));
+          }
+        }
+
+        // Write batch payload (AFTER successful validation)
+        // AC-16: --jsonl flag writes JSONL format with _type:references sentinel
+        let batchContent: string;
+        if (options.jsonl) {
+          batchContent = serializeBatchToJsonl({
+            provider: batchPayload.provider,
+            model:    batchPayload.model,
+            createdAt: new Date().toISOString(),
+            references: batchPayload.references,
+            items: batchPayload.items.map(i => ({
+              id:       i.name,
+              modality: 'video' as const,
+              name:     i.name,
+              prompt:   '',
+              duration: 5,
+              ...(i.references && { references: i.references }),
+              ...(i.provider   && { provider:   i.provider }),
+              ...(i.model      && { model:       i.model })
+            }))
+          });
+        } else {
+          batchContent = JSON.stringify(batchPayload, null, 2);
+        }
+        fs.writeFileSync(options.batchOutput, batchContent, 'utf-8');
+        console.log(chalk.green(`✓ Batch payload saved to: ${options.batchOutput}${options.jsonl ? ' (JSONL)' : ''}\n`));
+      }
+
       // Step 5: Write output
       // Determine output path (Requirement 1: Default Output Behavior)
       let outputPath = options.output;
@@ -332,7 +400,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
             shotCount: shotList.totalShots,
             duration: shotList.totalDuration,
             characterCount: shotList.totalCharacters,
-            processingTime: 0,
+            processingTime: Date.now() - generationStartMs,
             warningCount: shotList.warnings.length,
             inputFileSize: inputStats.size,
             outputFileSize: outputStats.size

@@ -1,737 +1,175 @@
 /**
- * Provider Command
+ * Provider Command — Migration Stub
  *
- * CLI workflows to list, create, show, validate, delete, activate, add (with
- * --key-env / --key-encrypt flags), and set (alias for activate) named
- * provider profiles.  Also implements "filmbuff configure" as a guided setup
- * flow that shares the provider domain model.
+ * The multi-provider AI abstraction has been removed as part of the
+ * `replace-ai-with-ai-powered` migration (see openspec/changes/replace-ai-with-ai-powered/).
  *
- * Satisfies: bd-prov-b5   buff-core.02.03.01 - Implement CLI provider
- *            management commands
- * Satisfies: bd-ai-providers.7 – Phase 4: Add CLI provider management
- *            and guided configure flow
- * OpenSpec: openspec/changes/configurable-ai-providers/specs/provider-management/spec.md
+ * Phase 2 (Deletion Pass) removed:
+ *   - cli/src/utils/provider-registry.ts
+ *   - cli/src/utils/profile-store.ts
+ *   - cli/src/utils/custom-provider-store.ts
+ *   - cli/src/utils/provider-validator.ts
+ *   - cli/src/db/provider-repository.ts
+ *
+ * Phase 6 (CLI Changes) will replace these handlers with:
+ *   - `filmbuff ai status`  — inspect resolved ai-powered configuration
+ *   - `filmbuff ai set <key> <value>` — write to aiPowered config block
+ *
+ * Until Phase 6 is complete all provider / configure commands print a
+ * human-readable deprecation notice and exit non-zero so that callers get
+ * a clear signal that the command has been removed.
+ *
+ * OpenSpec: openspec/changes/replace-ai-with-ai-powered/
  */
 
 import chalk from 'chalk';
-import * as readline from 'readline';
-import type { ProviderProfile } from '../types/ai-providers.js';
-import { providerRegistry } from '../utils/provider-registry.js';
-import { customProviderStore } from '../utils/custom-provider-store.js';
-import { profileStore, encryptSecret, isEnvRef } from '../utils/profile-store.js';
-import { validateProfile } from '../utils/provider-validator.js';
-import { redactProfile } from '../utils/redaction.js';
-import { BuiltinProviderProtectedError } from '../db/errors.js';
-import {
-  DEFAULT_PROVIDER_PANEL_STATE,
-  loadProviderPanelState,
-  saveProviderPanelState,
-  selectProviderProfile,
-  setProviderPanelView,
-} from '../gui/state/provider-state.js';
-
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Deprecation helper
 // ---------------------------------------------------------------------------
 
-function ensureProviders(): void {
-  customProviderStore.loadIntoRegistry();
-}
-
-function printSeparator(): void {
-  console.log(chalk.gray('─'.repeat(60)));
-}
-
-function printValidation(providerId: string, profileName: string): void {
-  const profile = profileStore.load(providerId, profileName);
-  if (!profile) {
-    console.log(chalk.red('  ✗ Profile not found'));
-    return;
-  }
-  const result = validateProfile(profile);
-  if (result.valid) {
-    console.log(chalk.green('  ✓ Validation passed'));
-  } else {
-    console.log(chalk.red('  ✗ Validation failed:'));
-    result.errors.forEach((e) => console.log(chalk.red(`    • ${e}`)));
-  }
+/**
+ * Print a standard deprecation banner and exit non-zero.
+ *
+ * All provider / configure commands delegate here during the migration
+ * period between Phase 2 (Deletion) and Phase 6 (CLI replacement).
+ *
+ * @param removedCommand  The command name the user attempted (for context).
+ */
+function deprecatedCommand(removedCommand: string): void {
+  console.error(
+    chalk.red(`\n✗ Command removed: filmbuff ${removedCommand}\n`)
+  );
+  console.error(
+    chalk.yellow(
+      '  The multi-provider AI abstraction has been removed.\n' +
+      '  Use the ai-powered integration instead:\n\n' +
+      '    filmbuff ai status           – inspect resolved configuration\n' +
+      '    filmbuff ai set <key> <val>  – update ai-powered settings\n'
+    )
+  );
+  console.error(
+    chalk.gray(
+      '  See: openspec/changes/replace-ai-with-ai-powered/\n'
+    )
+  );
+  process.exit(1);
 }
 
 // ---------------------------------------------------------------------------
+// Exported command stubs
+//
+// Each function below was a full implementation that depended on the five
+// deleted source modules.  They are retained as typed stubs that:
+//   1. Satisfy the TypeScript import in cli.ts (no type errors).
+//   2. Inform callers that the command has been removed.
+//   3. Exit non-zero to prevent silent failure.
+//
+// Phase 6 (CLI Changes) will delete these stubs and add `filmbuff ai status`
+// and `filmbuff ai set` in their place.
+// ---------------------------------------------------------------------------
+
 // provider list
-// ---------------------------------------------------------------------------
-
-export function providerListCommand(options: { json?: boolean; profiles?: boolean }): void {
-  ensureProviders();
-  const active = profileStore.getActive();
-
-  if (options.profiles) {
-    // List all saved profiles across all providers
-    const profiles = profileStore.listAll().map((p) => redactProfile(p));
-    if (options.json) {
-      console.log(JSON.stringify({ active, profiles }, null, 2));
-      return;
-    }
-    console.log(chalk.bold.blue('\nSaved Profiles:\n'));
-    if (profiles.length === 0) {
-      console.log(chalk.yellow('  No profiles configured. Run: filmbuff configure'));
-      return;
-    }
-    profiles.forEach((p) => {
-      const isActive = active?.providerId === p.providerId && active?.profileName === p.profileName;
-      const marker = isActive ? chalk.green(' ★ ACTIVE') : '';
-      console.log(`  ${chalk.bold(p.profileName)}${marker}`);
-      console.log(`    Provider: ${p.providerId}`);
-      console.log(`    Settings: ${JSON.stringify(p.settings)}`);
-      console.log(`    Secrets:  ${JSON.stringify((p as any).secretRefs)}`);
-      printValidation(p.providerId, p.profileName);
-      console.log();
-    });
-    return;
-  }
-
-  // List registered providers
-  const providers = providerRegistry.list();
-  if (options.json) {
-    console.log(JSON.stringify(providers.map((p) => ({
-      id: p.id, type: p.type, displayName: p.displayName,
-      description: p.description, capabilities: p.capabilities,
-    })), null, 2));
-    return;
-  }
-  console.log(chalk.bold.blue('\nRegistered AI Providers:\n'));
-  providers.forEach((p) => {
-    console.log(`  ${chalk.bold(p.id)} ${chalk.gray(`(${p.type})`)}`);
-    console.log(`    ${p.displayName} – ${p.description}`);
-    console.log(`    Capabilities: ${p.capabilities.join(', ')}`);
-    console.log();
-  });
-  if (active) {
-    console.log(chalk.green(`Active: ${active.providerId} / ${active.profileName}`));
-  } else {
-    console.log(chalk.yellow('No active provider set. Run: filmbuff configure'));
-  }
-  console.log();
+export function providerListCommand(_options: { json?: boolean; profiles?: boolean }): void {
+  deprecatedCommand('provider list');
 }
 
 
 
-// ---------------------------------------------------------------------------
 // provider show
-// ---------------------------------------------------------------------------
-
 export function providerShowCommand(
-  providerId: string,
-  profileName: string,
-  options: { json?: boolean }
+  _providerId: string,
+  _profileName: string,
+  _options: { json?: boolean }
 ): void {
-  ensureProviders();
-  const profile = profileStore.load(providerId, profileName);
-  if (!profile) {
-    console.error(chalk.red(`Profile "${profileName}" not found for provider "${providerId}".`));
-    process.exit(1);
-  }
-  const safe = redactProfile(profile);
-  if (options.json) {
-    console.log(JSON.stringify(safe, null, 2));
-    return;
-  }
-  printSeparator();
-  console.log(chalk.bold(`Profile: ${profile.profileName}`));
-  console.log(`  Provider: ${profile.providerId}`);
-  console.log(`  Settings: ${JSON.stringify(profile.settings)}`);
-  console.log(`  Secrets:  ${JSON.stringify((safe as any).secretRefs)}`);
-  if (profile.model) console.log(`  Model:    ${profile.model}`);
-  if (profile.endpoint) console.log(`  Endpoint: ${profile.endpoint}`);
-  printValidation(providerId, profileName);
-  printSeparator();
+  deprecatedCommand('provider show');
 }
 
-// ---------------------------------------------------------------------------
 // provider validate
-// ---------------------------------------------------------------------------
-
-export function providerValidateCommand(
-  providerId: string,
-  profileName: string
-): void {
-  ensureProviders();
-  const profile = profileStore.load(providerId, profileName);
-  if (!profile) {
-    console.error(chalk.red(`Profile "${profileName}" not found for provider "${providerId}".`));
-    process.exit(1);
-  }
-  const result = validateProfile(profile);
-  if (result.valid) {
-    console.log(chalk.green(`✓ Profile "${profileName}" is valid.`));
-  } else {
-    console.error(chalk.red(`✗ Profile "${profileName}" has errors:`));
-    result.errors.forEach((e) => console.error(chalk.red(`  • ${e}`)));
-    process.exit(1);
-  }
+export function providerValidateCommand(_providerId: string, _profileName: string): void {
+  deprecatedCommand('provider validate');
 }
 
-// ---------------------------------------------------------------------------
 // provider activate
-// ---------------------------------------------------------------------------
-
-export function providerActivateCommand(
-  providerId: string,
-  profileName: string
-): void {
-  ensureProviders();
-  const profile = profileStore.load(providerId, profileName);
-  if (!profile) {
-    console.error(chalk.red(`Profile "${profileName}" not found for provider "${providerId}".`));
-    process.exit(1);
-  }
-  const result = validateProfile(profile);
-  if (!result.valid) {
-    console.error(chalk.red('Cannot activate invalid profile:'));
-    result.errors.forEach((e) => console.error(chalk.red(`  • ${e}`)));
-    process.exit(1);
-  }
-  profileStore.setActive({ providerId, profileName });
-  console.log(chalk.green(`✓ Activated provider "${providerId}" with profile "${profileName}".`));
+export function providerActivateCommand(_providerId: string, _profileName: string): void {
+  deprecatedCommand('provider activate');
 }
 
-// ---------------------------------------------------------------------------
 // provider delete
-// ---------------------------------------------------------------------------
-
-export function providerDeleteCommand(
-  providerId: string,
-  profileName: string
-): void {
-  try {
-    const deleted = profileStore.delete(providerId, profileName);
-    if (!deleted) {
-      console.error(chalk.red(`Profile "${profileName}" not found for provider "${providerId}".`));
-      process.exit(1);
-    }
-    // Clear active selection if it pointed to the deleted profile
-    const active = profileStore.getActive();
-    if (active?.providerId === providerId && active?.profileName === profileName) {
-      profileStore.clearActive();
-      console.log(chalk.yellow('Active provider selection cleared.'));
-    }
-    console.log(chalk.green(`✓ Deleted profile "${profileName}" for provider "${providerId}".`));
-  } catch (err) {
-    if (err instanceof BuiltinProviderProtectedError) {
-      console.error(chalk.red(`✗ ${err.message}`));
-      console.error(chalk.yellow('  Tip: Built-in providers must retain at least one profile.'));
-      console.error(chalk.yellow('  Create a replacement profile first, then delete this one.'));
-      process.exit(1);
-    }
-    throw err;
-  }
+export function providerDeleteCommand(_providerId: string, _profileName: string): void {
+  deprecatedCommand('provider delete');
 }
 
 // ---------------------------------------------------------------------------
 // provider add  (supports --key-env and --key-encrypt)
 // ---------------------------------------------------------------------------
 
+/** @deprecated Removed in replace-ai-with-ai-powered migration Phase 2. */
 export interface ProviderAddOptions {
-  /** Store the secret as an env-var reference: "env:MY_API_KEY". */
   keyEnv?: string;
-  /** Store the secret encrypted: reads plaintext from stdin and AES-256-GCM encrypts it. */
   keyEncrypt?: boolean;
   model?: string;
   endpoint?: string;
   json?: boolean;
 }
 
-/**
- * Add a new provider profile with explicit key storage flags.
- *
- * --key-env MY_API_KEY   → stores secretRefs.apiKey = "env:MY_API_KEY"
- * --key-encrypt          → prompts for the secret and stores it AES-256-GCM encrypted
- *
- * Falls back to the interactive create flow when neither flag is supplied.
- */
+/** @deprecated Removed in replace-ai-with-ai-powered migration Phase 2. */
 export async function providerAddCommand(
-  providerId: string,
-  profileName: string,
-  options: ProviderAddOptions
+  _providerId: string,
+  _profileName: string,
+  _options: ProviderAddOptions
 ): Promise<void> {
-  ensureProviders();
+  deprecatedCommand('provider add');
+}
 
-  if (!providerRegistry.has(providerId)) {
-    console.error(chalk.red(`Provider "${providerId}" is not registered. Run: filmbuff provider list`));
-    process.exit(1);
-  }
+// provider set (alias for activate)
+export function providerSetCommand(_providerId: string, _profileName: string): void {
+  deprecatedCommand('provider set');
+}
 
-  const provider = providerRegistry.get(providerId)!;
+// provider create
+export async function providerCreateCommand(
+  _providerId: string,
+  _profileName: string,
+  _options: { model?: string; endpoint?: string; json?: boolean }
+): Promise<void> {
+  deprecatedCommand('provider create');
+}
 
-  // Build secretRefs from explicit flags
-  const secretRefs: Record<string, string> = {};
-
-  if (options.keyEnv) {
-    // Expect a single primary credential; use first required field from schema.
-    const primaryField = provider.credentialSchema.find((f) => f.required) ?? provider.credentialSchema[0];
-    if (!primaryField) {
-      console.error(chalk.red(`Provider "${providerId}" has no credential fields.`));
-      process.exit(1);
-    }
-    const ref = options.keyEnv.startsWith('env:') ? options.keyEnv : `env:${options.keyEnv}`;
-    secretRefs[primaryField.key] = ref;
-    console.log(chalk.gray(`  ${primaryField.label}: stored as env ref "${ref}"`));
-  } else if (options.keyEncrypt) {
-    const primaryField = provider.credentialSchema.find((f) => f.required) ?? provider.credentialSchema[0];
-    if (!primaryField) {
-      console.error(chalk.red(`Provider "${providerId}" has no credential fields.`));
-      process.exit(1);
-    }
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    const plaintext = await new Promise<string>((resolve) =>
-      rl.question(chalk.yellow(`  Enter ${primaryField.label} to encrypt: `), (ans) => {
-        rl.close();
-        resolve(ans.trim());
-      })
-    );
-    if (!plaintext) {
-      console.error(chalk.red('No value entered. Aborted.'));
-      process.exit(1);
-    }
-    try {
-      const encRef = encryptSecret(plaintext);
-      secretRefs[primaryField.key] = encRef;
-      console.log(chalk.gray(`  ${primaryField.label}: stored as encrypted ref (AES-256-GCM).`));
-    } catch (err: any) {
-      console.error(chalk.red(`Encryption failed: ${err.message}`));
-      process.exit(1);
-    }
-  } else {
-    // No key flags — delegate to the interactive create flow.
-    return providerCreateCommand(providerId, profileName, options);
-  }
-
-  const now = new Date().toISOString();
-  const profile: ProviderProfile = {
-    providerId,
-    profileName,
-    settings: {},
-    secretRefs,
-    model: options.model,
-    endpoint: options.endpoint,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  profileStore.save(profile);
-
-  if (options.json) {
-    console.log(JSON.stringify(redactProfile(profile), null, 2));
-  } else {
-    console.log(chalk.green(`\n✓ Profile "${profileName}" added for "${providerId}".`));
-    console.log(chalk.gray(`  Run: filmbuff provider activate ${providerId} ${profileName}`));
-  }
+// provider edit
+export async function providerEditCommand(
+  _providerId: string,
+  _profileName: string,
+  _options: { model?: string; endpoint?: string }
+): Promise<void> {
+  deprecatedCommand('provider edit');
 }
 
 // ---------------------------------------------------------------------------
-// provider set  (alias for activate)
+// configure (Phase 6 replacement: filmbuff ai status / filmbuff ai set)
 // ---------------------------------------------------------------------------
 
 /**
- * Set the active provider/profile selection.
- * Alias for `provider activate` — satisfies spec requirement for a `set` subcommand.
+ * Options accepted by the `filmbuff configure` command.
+ *
+ * @deprecated Removed in replace-ai-with-ai-powered Phase 2.
+ *             Retained so cli.ts compiles without changes until Phase 6.
  */
-export function providerSetCommand(
-  providerId: string,
-  profileName: string
-): void {
-  providerActivateCommand(providerId, profileName);
-}
-
-
-// ---------------------------------------------------------------------------
-// Readline prompt helper
-// ---------------------------------------------------------------------------
-
-async function prompt(rl: readline.Interface, question: string): Promise<string> {
-  return new Promise((resolve) => rl.question(question, resolve));
-}
-
-async function promptSecret(rl: readline.Interface, label: string): Promise<string> {
-  return prompt(rl, chalk.yellow(`  ${label} (env ref recommended, e.g. env:MY_API_KEY): `));
-}
-
-// ---------------------------------------------------------------------------
-// provider create
-// ---------------------------------------------------------------------------
-
-export async function providerCreateCommand(
-  providerId: string,
-  profileName: string,
-  options: { model?: string; endpoint?: string; json?: boolean }
-): Promise<void> {
-  ensureProviders();
-
-  if (!providerRegistry.has(providerId)) {
-    console.error(chalk.red(`Provider "${providerId}" is not registered. Run: filmbuff provider list`));
-    process.exit(1);
-  }
-
-  const provider = providerRegistry.get(providerId)!;
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-  try {
-    console.log(chalk.bold.blue(`\nCreate profile "${profileName}" for ${provider.displayName}\n`));
-
-    // Gather settings
-    const settings: Record<string, string> = {};
-    for (const field of provider.settingsSchema) {
-      const def = field.defaultValue ? ` [${field.defaultValue}]` : '';
-      const val = await prompt(rl, chalk.cyan(`  ${field.label}${def}: `));
-      settings[field.key] = val || field.defaultValue || '';
-      if (!settings[field.key]) delete settings[field.key];
-    }
-
-    // Gather secrets as env refs
-    const secretRefs: Record<string, string> = {};
-    for (const field of provider.credentialSchema) {
-      const val = await promptSecret(rl, field.label);
-      secretRefs[field.key] = val || '';
-      if (!secretRefs[field.key]) delete secretRefs[field.key];
-    }
-
-    const now = new Date().toISOString();
-    const profile: ProviderProfile = {
-      providerId,
-      profileName,
-      settings,
-      secretRefs,
-      model: options.model,
-      endpoint: options.endpoint,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    const result = validateProfile(profile);
-    if (!result.valid) {
-      console.error(chalk.red('\nValidation errors:'));
-      result.errors.forEach((e) => console.error(chalk.red(`  • ${e}`)));
-      const cont = await prompt(rl, chalk.yellow('Save anyway? (y/N): '));
-      if (cont.trim().toLowerCase() !== 'y') {
-        console.log(chalk.gray('Aborted.'));
-        rl.close();
-        return;
-      }
-    }
-
-    profileStore.save(profile);
-    console.log(chalk.green(`\n✓ Profile "${profileName}" created for "${providerId}".`));
-    console.log(chalk.gray(`  Run: filmbuff provider activate ${providerId} ${profileName}`));
-  } finally {
-    rl.close();
-  }
-}
-
-// ---------------------------------------------------------------------------
-// provider edit
-// ---------------------------------------------------------------------------
-
-export async function providerEditCommand(
-  providerId: string,
-  profileName: string,
-  options: { model?: string; endpoint?: string }
-): Promise<void> {
-  ensureProviders();
-
-  const existing = profileStore.load(providerId, profileName);
-  if (!existing) {
-    console.error(chalk.red(`Profile "${profileName}" not found for provider "${providerId}".`));
-    process.exit(1);
-  }
-
-  const provider = providerRegistry.get(providerId);
-  if (!provider) {
-    console.error(chalk.red(`Provider "${providerId}" is not registered.`));
-    process.exit(1);
-  }
-
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-  try {
-    console.log(chalk.bold.blue(`\nEdit profile "${profileName}" for ${provider.displayName}\n`));
-    console.log(chalk.gray('  Press Enter to keep the current value.\n'));
-
-    const settings: Record<string, string> = { ...existing.settings };
-    for (const field of provider.settingsSchema) {
-      const cur = settings[field.key] || field.defaultValue || '';
-      const val = await prompt(rl, chalk.cyan(`  ${field.label} [${cur}]: `));
-      if (val.trim()) settings[field.key] = val.trim();
-    }
-
-    const secretRefs: Record<string, string> = { ...existing.secretRefs };
-    for (const field of provider.credentialSchema) {
-      const cur = secretRefs[field.key] ? '[set]' : '[empty]';
-      const val = await promptSecret(rl, `${field.label} (current: ${cur})`);
-      if (val.trim()) secretRefs[field.key] = val.trim();
-    }
-
-    const updated: ProviderProfile = {
-      ...existing,
-      settings,
-      secretRefs,
-      model: options.model ?? existing.model,
-      endpoint: options.endpoint ?? existing.endpoint,
-      updatedAt: new Date().toISOString(),
-    };
-
-    profileStore.save(updated);
-    console.log(chalk.green(`\n✓ Profile "${profileName}" updated.`));
-  } finally {
-    rl.close();
-  }
-}
-
-// ---------------------------------------------------------------------------
-// configure (guided setup flow + direct CLI flags)
-// ---------------------------------------------------------------------------
-
 export interface ConfigureOptions {
-  /** List all registered AI providers */
   listProviders?: boolean;
-  /** List all saved profiles across every provider */
   listProfiles?: boolean;
-  /** List profiles for a specific provider (value = providerId) */
   listProfilesForProvider?: string;
-  /** Create a new profile  – value format: "providerId/profileName" */
   createProfile?: string;
-  /** Edit an existing profile – value format: "providerId/profileName" */
   editProfile?: string;
-  /** Delete a profile – value format: "providerId/profileName" */
   deleteProfile?: string;
-  /** Activate a profile – value format: "providerId/profileName" */
   activateProfile?: string;
 }
 
-/** Split a "providerId/profileName" option value into its two parts. */
-function parseProviderProfile(value: string): { providerId: string; profileName: string } {
-  const slashIdx = value.indexOf('/');
-  if (slashIdx < 0) {
-    console.error(chalk.red(`Expected format "providerId/profileName", got: "${value}"`));
-    process.exit(1);
-  }
-  return { providerId: value.slice(0, slashIdx), profileName: value.slice(slashIdx + 1) };
+export async function configureCommand(_options: ConfigureOptions = {}): Promise<void> {
+  deprecatedCommand('configure');
 }
 
-export async function configureCommand(options: ConfigureOptions = {}): Promise<void> {
-  ensureProviders();
-
-  // ── Direct flag dispatch ──────────────────────────────────────────────────
-
-  if (options.listProviders) {
-    providerListCommand({ profiles: false });
-    return;
-  }
-
-  if (options.listProfiles) {
-    providerListCommand({ profiles: true });
-    return;
-  }
-
-  if (options.listProfilesForProvider) {
-    const providerId = options.listProfilesForProvider;
-    const all = profileStore.listAll().filter((p) => p.providerId === providerId);
-    const active = profileStore.getActive();
-    if (all.length === 0) {
-      console.log(chalk.yellow(`  No profiles found for provider "${providerId}".`));
-    } else {
-      console.log(chalk.bold.blue(`\nProfiles for "${providerId}":\n`));
-      all.forEach((p) => {
-        const isActive =
-          active?.providerId === p.providerId && active?.profileName === p.profileName;
-        const marker = isActive ? chalk.green(' ★ ACTIVE') : '';
-        console.log(`  ${chalk.bold(p.profileName)}${marker}`);
-      });
-      console.log();
-    }
-    return;
-  }
-
-  if (options.createProfile) {
-    const { providerId, profileName } = parseProviderProfile(options.createProfile);
-    await providerCreateCommand(providerId, profileName, {});
-    return;
-  }
-
-  if (options.editProfile) {
-    const { providerId, profileName } = parseProviderProfile(options.editProfile);
-    await providerEditCommand(providerId, profileName, {});
-    return;
-  }
-
-  if (options.deleteProfile) {
-    const { providerId, profileName } = parseProviderProfile(options.deleteProfile);
-    providerDeleteCommand(providerId, profileName);
-    return;
-  }
-
-  if (options.activateProfile) {
-    const { providerId, profileName } = parseProviderProfile(options.activateProfile);
-    providerActivateCommand(providerId, profileName);
-    return;
-  }
-
-  // ── No flags: run the guided interactive wizard ───────────────────────────
-
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
-  try {
-    console.log(chalk.bold.blue('\n🔧 FilmBuff AI Provider Setup\n'));
-
-    const providers = providerRegistry.list();
-    console.log(chalk.bold('Available providers:'));
-    providers.forEach((p, i) => {
-      console.log(`  ${chalk.cyan(String(i + 1))}. ${chalk.bold(p.id)} – ${p.displayName}`);
-    });
-    console.log();
-
-    const choice = await prompt(rl, chalk.cyan('Select provider number: '));
-    const idx = parseInt(choice.trim(), 10) - 1;
-    if (isNaN(idx) || idx < 0 || idx >= providers.length) {
-      console.error(chalk.red('Invalid selection.'));
-      rl.close();
-      return;
-    }
-    const provider = providers[idx];
-
-    const profileName = await prompt(rl, chalk.cyan('Profile name [default]: '));
-    const name = profileName.trim() || 'default';
-
-    rl.close();
-
-    // Re-use create flow with interactive prompts
-    await providerCreateCommand(provider.id, name, {});
-
-    // Offer to activate immediately
-    const rl2 = readline.createInterface({ input: process.stdin, output: process.stdout });
-    try {
-      const activate = await prompt(rl2, chalk.cyan('\nActivate this profile now? (Y/n): '));
-      if (activate.trim().toLowerCase() !== 'n') {
-        providerActivateCommand(provider.id, name);
-      }
-    } finally {
-      rl2.close();
-    }
-  } catch {
-    rl.close();
-  }
-}
-
-
-// ---------------------------------------------------------------------------
-// provider status  (GUI panel — bd-ai-providers.8)
-// ---------------------------------------------------------------------------
-
-/**
- * Render a rich provider management panel to the terminal.
- * This is the "GUI view" for the provider system: a structured, colour-coded
- * overview of all registered providers, saved profiles, and the active
- * selection.  The GUI state module (provider-state.ts) is updated so that the
- * webview / VS Code panel can restore the last-viewed selection on next open.
- */
-export function providerStatusCommand(options: { json?: boolean } = {}): void {
-  ensureProviders();
-
-  const active = profileStore.getActive();
-  const allProfiles = profileStore.listAll();
-  const allProviders = providerRegistry.list();
-
-  // Persist GUI panel state so the webview can restore to this view
-  let panelState = loadProviderPanelState();
-  panelState = setProviderPanelView(panelState, 'list');
-  if (active) {
-    panelState = selectProviderProfile(panelState, active.providerId, active.profileName);
-  }
-  saveProviderPanelState(panelState);
-
-  if (options.json) {
-    console.log(
-      JSON.stringify(
-        {
-          active: active ?? null,
-          providers: allProviders.map((p) => ({
-            id: p.id,
-            type: p.type,
-            displayName: p.displayName,
-            capabilities: p.capabilities,
-          })),
-          profiles: allProfiles.map((p) => redactProfile(p)),
-        },
-        null,
-        2
-      )
-    );
-    return;
-  }
-
-  // ── Header ────────────────────────────────────────────────────────────────
-  console.log();
-  console.log(chalk.bold.blue('╔══════════════════════════════════════════════════════════╗'));
-  console.log(chalk.bold.blue('║          FilmBuff AI Provider Management Panel           ║'));
-  console.log(chalk.bold.blue('╚══════════════════════════════════════════════════════════╝'));
-  console.log();
-
-  // ── Active provider ───────────────────────────────────────────────────────
-  if (active) {
-    const profile = profileStore.load(active.providerId, active.profileName);
-    const validation = profile ? validateProfile(profile) : { valid: false, errors: ['Profile missing'] };
-    const statusIcon = validation.valid ? chalk.green('● ACTIVE') : chalk.red('● INVALID');
-    console.log(chalk.bold('Active Provider'));
-    printSeparator();
-    console.log(`  Provider : ${chalk.bold(active.providerId)}`);
-    console.log(`  Profile  : ${chalk.bold(active.profileName)}`);
-    if (profile?.model) console.log(`  Model    : ${profile.model}`);
-    console.log(`  Status   : ${statusIcon}`);
-    if (!validation.valid) {
-      validation.errors.forEach((e) => console.log(chalk.red(`    • ${e}`)));
-    }
-    console.log();
-  } else {
-    console.log(chalk.yellow('  No active provider configured.'));
-    console.log(chalk.gray('  Run: filmbuff configure'));
-    console.log();
-  }
-
-  // ── Registered providers ──────────────────────────────────────────────────
-  console.log(chalk.bold(`Registered Providers (${allProviders.length})`));
-  printSeparator();
-  allProviders.forEach((p) => {
-    const tag = p.type === 'built-in' ? chalk.cyan('[built-in]') : chalk.magenta('[custom]');
-    console.log(`  ${chalk.bold(p.id)} ${tag}`);
-    console.log(`    ${p.displayName} – ${p.description}`);
-    console.log(`    Capabilities: ${p.capabilities.join(', ')}`);
-  });
-  console.log();
-
-  // ── Saved profiles ────────────────────────────────────────────────────────
-  console.log(chalk.bold(`Saved Profiles (${allProfiles.length})`));
-  printSeparator();
-  if (allProfiles.length === 0) {
-    console.log(chalk.yellow('  No profiles saved. Run: filmbuff configure'));
-  } else {
-    allProfiles.forEach((p) => {
-      const isActive =
-        active?.providerId === p.providerId && active?.profileName === p.profileName;
-      const marker = isActive ? chalk.green(' ★') : '';
-      const result = validateProfile(p);
-      const validBadge = result.valid ? chalk.green('✓') : chalk.red('✗');
-      console.log(`  ${validBadge} ${chalk.bold(p.profileName)}${marker}  ${chalk.gray(`(${p.providerId})`)}`);
-    });
-  }
-  console.log();
-
-  // ── Quick commands ────────────────────────────────────────────────────────
-  console.log(chalk.bold('Quick Commands'));
-  printSeparator();
-  console.log(chalk.gray('  filmbuff configure                          – guided setup'));
-  console.log(chalk.gray('  filmbuff provider list --profiles           – list profiles'));
-  console.log(chalk.gray('  filmbuff provider create <id> <name>        – create profile'));
-  console.log(chalk.gray('  filmbuff provider activate <id> <name>      – set active'));
-  console.log(chalk.gray('  filmbuff provider validate <id> <name>      – validate'));
-  console.log();
+// provider status
+export function providerStatusCommand(_options: { json?: boolean } = {}): void {
+  deprecatedCommand('provider status');
 }

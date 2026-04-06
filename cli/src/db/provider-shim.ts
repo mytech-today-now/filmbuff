@@ -23,7 +23,20 @@ import * as path from 'path';
 import { randomUUID } from 'crypto';
 import type Database from 'better-sqlite3';
 import { translateSQLiteError } from './errors.js';
-import type { SerializedCustomProvider } from '../utils/custom-provider-store.js';
+
+/**
+ * Shape of an entry from the legacy .augment/providers/custom-providers.json
+ * file.  Inlined here because the custom-provider-store module has been
+ * removed as part of the ai-powered migration (Phase 2 Deletion Pass).
+ */
+interface SerializedCustomProvider {
+  id: string;
+  displayName: string;
+  baseUrl?: string;
+  capabilities?: string[];
+  createdAt?: string;
+  updatedAt?: string;
+}
 
 // ---------------------------------------------------------------------------
 // Constants

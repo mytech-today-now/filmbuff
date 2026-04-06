@@ -426,7 +426,8 @@ function Invoke-Search {
             Format-Issue $issue -Detailed
         }
     } else {
-        Write-Host "`n🔍 Search Results for '$searchTerm':" -ForegroundColor Cyan
+        Write-Host ""
+        Write-Host "Search Results for '$searchTerm':" -ForegroundColor Cyan
         $results | Select-Object `
             @{Name='ID'; Expression={$_.id}},
             @{Name='Title'; Expression={$_.title}},
@@ -435,7 +436,7 @@ function Invoke-Search {
             Format-Table -AutoSize
     }
 
-    Write-Host "`nFound: $($results.Count) issues`n" -ForegroundColor Gray
+    Write-Host "Found: $($results.Count) issues" -ForegroundColor Gray
 }
 
 # Main execution

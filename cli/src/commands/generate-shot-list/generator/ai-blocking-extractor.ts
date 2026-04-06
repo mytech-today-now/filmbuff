@@ -8,13 +8,18 @@
 
 import Anthropic from '@anthropic-ai/sdk';
 import {
-  DEFAULT_AI_MODEL,
-  DEFAULT_AI_PROVIDER,
-  isImplementedAIProvider,
   normalizeAIModel,
   normalizeAIProvider
 } from '../../../utils/ai-provider-config';
 import type { AIProviderConfig } from '../../../utils/ai-provider-config';
+
+// Phase 5 (bd-08b4): DEFAULT_AI_PROVIDER / DEFAULT_AI_MODEL / isImplementedAIProvider
+// removed from ai-provider-config. These extractors are legacy Anthropic-only code
+// that will be removed in bd-4g4l. Hard-code Anthropic literals here until then.
+// TODO (bd-4g4l): Remove this file once AIPoweredClient handles all AI inference.
+const LEGACY_DEFAULT_PROVIDER = 'anthropic';
+const LEGACY_DEFAULT_MODEL    = 'claude-sonnet-4-6';
+function isLegacyProvider(p: string): boolean { return p === LEGACY_DEFAULT_PROVIDER; }
 
 export interface CharacterBlockingPosition {
   character: string;
@@ -47,11 +52,11 @@ export class AIBlockingExtractor {
   private aiModel: string;
 
   constructor(apiKey?: string, styleGuidelines?: any, aiConfig: AIProviderConfig = {}) {
-    this.aiProvider = normalizeAIProvider(aiConfig.aiProvider) || DEFAULT_AI_PROVIDER;
-    this.aiModel = normalizeAIModel(aiConfig.aiModel) || DEFAULT_AI_MODEL;
+    this.aiProvider = normalizeAIProvider(aiConfig.aiProvider) || LEGACY_DEFAULT_PROVIDER;
+    this.aiModel = normalizeAIModel(aiConfig.aiModel) || LEGACY_DEFAULT_MODEL;
 
     const resolvedApiKey = apiKey || process.env.ANTHROPIC_API_KEY;
-    if (isImplementedAIProvider(this.aiProvider) && resolvedApiKey) {
+    if (isLegacyProvider(this.aiProvider) && resolvedApiKey) {
       this.client = new Anthropic({
         apiKey: resolvedApiKey,
       });
@@ -82,7 +87,7 @@ export class AIBlockingExtractor {
     characterNames: string[],
     previousPositions?: Map<string, CharacterBlockingPosition>
   ): Promise<BlockingExtractionResult> {
-    if (!isImplementedAIProvider(this.aiProvider)) {
+    if (!isLegacyProvider(this.aiProvider)) {
       console.warn(`AI provider "${this.aiProvider}" is not implemented for blocking extraction, using fallback extraction`);
       return this.fallbackExtraction(actionLines, characterNames);
     }

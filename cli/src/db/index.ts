@@ -18,7 +18,7 @@
  * Current exports (Batch 3):
  *   • ProjectRepository   (+ ProjectStepPatch)     [bd-db-a5]
  *   • DocumentRepository  (+ CompleteAttemptPatch, SaveRevisionInput) [bd-db-a6]
- *   • ProviderRepository                           [bd-db-a7]
+ *   NOTE: ProviderRepository [bd-db-a7] removed — Phase 2 Deletion Pass
  *
  * Current exports (Batch 4):
  *   • SessionRepository                            [bd-db-a8]
@@ -122,8 +122,6 @@ export type { ProjectStepPatch } from './project-repository.js';
 
 export { DocumentRepository }    from './document-repository.js';
 export type { CompleteAttemptPatch, SaveRevisionInput } from './document-repository.js';
-
-export { ProviderRepository }    from './provider-repository.js';
 
 export { SessionRepository }     from './session-repository.js';
 

@@ -6,10 +6,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  DEFAULT_AI_MODEL,
-  DEFAULT_AI_PROVIDER,
-  IMPLEMENTED_AI_PROVIDERS,
-  isImplementedAIProvider,
+  AI_POWERED_DEFAULT_URL,
+  AI_POWERED_DEFAULT_MODEL,
   normalizeAIProvider
 } from './ai-provider-config';
 
@@ -90,11 +88,15 @@ export interface AugmentConfig {
     /** Enable webview features */
     webviewEnabled?: boolean;
   };
-  /** AI integration */
+  /**
+   * Legacy AI integration block.
+   * @deprecated Use `aiPowered` instead. Detection of `ai.provider` at runtime
+   *   emits a one-time deprecation warning and the value is ignored.
+   */
   ai?: {
-    /** Active AI provider */
+    /** @deprecated Ignored — FilmBuff now uses ai-powered. */
     provider?: string;
-    /** Default AI model for the active provider */
+    /** @deprecated Ignored — FilmBuff now uses ai-powered. */
     model?: string;
     /** Enable prompt generation */
     enablePromptGeneration?: boolean;
@@ -106,6 +108,24 @@ export interface AugmentConfig {
     promptTemplates?: PromptTemplateConfig[];
     /** Summary cache configuration */
     summaryCache?: AISummaryCacheConfig;
+  };
+  /**
+   * ai-powered server connection settings (Phase 5 — bd-08b4).
+   * Replaces the legacy `ai.provider` / `ai.model` fields.
+   */
+  aiPowered?: {
+    /** Base URL of the ai-powered gateway. Default: http://localhost:3001 */
+    url?: string;
+    /** Default model forwarded to the server. Default: gpt-4 */
+    model?: string;
+    /** Optional system prompt prepended to every request. */
+    systemPrompt?: string;
+    /** Sampling temperature (0–1). Default: 0.7 */
+    temperature?: number;
+    /** Maximum tokens to generate. Default: 2048 */
+    maxTokens?: number;
+    /** HTTP request timeout in milliseconds. Default: 30000 */
+    timeoutMs?: number;
   };
 }
 
@@ -143,9 +163,9 @@ export const DEFAULT_CONFIG: AugmentConfig = {
     openInPreview: false,
     webviewEnabled: true
   },
+  // ai.provider / ai.model intentionally omitted from DEFAULT_CONFIG (bd-08b4).
+  // The ai block is kept only for non-provider keys that remain valid.
   ai: {
-    provider: DEFAULT_AI_PROVIDER,
-    model: DEFAULT_AI_MODEL,
     enablePromptGeneration: true,
     enableSummaries: true,
     defaultPromptTemplate: 'module-summary',
@@ -156,6 +176,14 @@ export const DEFAULT_CONFIG: AugmentConfig = {
       directory: '.augment/cache/ai-summaries',
       retryAttempts: 1
     }
+  },
+  aiPowered: {
+    url:          AI_POWERED_DEFAULT_URL,
+    model:        AI_POWERED_DEFAULT_MODEL,
+    systemPrompt: '',
+    temperature:  0.7,
+    maxTokens:    2048,
+    timeoutMs:    30_000
   }
 };
 
@@ -191,6 +219,23 @@ export class ConfigManager {
     try {
       const fileContent = fs.readFileSync(this.configPath, 'utf-8');
       const loadedConfig = JSON.parse(fileContent);
+
+      // Phase 5 (bd-08b4): emit a one-time deprecation warning when the
+      // legacy `ai.provider` key is present in the loaded config file.
+      if (
+        loadedConfig &&
+        typeof loadedConfig === 'object' &&
+        'ai' in loadedConfig &&
+        typeof (loadedConfig as Record<string, unknown>).ai === 'object' &&
+        (loadedConfig as Record<string, Record<string, unknown>>).ai?.provider !== undefined
+      ) {
+        process.stderr.write(
+          'Warning: The "ai.provider" config key is no longer supported. ' +
+          'FilmBuff now uses ai-powered.\n' +
+          'Run "filmbuff ai set url <url>" to configure your ai-powered server, ' +
+          'or use the defaults.\n'
+        );
+      }
 
       // Merge with defaults
       this.config = this.mergeConfig(DEFAULT_CONFIG, loadedConfig);
@@ -290,24 +335,26 @@ export class ConfigManager {
 
     if (config.ai) {
       if (config.ai.provider !== undefined) {
-        if (typeof config.ai.provider !== 'string' || config.ai.provider.trim() === '') {
-          errors.push('ai.provider must be a non-empty string');
+        // Phase 5 (bd-08b4): ai.provider is deprecated; emit advisory warning only.
+        // isImplementedAIProvider / IMPLEMENTED_AI_PROVIDERS removed from ai-provider-config.
+        const normalizedProvider = normalizeAIProvider(config.ai.provider);
+        if (!normalizedProvider) {
+          warnings.push(
+            'ai.provider is deprecated (bd-08b4). Use the aiPowered block to configure the ai-powered server.'
+          );
         } else {
-          const normalizedProvider = normalizeAIProvider(config.ai.provider);
-          if (!normalizedProvider) {
-            errors.push('ai.provider must be a non-empty string');
-          } else if (!isImplementedAIProvider(normalizedProvider)) {
-            warnings.push(
-              `ai.provider "${config.ai.provider}" is not implemented for shot list generation yet. Currently implemented providers: ${IMPLEMENTED_AI_PROVIDERS.join(', ')}`
-            );
-          }
+          warnings.push(
+            `ai.provider "${config.ai.provider}" is deprecated (bd-08b4) and will be ignored at runtime. ` +
+            'Use the aiPowered block instead.'
+          );
         }
       }
 
       if (config.ai.model !== undefined) {
-        if (typeof config.ai.model !== 'string' || config.ai.model.trim() === '') {
-          errors.push('ai.model must be a non-empty string');
-        }
+        // Phase 5 (bd-08b4): ai.model is deprecated; advisory warning only.
+        warnings.push(
+          'ai.model is deprecated (bd-08b4). Use aiPowered.model instead.'
+        );
       }
 
       for (const field of ['enablePromptGeneration', 'enableSummaries'] as const) {
@@ -431,6 +478,10 @@ export class ConfigManager {
           ...base.ai?.summaryCache,
           ...override.ai?.summaryCache
         }
+      },
+      aiPowered: {
+        ...base.aiPowered,
+        ...override.aiPowered
       }
     };
   }

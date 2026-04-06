@@ -145,19 +145,17 @@
     },
     "ai": {
       "type": "object",
-      "description": "AI integration settings",
+      "description": "AI integration settings. NOTE: ai.provider and ai.model are deprecated (bd-08b4). Use aiPowered block instead.",
       "properties": {
         "provider": {
           "type": "string",
-          "description": "Active AI provider for commands that support AI backends. Currently implemented for shot list generation: anthropic",
-          "minLength": 1,
-          "default": "anthropic"
+          "description": "DEPRECATED (bd-08b4): Ignored at runtime. FilmBuff now uses ai-powered. Presence triggers a deprecation warning.",
+          "minLength": 1
         },
         "model": {
           "type": "string",
-          "description": "Default AI model for the active provider",
-          "minLength": 1,
-          "default": "claude-sonnet-4-6"
+          "description": "DEPRECATED (bd-08b4): Ignored at runtime. Use aiPowered.model instead.",
+          "minLength": 1
         },
         "enablePromptGeneration": {
           "type": "boolean",
@@ -228,6 +226,49 @@
               "default": 1
             }
           }
+        }
+      }
+    }
+    },
+    "aiPowered": {
+      "type": "object",
+      "description": "ai-powered server connection settings (Phase 5 — bd-08b4). Replaces deprecated ai.provider / ai.model.",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "Base URL of the ai-powered gateway server.",
+          "format": "uri",
+          "default": "http://localhost:3001"
+        },
+        "model": {
+          "type": "string",
+          "description": "Default model identifier forwarded to the ai-powered server.",
+          "minLength": 1,
+          "default": "gpt-4"
+        },
+        "systemPrompt": {
+          "type": "string",
+          "description": "Optional system-level prompt prepended to every AI request.",
+          "default": ""
+        },
+        "temperature": {
+          "type": "number",
+          "description": "Sampling temperature for text generation (0–1).",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.7
+        },
+        "maxTokens": {
+          "type": "integer",
+          "description": "Maximum number of tokens to generate.",
+          "minimum": 1,
+          "default": 2048
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "description": "HTTP request timeout in milliseconds.",
+          "minimum": 1000,
+          "default": 30000
         }
       }
     }

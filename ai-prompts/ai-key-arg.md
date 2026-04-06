@@ -1,0 +1,1 @@
+If it doesn't exist already, create a new 'filmbuff generate-shot-list' argument '--ai-key' that holds the AI API key for whichever provider is chosen.

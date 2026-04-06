@@ -1,0 +1,250 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+# FilmBuff Provider Switching Suite
+# Purpose: Validate that pipeline output quality remains consistent when the
+#          AI provider changes mid-pipeline (e.g., GPT for early steps,
+#          Claude for later steps, Gemini as a fallback).
+# Run: npx promptfoo eval --config evals/suites/provider-switching.yaml
+#
+# Strategy: Each test group uses a DIFFERENT provider to simulate provider
+#           switching across pipeline stages. Assertions ensure that
+#           downstream steps still produce valid, coherent output regardless
+#           of which provider generated the upstream artifact.
+
+description: 'FilmBuff Provider Switching Suite - Cross-Provider Consistency'
+
+env:
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+
+defaultTest:
+  assert:
+    - type: llm-rubric
+      threshold: 0.7
+
+# ---------------------------------------------------------------------------
+# SWITCH PATTERN A: GPT → Logline, Claude → Beat Sheet, Gemini → Shot List
+# Simulates the most common provider rotation pattern.
+# ---------------------------------------------------------------------------
+tests:
+
+  # Step 01 (GPT) — Logline seed from GPT output
+  - description: '[SWITCH-A] Step 01 Logline via GPT-5.2'
+    prompts:
+      - file://cli/src/prompts/logline.txt
+    providers:
+      - id: openai:gpt-5.2
+        label: GPT-5.2 (switch-A step 1)
+        config:
+          temperature: 0
+          max_tokens: 256
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline_seed: 'A rogue AI begins rewriting human memories.'
+    assert:
+      - type: llm-rubric
+        value: >
+          The logline must be a single sentence (max 35 words), name or imply
+          a protagonist, state a conflict, and end with a dramatic hook.
+          Provider: GPT-5.2. Output must be indistinguishable in quality from
+          other providers' loglines.
+        threshold: 0.7
+      - type: regex
+        value: '^[A-Z].{10,200}[.!?]$'
+
+  # Step 04 (Claude) — Beat Sheet using GPT-derived logline as input
+  - description: '[SWITCH-A] Step 04 Beat Sheet via Claude-Sonnet-4-6 (downstream of GPT logline)'
+    prompts:
+      - file://cli/src/prompts/beat-sheet.txt
+    providers:
+      - id: anthropic:messages:claude-sonnet-4-6
+        label: Claude-Sonnet-4-6 (switch-A step 4)
+        config:
+          temperature: 0
+          max_tokens: 1024
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        When a rogue AI begins erasing human memories, detective Mara Voss
+        must recover the truth before she loses herself.
+      synopsis: >
+        Mara Voss investigates ARIS, a rogue AI erasing corporate-incriminating
+        memories. As her own memories are targeted, she must expose ARIS before
+        her identity is erased.
+      protagonist: Mara Voss
+      antagonist: ARIS
+      output_format: JSON
+    assert:
+      - type: is-json
+      - type: json-schema
+        value:
+          $ref: 'file://evals/schemas/beat-sheet.schema.json'
+      - type: llm-rubric
+        value: >
+          The beat sheet JSON must include at least 8 beats in a three-act structure.
+          Claude must produce a valid, coherent beat sheet from the GPT-generated logline
+          input without quality degradation due to provider handoff.
+        threshold: 0.7
+
+  # Step 09 (Gemini) — Shot List using Claude-derived context as input
+  - description: '[SWITCH-A] Step 09 Shot List via Gemini-3.1-Pro (downstream of Claude beat sheet)'
+    prompts:
+      - file://cli/src/prompts/shot-list.txt
+    providers:
+      - id: google:gemini-3.1-pro-preview
+        label: Gemini-3.1-Pro (switch-A step 9)
+        config:
+          temperature: 0
+          max_tokens: 1024
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline: >
+        Detective Mara Voss must expose a rogue AI erasing memories before she loses herself.
+      shooting_script_excerpt: |
+        1  INT. MEMORY FORENSICS LAB - NIGHT
+           Mara studies holographic memory fragments. Lights flicker.
+        2  EXT. MEGACORP HEADQUARTERS - DAY
+           Mara approaches the glass tower alone.
+      output_format: JSON
+    assert:
+      - type: is-json
+      - type: json-schema
+        value:
+          $ref: 'file://evals/schemas/shot-list.schema.json'
+      - type: llm-rubric
+        value: >
+          The JSON shot list must contain at least 4 shots with shot types and descriptions.
+          Gemini must produce a valid shot list consistent in quality with what GPT or Claude
+          would produce, validating cross-provider continuity.
+        threshold: 0.7
+
+# ---------------------------------------------------------------------------
+# SWITCH PATTERN B: Claude → Logline, Gemini → Synopsis, GPT → Screenplay
+# Tests reverse rotation for asymmetric provider assignments.
+# ---------------------------------------------------------------------------
+
+  # Step 01 (Claude) — Logline
+  - description: '[SWITCH-B] Step 01 Logline via Claude-Sonnet-4-6'
+    prompts:
+      - file://cli/src/prompts/logline.txt
+    providers:
+      - id: anthropic:messages:claude-sonnet-4-6
+        label: Claude-Sonnet-4-6 (switch-B step 1)
+        config:
+          temperature: 0
+          max_tokens: 256
+    vars:
+      genre: romantic comedy
+      tone: light and witty
+      budget: low-budget indie
+      logline_seed: 'Two rival food truck owners compete for the same prime spot.'
+    assert:
+      - type: llm-rubric
+        value: >
+          The logline must introduce two characters with opposing goals, establish
+          comedic conflict, and hint at romantic stakes — all in one sentence.
+        threshold: 0.7
+      - type: regex
+        value: '^[A-Z].{10,200}[.!?]$'
+
+  # Step 02 (Gemini) — Synopsis from Claude logline
+  - description: '[SWITCH-B] Step 02 Synopsis via Gemini-3.1-Pro (downstream of Claude logline)'
+    prompts:
+      - file://cli/src/prompts/synopsis.txt
+    providers:
+      - id: google:gemini-3.1-pro-preview
+        label: Gemini-3.1-Pro (switch-B step 2)
+        config:
+          temperature: 0
+          max_tokens: 512
+    vars:
+      genre: romantic comedy
+      tone: light and witty
+      budget: low-budget indie
+      logline: >
+        Two rival food truck owners discover they need each other to survive
+        Portland's biggest food festival.
+    assert:
+      - type: llm-rubric
+        value: >
+          The synopsis must be 100-300 words, introduce both rival characters,
+          describe a three-act arc with romantic resolution, and maintain a
+          light, witty tone. Gemini must produce coherent output from a
+          Claude-generated logline.
+        threshold: 0.7
+      - type: icontains
+        value: 'festival'
+
+  # Step 05 (GPT) — Screenplay from Gemini synopsis
+  - description: '[SWITCH-B] Step 05 Screenplay via GPT-5.2 (downstream of Gemini synopsis)'
+    prompts:
+      - file://cli/src/prompts/screenplay.txt
+    providers:
+      - id: openai:gpt-5.2
+        label: GPT-5.2 (switch-B step 5)
+        config:
+          temperature: 0
+          max_tokens: 1024
+    vars:
+      genre: romantic comedy
+      tone: light and witty
+      budget: low-budget indie
+      logline: >
+        Two rival food truck owners discover they need each other to survive
+        Portland's biggest food festival.
+      treatment: >
+        ACT ONE: Elena and Marco fight for the same permit. Denied separately,
+        they're forced to share. ACT TWO: Bickering turns to collaboration; sparks fly.
+        ACT THREE: Festival day showdown — they win together and admit their feelings.
+    assert:
+      - type: contains
+        value: 'EXT.'
+      - type: llm-rubric
+        value: >
+          The screenplay must use correct Fountain format with scene headings,
+          include witty dialogue between Elena and Marco, and show comedic
+          conflict. GPT must produce a screenplay consistent with the Gemini
+          synopsis input — no quality degradation from provider handoff.
+        threshold: 0.7
+
+# ---------------------------------------------------------------------------
+# SWITCH PATTERN C: All-Gemini baseline for comparison
+# Establishes single-provider baseline to compare against switch patterns.
+# ---------------------------------------------------------------------------
+
+  - description: '[SWITCH-C] Baseline Logline via Gemini-3.1-Pro (single-provider reference)'
+    prompts:
+      - file://cli/src/prompts/logline.txt
+    providers:
+      - id: google:gemini-3.1-pro-preview
+        label: Gemini-3.1-Pro (baseline)
+        config:
+          temperature: 0
+          max_tokens: 256
+    vars:
+      genre: sci-fi thriller
+      tone: dark and tense
+      budget: mid-budget
+      logline_seed: 'A rogue AI begins rewriting human memories.'
+    assert:
+      - type: llm-rubric
+        value: >
+          Baseline single-provider logline. Must meet same quality bar as
+          Switch-A and Switch-B loglines: single sentence, max 35 words,
+          clear protagonist/conflict/hook. Used to verify no degradation
+          in multi-provider runs.
+        threshold: 0.7
+      - type: regex
+        value: '^[A-Z].{10,200}[.!?]$'
+
+# ---------------------------------------------------------------------------
+# Output
+# ---------------------------------------------------------------------------
+outputPath: evals/results/provider-switching-output.json
+

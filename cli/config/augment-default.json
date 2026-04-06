@@ -29,8 +29,7 @@
     "webviewEnabled": true
   },
   "ai": {
-    "provider": "anthropic",
-    "model": "claude-sonnet-4-6",
+    "_comment": "ai.provider and ai.model removed in Phase 5 (bd-08b4). Use aiPowered block instead.",
     "enablePromptGeneration": true,
     "enableSummaries": true,
     "defaultPromptTemplate": "module-summary",
@@ -41,6 +40,14 @@
       "directory": ".augment/cache/ai-summaries",
       "retryAttempts": 1
     }
+  },
+  "aiPowered": {
+    "url": "http://localhost:3001",
+    "model": "gpt-4",
+    "systemPrompt": "",
+    "temperature": 0.7,
+    "maxTokens": 2048,
+    "timeoutMs": 30000
   }
 }
 

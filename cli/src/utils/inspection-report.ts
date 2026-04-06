@@ -12,6 +12,14 @@ export interface InspectionReportResult {
   optimizationSuggestionCount: number;
 }
 
+export interface MarkdownReportResult {
+  reportPath: string;
+  generatedAt: string;
+  fileCount: number;
+  recommendationCount: number;
+  optimizationSuggestionCount: number;
+}
+
 export function generateInspectionReport(params: {
   module: Module;
   metadata: ExtendedModuleMetadata;
@@ -201,4 +209,219 @@ function escapeHtml(value: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// ---------------------------------------------------------------------------
+// Markdown report generator (bd-modinsp.4.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a Markdown inspection report and write it to the cache directory.
+ * The report includes:
+ *   - Summary stats table
+ *   - File inventory table (path, type, size, modified)
+ *   - Mermaid dependency-tree diagram showing module → directory → file structure
+ *   - Refactoring recommendations table
+ *   - Optimization suggestions with fenced code blocks
+ */
+export function generateMarkdownReport(params: {
+  module: Module;
+  metadata: ExtendedModuleMetadata;
+  files: FileInfo[];
+  recommendations?: RefactoringRecommendation[];
+  optimizationSuggestions?: OptimizationSuggestion[];
+  cwd?: string;
+}): MarkdownReportResult {
+  const cwd = params.cwd || process.cwd();
+  const reportDirectory = path.join(cwd, '.augment', 'cache', 'inspection-reports');
+  fs.mkdirSync(reportDirectory, { recursive: true });
+
+  const generatedAt = new Date().toISOString();
+  const fileName = `${sanitizeName(params.module.fullName)}-${timestampForFile(generatedAt)}.md`;
+  const reportPath = path.join(reportDirectory, fileName);
+
+  const markdown = renderReportMarkdown(
+    params.module,
+    params.metadata,
+    params.files,
+    params.recommendations || [],
+    params.optimizationSuggestions || [],
+    generatedAt
+  );
+  fs.writeFileSync(reportPath, markdown, 'utf-8');
+
+  return {
+    reportPath,
+    generatedAt,
+    fileCount: params.files.length,
+    recommendationCount: (params.recommendations || []).length,
+    optimizationSuggestionCount: (params.optimizationSuggestions || []).length
+  };
+}
+
+function renderReportMarkdown(
+  module: Module,
+  metadata: ExtendedModuleMetadata,
+  files: FileInfo[],
+  recommendations: RefactoringRecommendation[],
+  optimizationSuggestions: OptimizationSuggestion[],
+  generatedAt: string
+): string {
+  const lines: string[] = [];
+
+  // Header
+  lines.push(`# Inspection Report: ${module.fullName}`);
+  lines.push('');
+  lines.push(`> Generated: ${generatedAt}`);
+  lines.push(`> ${metadata.description}`);
+  lines.push('');
+
+  // Summary stats table
+  lines.push('## Summary');
+  lines.push('');
+  lines.push('| Metric | Value |');
+  lines.push('|--------|-------|');
+  lines.push(`| **Total files** | ${metadata.files?.total || files.length} |`);
+  lines.push(`| **Rules** | ${metadata.files?.rules || 0} |`);
+  lines.push(`| **Examples** | ${metadata.files?.examples || 0} |`);
+  lines.push(`| **Characters** | ${(metadata.size?.totalCharacters || 0).toLocaleString()} |`);
+  lines.push(`| **Optimizations** | ${optimizationSuggestions.length} |`);
+  lines.push(`| **Recommendations** | ${recommendations.length} |`);
+  lines.push('');
+
+  // Mermaid dependency tree (module → directories → files)
+  lines.push('## Dependency Tree');
+  lines.push('');
+  lines.push('```mermaid');
+  lines.push('graph TD');
+  const mermaidModuleId = safeMermaidId(module.fullName);
+  lines.push(`  ${mermaidModuleId}["📦 ${escapeMermaid(module.fullName)}"]`);
+
+  // Group files by their top-level directory for the tree
+  const dirMap = new Map<string, FileInfo[]>();
+  for (const file of files) {
+    const parts = file.relativePath.replace(/\\/g, '/').split('/');
+    const topDir = parts.length > 1 ? parts[0] : '(root)';
+    if (!dirMap.has(topDir)) dirMap.set(topDir, []);
+    dirMap.get(topDir)!.push(file);
+  }
+
+  for (const [dir, dirFiles] of dirMap) {
+    const dirId = safeMermaidId(`${module.fullName}/${dir}`);
+    lines.push(`  ${dirId}["📁 ${escapeMermaid(dir)}"]`);
+    lines.push(`  ${mermaidModuleId} --> ${dirId}`);
+    // Show up to 5 files per directory to keep the diagram readable
+    const sample = dirFiles.slice(0, 5);
+    for (const file of sample) {
+      const fileName = path.basename(file.relativePath);
+      const fileId = safeMermaidId(file.relativePath);
+      const icon = file.type === 'rule' ? '📋' : file.type === 'example' ? '💡' : '📄';
+      lines.push(`  ${fileId}["${icon} ${escapeMermaid(fileName)}"]`);
+      lines.push(`  ${dirId} --> ${fileId}`);
+    }
+    if (dirFiles.length > 5) {
+      const moreId = safeMermaidId(`${module.fullName}/${dir}/more`);
+      lines.push(`  ${moreId}["… ${dirFiles.length - 5} more"]`);
+      lines.push(`  ${dirId} --> ${moreId}`);
+    }
+  }
+  lines.push('```');
+  lines.push('');
+
+  // File inventory table
+  lines.push('## Files');
+  lines.push('');
+  lines.push('| Path | Type | Size (bytes) | Modified |');
+  lines.push('|------|------|-------------|----------|');
+  for (const file of files) {
+    const modifiedStr = file.modified instanceof Date
+      ? file.modified.toISOString().replace('T', ' ').slice(0, 19)
+      : String(file.modified);
+    lines.push(`| \`${mdEscape(file.relativePath)}\` | ${file.type} | ${file.size.toLocaleString()} | ${modifiedStr} |`);
+  }
+  lines.push('');
+
+  // Refactoring recommendations
+  lines.push('## Refactoring Recommendations');
+  lines.push('');
+  if (recommendations.length === 0) {
+    lines.push('_No immediate refactoring recommendations._');
+  } else {
+    lines.push('| Priority | Title | Summary |');
+    lines.push('|----------|-------|---------|');
+    for (const rec of recommendations) {
+      lines.push(`| **${rec.priority.toUpperCase()}** | ${mdEscape(rec.title)} | ${mdEscape(rec.summary)} |`);
+    }
+    lines.push('');
+    for (const rec of recommendations) {
+      lines.push(`### ${mdEscape(rec.title)}`);
+      lines.push('');
+      lines.push(`**Priority:** ${rec.priority} | **Rationale:** ${mdEscape(rec.rationale)}`);
+      lines.push('');
+      if (rec.steps.length > 0) {
+        lines.push('**Steps:**');
+        for (const step of rec.steps) {
+          lines.push(`- ${mdEscape(step)}`);
+        }
+      }
+      if (rec.metrics.length > 0) {
+        lines.push('');
+        lines.push('**Metrics:**');
+        for (const metric of rec.metrics) {
+          lines.push(`- ${mdEscape(metric)}`);
+        }
+      }
+      lines.push('');
+    }
+  }
+  lines.push('');
+
+  // Optimization suggestions with code blocks
+  lines.push('## Optimization Suggestions');
+  lines.push('');
+  if (optimizationSuggestions.length === 0) {
+    lines.push('_No immediate optimization suggestions._');
+  } else {
+    for (const suggestion of optimizationSuggestions) {
+      lines.push(`### ${mdEscape(suggestion.title)}`);
+      lines.push('');
+      lines.push(`**Category:** ${suggestion.category} | **Impact:** ${suggestion.impact}`);
+      lines.push('');
+      lines.push(mdEscape(suggestion.summary));
+      lines.push('');
+      lines.push(`> ${mdEscape(suggestion.rationale)}`);
+      lines.push('');
+      if (suggestion.steps.length > 0) {
+        lines.push('**Steps:**');
+        for (const step of suggestion.steps) {
+          lines.push(`- ${mdEscape(step)}`);
+        }
+        lines.push('');
+      }
+      if (suggestion.codeExample) {
+        const lang = suggestion.exampleLanguage || '';
+        lines.push(`\`\`\`${lang}`);
+        lines.push(suggestion.codeExample);
+        lines.push('```');
+        lines.push('');
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
+/** Convert an arbitrary string to a valid Mermaid node ID (alphanumeric + underscores). */
+function safeMermaidId(value: string): string {
+  return 'n_' + value.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+/** Escape double-quotes inside Mermaid node labels. */
+function escapeMermaid(value: string): string {
+  return value.replace(/"/g, "'");
+}
+
+/** Escape pipe characters in Markdown table cells. */
+function mdEscape(value: string): string {
+  return value.replace(/\|/g, '\\|');
 }

@@ -60,9 +60,6 @@ daemon.lock
 # OpenSpec (entire directory - project-specific specs)
 openspec/
 
-# ai-prompts (entire directory - project-specific tests)
-ai-prompts/
-
 # scripts (entire directory - project-specific tests)
 scripts/
 
@@ -71,6 +68,10 @@ scripts/
 
 # Benchmarks
 .benchmarks/
+
+# Promptfoo evaluation cache and results
+.promptfoo/
+evals/results/
 
 # CLI
 .cli/

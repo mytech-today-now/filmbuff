@@ -45,7 +45,12 @@
         "uninstall:cli": "npm uninstall -g @mytechtoday/filmbuff",
         "reinstall:cli": "npm run uninstall:cli && npm run install:cli",
         "lint": "eslint cli/src",
-        "lint:providers": "eslint cli/src/providers/builtin"
+        "lint:providers": "eslint cli/src/providers/builtin",
+        "eval": "promptfoo eval",
+        "eval:view": "promptfoo view",
+        "eval:regression": "promptfoo eval --config evals/suites/regression.yaml",
+        "eval:compare": "promptfoo eval --config evals/suites/model-comparison.yaml",
+        "eval:providers": "promptfoo eval --config evals/suites/provider-switching.yaml"
     },
     "keywords": [
         "filmbuff",
@@ -121,6 +126,7 @@
         "@types/uuid": "^10.0.0",
         "jest": "^29.7.0",
         "jsdom": "^28.1.0",
+        "promptfoo": "^0.121.2",
         "ts-jest": "^29.4.6",
         "ts-node": "^10.9.2",
         "tsx": "^4.21.0",

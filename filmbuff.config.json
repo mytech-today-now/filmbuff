@@ -1,0 +1,83 @@
+{
+  "$schema": "./filmbuff.config.schema.json",
+  "defaultProvider": "mock",
+  "defaultModel": "ray-2",
+  "videoProviders": [
+    {
+      "id": "lumaai",
+      "displayName": "Luma AI",
+      "apiKeyEnvVar": "LUMAAI_API_KEY",
+      "defaultModel": "ray-2",
+      "supportedModels": ["ray-2", "ray-2-turbo", "ray-1-6"],
+      "videoSupport": true,
+      "maxI2VImages": 2,
+      "baseUrl": "https://api.lumalabs.ai",
+      "_note": "Max 2 I2V keyframes: frame0 (start) + frame1 (end). See ray-2 keyframes API."
+    },
+    {
+      "id": "xai",
+      "displayName": "xAI (Grok)",
+      "apiKeyEnvVar": "XAI_API_KEY",
+      "defaultModel": "grok-2-vision",
+      "supportedModels": ["grok-2-vision"],
+      "videoSupport": true,
+      "maxI2VImages": 1,
+      "baseUrl": "https://api.x.ai",
+      "_note": "Grok I2V via first image_url block in multimodal messages. Single seed frame only."
+    },
+    {
+      "id": "venice",
+      "displayName": "Venice AI",
+      "apiKeyEnvVar": "VENICE_API_KEY",
+      "defaultModel": "wan-2.5-preview-image-to-video",
+      "supportedModels": ["wan-2.5-preview-image-to-video"],
+      "videoSupport": true,
+      "maxI2VImages": 1,
+      "baseUrl": "https://api.venice.ai",
+      "_note": "wan-2.5-preview-image-to-video; single seed frame via image_url field."
+    },
+    {
+      "id": "openai",
+      "displayName": "OpenAI",
+      "apiKeyEnvVar": "OPENAI_API_KEY",
+      "defaultModel": "gpt-4o",
+      "supportedModels": ["gpt-4o", "gpt-4o-mini", "dall-e-3"],
+      "videoSupport": false,
+      "maxI2VImages": 0,
+      "baseUrl": "https://api.openai.com",
+      "_note": "Text/vision only. DALL-E does not accept image-to-video. Not valid for Video Controls output."
+    },
+    {
+      "id": "anthropic",
+      "displayName": "Anthropic (Claude)",
+      "apiKeyEnvVar": "ANTHROPIC_API_KEY",
+      "defaultModel": "claude-sonnet-4-5",
+      "supportedModels": ["claude-sonnet-4-5", "claude-opus-4-5", "claude-haiku-3-5"],
+      "videoSupport": false,
+      "maxI2VImages": 0,
+      "baseUrl": "https://api.anthropic.com",
+      "_note": "Vision/text only. No video generation endpoint. Not valid for Video Controls output."
+    },
+    {
+      "id": "mock",
+      "displayName": "Mock (CI/local testing – no API calls)",
+      "apiKeyEnvVar": null,
+      "defaultModel": "mock-v1",
+      "supportedModels": ["mock-v1"],
+      "videoSupport": true,
+      "maxI2VImages": -1,
+      "baseUrl": null,
+      "_note": "No API key required. Returns deterministic mock responses. maxI2VImages=-1 means unlimited. Use for CI and local development."
+    }
+  ],
+  "_comment": [
+    "filmbuff-prompt Phase 2 — Video Provider Registry (bd-fefd / AC-16)",
+    "defaultProvider defaults to 'mock' so CI never requires an API key.",
+    "Override with --provider lumaai for production use.",
+    "Provider capabilities are read at runtime via GET /providers from ai-powered proxy;",
+    "  this static table is the fallback when the proxy is unavailable.",
+    "xai and venice: video-capable, max 1 I2V image.",
+    "openai and anthropic: no video support (videoSupport=false).",
+    "lumaai: video-capable, max 2 I2V keyframe images."
+  ]
+}
