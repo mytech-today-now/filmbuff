@@ -232,45 +232,24 @@
     },
     "aiPowered": {
       "type": "object",
-      "description": "ai-powered server connection settings (Phase 5 — bd-08b4). Replaces deprecated ai.provider / ai.model.",
+      "description": "ai-powered library integration settings (Phase 7 — bd-e8ad). FilmBuff owns only plugins and debug; provider, model, API keys, and server URL are managed by ai-powered's own config layers.",
       "properties": {
-        "url": {
-          "type": "string",
-          "description": "Base URL of the ai-powered gateway server.",
-          "format": "uri",
-          "default": "http://localhost:3001"
+        "plugins": {
+          "type": "array",
+          "description": "Plugins to activate for every ai-powered call. Default: ['audit-log'].",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "default": ["audit-log"]
         },
-        "model": {
-          "type": "string",
-          "description": "Default model identifier forwarded to the ai-powered server.",
-          "minLength": 1,
-          "default": "gpt-4"
-        },
-        "systemPrompt": {
-          "type": "string",
-          "description": "Optional system-level prompt prepended to every AI request.",
-          "default": ""
-        },
-        "temperature": {
-          "type": "number",
-          "description": "Sampling temperature for text generation (0–1).",
-          "minimum": 0,
-          "maximum": 1,
-          "default": 0.7
-        },
-        "maxTokens": {
-          "type": "integer",
-          "description": "Maximum number of tokens to generate.",
-          "minimum": 1,
-          "default": 2048
-        },
-        "timeoutMs": {
-          "type": "integer",
-          "description": "HTTP request timeout in milliseconds.",
-          "minimum": 1000,
-          "default": 30000
+        "debug": {
+          "type": "boolean",
+          "description": "Enable ai-powered debug/verbose logging. Default: false.",
+          "default": false
         }
-      }
+      },
+      "additionalProperties": false
     }
   },
   "required": ["version"]

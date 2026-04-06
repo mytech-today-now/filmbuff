@@ -21,7 +21,6 @@ import { ContextBuilder, ContextBuilderConfig } from './context-builder';
 import { MetadataExtractor, MetadataExtractorConfig } from './metadata-extractor';
 import { MergedStyleGuidelines } from '../style/types';
 import { AIBlockingExtractor, CharacterBlockingPosition, BlockingExtractionResult } from './ai-blocking-extractor';
-import type { AIProviderConfig } from '../../../utils/ai-provider-config';
 
 /**
  * Default generator implementation
@@ -34,12 +33,10 @@ export class ShotListGenerator implements Generator {
   private blockingExtractor: AIBlockingExtractor;
   private styleGuidelines: MergedStyleGuidelines | null = null;
   private characterBlockingCache: Map<string, CharacterBlockingPosition> = new Map();
-  private aiConfig: AIProviderConfig;
 
-  constructor(styleGuidelines?: MergedStyleGuidelines | null, aiConfig: AIProviderConfig = {}) {
+  constructor(styleGuidelines?: MergedStyleGuidelines | null) {
     // Store style guidelines first
     this.styleGuidelines = styleGuidelines || null;
-    this.aiConfig = aiConfig;
 
     // Initialize modules with default configurations
     this.segmenter = new SceneSegmenter({
@@ -54,8 +51,6 @@ export class ShotListGenerator implements Generator {
       includeWeather: true,
       trackCharacterEmotions: true,
       styleGuidelines: this.styleGuidelines,
-      aiProvider: this.aiConfig.aiProvider,
-      aiModel: this.aiConfig.aiModel
     });
 
     this.metadataExtractor = new MetadataExtractor({
@@ -1124,7 +1119,7 @@ export class ShotListGenerator implements Generator {
 /**
  * Create generator instance
  */
-export function createGenerator(styleGuidelines?: MergedStyleGuidelines | null, aiConfig: AIProviderConfig = {}): Generator {
-  return new ShotListGenerator(styleGuidelines, aiConfig);
+export function createGenerator(styleGuidelines?: MergedStyleGuidelines | null): Generator {
+  return new ShotListGenerator(styleGuidelines);
 }
 

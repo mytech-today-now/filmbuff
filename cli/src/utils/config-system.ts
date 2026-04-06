@@ -5,11 +5,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import {
-  AI_POWERED_DEFAULT_URL,
-  AI_POWERED_DEFAULT_MODEL,
-  normalizeAIProvider
-} from './ai-provider-config';
+import { normalizeAIProvider } from './ai-provider-config';
 
 const BUILTIN_PROMPT_NAMES = ['code-review', 'module-summary', 'optimization', 'refactoring'];
 
@@ -110,22 +106,21 @@ export interface AugmentConfig {
     summaryCache?: AISummaryCacheConfig;
   };
   /**
-   * ai-powered server connection settings (Phase 5 — bd-08b4).
-   * Replaces the legacy `ai.provider` / `ai.model` fields.
+   * ai-powered library integration settings (Phase 7 — bd-e8ad).
+   * Provider, model, API keys, and server URL are managed by ai-powered's own
+   * layered config system — FilmBuff only owns `plugins` and `debug` here.
    */
   aiPowered?: {
-    /** Base URL of the ai-powered gateway. Default: http://localhost:3001 */
-    url?: string;
-    /** Default model forwarded to the server. Default: gpt-4 */
-    model?: string;
-    /** Optional system prompt prepended to every request. */
-    systemPrompt?: string;
-    /** Sampling temperature (0–1). Default: 0.7 */
-    temperature?: number;
-    /** Maximum tokens to generate. Default: 2048 */
-    maxTokens?: number;
-    /** HTTP request timeout in milliseconds. Default: 30000 */
-    timeoutMs?: number;
+    /**
+     * Plugins to activate for every ai-powered call.
+     * Default: ['audit-log'] — traces every AI call per toolName.
+     */
+    plugins?: string[];
+    /**
+     * Enable ai-powered debug/verbose logging.
+     * Default: false.
+     */
+    debug?: boolean;
   };
 }
 
@@ -177,13 +172,11 @@ export const DEFAULT_CONFIG: AugmentConfig = {
       retryAttempts: 1
     }
   },
+  // Phase 7 (bd-e8ad): FilmBuff owns only plugins and debug in the aiPowered
+  // block. Provider, model, API keys, and URL are managed by ai-powered.
   aiPowered: {
-    url:          AI_POWERED_DEFAULT_URL,
-    model:        AI_POWERED_DEFAULT_MODEL,
-    systemPrompt: '',
-    temperature:  0.7,
-    maxTokens:    2048,
-    timeoutMs:    30_000
+    plugins: ['audit-log'],
+    debug:   false,
   }
 };
 

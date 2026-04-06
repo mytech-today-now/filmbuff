@@ -19,6 +19,7 @@ import { validateCommand } from './commands/validate';
 import { catalogCommand, catalogHookCommand } from './commands/catalog';
 import { unlinkCommand } from './commands/unlink';
 import { generateShotListCommand } from './commands/generate-shot-list';
+import { generateVideoCommand } from './commands/generate-video';
 import { guiCommand } from './commands/gui';
 import { startCommand } from './commands/start';
 import { continueCommand } from './commands/continue';
@@ -610,24 +611,53 @@ program
   .option('--batch-output <file>', 'Write POST /batch JSON payload to this file path')
   .option('--jsonl', 'Write batch-output in JSONL format with _type:references sentinel (AC-16)')
   .option('--logging', 'Enable comprehensive error logging to JSONL file')
+  .option('--generate-video', 'After shot list generation, trigger video generation in-process (Phase 8 — bd-6c4f)')
+  .option('--video-output <dir>', 'Output directory for generate-video manifest (default: ./generated-videos)')
+  .option('--mock', 'Activate ai-powered MockProvider for video generation (no network calls)')
   .action((options) => {
     return generateShotListCommand({
-      input:         options.input,
-      format:        options.format,
-      output:        options.output,
-      maxCharacters: parseInt(options.maxCharacters, 10),
-      maxShotLength: parseInt(options.maxShotLength, 10),
-      logging:       options.logging,
-      style:         options.style,
-      muteSfx:       options.muteSfx,
-      aiProvider:    options.aiProvider,
-      aiProfile:     options.aiProfile,
-      aiModel:       options.aiModel,
-      provider:      options.provider,
-      model:         options.model,
-      offline:       options.offline ?? (process.env['CI'] === 'true'),
-      batchOutput:   options.batchOutput,
-      jsonl:         options.jsonl ?? false,
+      input:           options.input,
+      format:          options.format,
+      output:          options.output,
+      maxCharacters:   parseInt(options.maxCharacters, 10),
+      maxShotLength:   parseInt(options.maxShotLength, 10),
+      logging:         options.logging,
+      style:           options.style,
+      muteSfx:         options.muteSfx,
+      aiProvider:      options.aiProvider,
+      aiProfile:       options.aiProfile,
+      aiModel:         options.aiModel,
+      provider:        options.provider,
+      model:           options.model,
+      offline:         options.offline ?? (process.env['CI'] === 'true'),
+      batchOutput:     options.batchOutput,
+      jsonl:           options.jsonl ?? false,
+      generateVideo:   options.generateVideo ?? false,
+      videoOutput:     options.videoOutput,
+      mock:            options.mock ?? false,
+    });
+  });
+
+// Generate Video command (Phase 8 — bd-6c4f)
+program
+  .command('generate-video')
+  .description('Generate video clips from a JSONL shot list using ai-powered')
+  .requiredOption('--input <file>', 'Path to JSONL shot list file')
+  .option('--provider <id>', 'Video provider id (e.g. lumaai, runway, mock)', 'lumaai')
+  .option('--model <id>', 'Model override for the selected provider')
+  .option('--shots <list>', 'Comma-separated shot numbers to process (e.g. "1,3,5")')
+  .option('--output <dir>', 'Output directory for manifest.json', './generated-videos')
+  .option('--concurrency <n>', 'Batch size for concurrent generation', '3')
+  .option('--mock', 'Activate ai-powered MockProvider (no network calls)')
+  .action((options) => {
+    return generateVideoCommand({
+      input:        options.input,
+      provider:     options.provider,
+      model:        options.model,
+      shots:        options.shots,
+      output:       options.output,
+      concurrency:  parseInt(options.concurrency, 10),
+      mock:         options.mock ?? false,
     });
   });
 

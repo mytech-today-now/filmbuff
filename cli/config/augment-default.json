@@ -42,12 +42,9 @@
     }
   },
   "aiPowered": {
-    "url": "http://localhost:3001",
-    "model": "gpt-4",
-    "systemPrompt": "",
-    "temperature": 0.7,
-    "maxTokens": 2048,
-    "timeoutMs": 30000
+    "_comment": "Phase 7 (bd-e8ad): FilmBuff owns only plugins and debug here. Provider, model, API keys, and server URL are managed by ai-powered's own config (~/.ai-powered/config.json / AI_* env vars).",
+    "plugins": ["audit-log"],
+    "debug": false
   }
 }
 

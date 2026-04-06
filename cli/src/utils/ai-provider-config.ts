@@ -3,57 +3,32 @@
  *
  * AI provider configuration utilities for FilmBuff.
  *
- * Phase 5 (bd-08b4): Legacy multi-provider registry constants removed.
- * FilmBuff now delegates all AI inference to the user-managed `ai-powered`
- * server.  The sole source of truth for defaults is AIPoweredClient.
+ * Phase 7 (bd-e8ad): All URL/model constants and legacy provider types removed.
+ * FilmBuff now delegates all AI inference to the `ai-powered` npm library via
+ * getFilmbuffAiClient().  Provider, model, API keys, and server URL are managed
+ * exclusively by ai-powered's own layered config system (env vars,
+ * ~/.ai-powered/config.json, etc.) — FilmBuff reads none of these.
  *
- * Constants kept:
- *   AI_POWERED_DEFAULT_URL   — default ai-powered server URL
- *   AI_POWERED_DEFAULT_MODEL — default model forwarded to the server
+ * Removed in this phase:
+ *   AI_POWERED_DEFAULT_URL   — no local server URL needed
+ *   AI_POWERED_DEFAULT_MODEL — model config owned by ai-powered
+ *   AIProviderConfig         — legacy generator plumbing (Phase 6 cleaned callers)
  *
- * Removed (were part of multi-provider abstraction, no longer relevant):
- *   DEFAULT_AI_PROVIDER      — was 'anthropic'; replaced by ai-powered
- *   DEFAULT_AI_MODEL         — was 'claude-sonnet-4-6'; replaced by ai-powered
- *   IMPLEMENTED_AI_PROVIDERS — registry tuple; no longer needed
- *   isImplementedAIProvider  — guard function; no longer needed
- *   ImplementedAIProvider    — union type derived from registry; no longer needed
+ * Kept:
+ *   normalizeAIProvider() — validates --ai-provider CLI flag (backward-compat)
+ *   normalizeAIModel()    — validates --ai-model CLI flag (backward-compat)
  *
- * Note: normalizeAIProvider / normalizeAIModel are kept because the
- * generate-shot-list command still accepts legacy --ai-provider/--ai-model
- * flags for the AI (text) path and normalises them identically.
+ * Spec: openspec/changes/ai-powered-not-local/specs/config-schema/spec.md
  */
-
-// ---------------------------------------------------------------------------
-// ai-powered defaults (replaces old multi-provider defaults)
-// ---------------------------------------------------------------------------
-
-/** Default base URL of the local ai-powered server. */
-export const AI_POWERED_DEFAULT_URL = 'http://localhost:3001';
-
-/** Default model identifier forwarded to the ai-powered server. */
-export const AI_POWERED_DEFAULT_MODEL = 'gpt-4';
-
-// ---------------------------------------------------------------------------
-// Config types
-// ---------------------------------------------------------------------------
-
-/**
- * Legacy AI provider config shape carried through the shot-list generator.
- * Still used to plumb --ai-provider / --ai-model CLI flags into generator
- * options until Phase 6 migration (bd-4g4l) completes.
- *
- * TODO (bd-4g4l): Remove AIProviderConfig and its usages once the generator
- * is fully wired to AIPoweredClient.
- */
-export type AIProviderConfig = {
-  aiProvider?: string;
-  aiModel?: string;
-};
 
 // ---------------------------------------------------------------------------
 // Normalisation helpers (kept for backward-compatibility with CLI flag handling)
 // ---------------------------------------------------------------------------
 
+/**
+ * Normalise a raw --ai-provider flag value.
+ * Returns undefined when the value is absent or blank (signals "use default").
+ */
 export function normalizeAIProvider(provider?: string | null): string | undefined {
   if (typeof provider !== 'string') {
     return undefined;
@@ -62,6 +37,10 @@ export function normalizeAIProvider(provider?: string | null): string | undefine
   return normalized === '' ? undefined : normalized;
 }
 
+/**
+ * Normalise a raw --ai-model flag value.
+ * Returns undefined when the value is absent or blank (signals "use default").
+ */
 export function normalizeAIModel(model?: string | null): string | undefined {
   if (typeof model !== 'string') {
     return undefined;

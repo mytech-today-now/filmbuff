@@ -5,18 +5,15 @@ import { displayHelp } from './generate-shot-list/help-text';
 import { ExitCode, exitWithCode } from './generate-shot-list/exit-codes';
 import { createParserAuto } from './generate-shot-list/parser';
 import { createGenerator } from './generate-shot-list/generator';
+import { FilmbuffVideoGenerator, type VideoGenerationOptions } from '../lib/video-generator';
 import { createFormatter } from './generate-shot-list/formatter';
 import { createLogger } from './generate-shot-list/logger';
 import { createStyleSystem } from './generate-shot-list/style';
 import { ConfigManager } from '../utils/config-system';
-import {
-  normalizeAIModel,
-  normalizeAIProvider,
-  AI_POWERED_DEFAULT_MODEL,
-  AI_POWERED_DEFAULT_URL,
-} from '../utils/ai-provider-config';
-// resolveActiveProvider / resolveProviderByProfile removed in bd-9uc4 Phase 2.
-// resolveAIClient() from runtime-resolver introduced in Phase 4 (bd-6d52).
+// Phase 6 (bd-cfa7): AI provider resolution now handled entirely by the
+// ai-powered library via getFilmbuffAiClient() inside the extractors.
+// normalizeAIProvider / normalizeAIModel retained only for flag-validation
+// backward-compat; they are not used for actual inference.
 import { loadFilmbuffConfig, resolveProvider } from '../lib/filmbuff-config';
 import { loadPipelineInputs } from '../lib/pipeline-inputs';
 import { validateBatchPayload } from '../lib/pre-export-validator';
@@ -53,6 +50,15 @@ interface GenerateShotListOptions {
    * Only used when batchOutput is also set.
    */
   jsonl?: boolean;
+  /**
+   * When true, trigger FilmbuffVideoGenerator in-process after shot list generation
+   * completes (Phase 8 — bd-6c4f). No intermediate JSONL file is written.
+   */
+  generateVideo?: boolean;
+  /** Output directory for the video manifest.json. Default: ./generated-videos */
+  videoOutput?: string;
+  /** When true, pass mock: true to video generator (no real API calls). */
+  mock?: boolean;
   help?: boolean;
   h?: boolean;
 }
@@ -80,20 +86,11 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
     const maxCharacters = options.maxCharacters || 4000;
     const maxShotLength = options.maxShotLength || 12;
     const logging = options.logging || false;
-    const appConfig = new ConfigManager().load();
-
-    // Phase 2 (bd-9uc4): AI provider resolution (legacy CLI flags kept for backward-compat).
-    // Phase 5 (bd-08b4): DEFAULT_AI_PROVIDER / DEFAULT_AI_MODEL removed from ai-provider-config.
-    //   ai.provider/model from config are deprecated and ignored (deprecation warning emitted
-    //   by ConfigManager.load()); we fall back to ai-powered defaults.
-    const explicitProvider = normalizeAIProvider(options.aiProvider);
-    const aiProvider: string =
-      explicitProvider
-      || AI_POWERED_DEFAULT_URL;   // legacy "provider" concept replaced by URL
-    const aiModel: string =
-      normalizeAIModel(options.aiModel)
-      || AI_POWERED_DEFAULT_MODEL;
-    console.log(chalk.gray(`Using AI provider: ${aiProvider}, model: ${aiModel}`));
+    // Load config for deprecation-warning side-effect; appConfig not used for AI resolution.
+    // Phase 6 (bd-cfa7): AI inference is handled by getFilmbuffAiClient() inside the
+    // extractors. The --ai-provider / --ai-model CLI flags are accepted for backward
+    // compatibility but are no-ops; ai-powered manages provider/model via its own config.
+    new ConfigManager().load();
 
     // Phase 2 (bd-fefd): video provider resolution via filmbuff.config.json.
     // CLI flags (--provider / --model) take precedence over config defaults.
@@ -166,8 +163,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
     console.log(chalk.gray(`Format: ${format}`));
     console.log(chalk.gray(`Max characters: ${maxCharacters}`));
     console.log(chalk.gray(`Max shot length: ${maxShotLength}s`));
-    console.log(chalk.gray(`AI provider: ${aiProvider}`));
-    console.log(chalk.gray(`AI model: ${aiModel}\n`));
+    console.log(chalk.gray('AI inference: managed by ai-powered library\n'));
 
     // Initialize logger if requested
     let logger;
@@ -178,8 +174,6 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
         format,
         maxCharacters,
         maxShotLength,
-        aiProvider,
-        aiModel
       });
     }
 
@@ -254,7 +248,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
       // Step 3: Generate shot list
       const generationStartMs = Date.now();
       console.log(chalk.gray('🎬 Generating shots...'));
-      const generator = createGenerator(styleGuidelines, { aiProvider, aiModel });
+      const generator = createGenerator(styleGuidelines);
       const shotList = await generator.generate(screenplay.scenes, {
         maxCharacters,
         maxShotLength,
@@ -262,8 +256,6 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
         includeContext: true,
         includeMetadata: true,
         muteSfx: options.muteSfx || false,
-        aiProvider,
-        aiModel
       });
       console.log(chalk.green(`✓ Generated ${shotList.totalShots} shots`));
       console.log(chalk.gray(`   Total duration: ${Math.floor(shotList.totalDuration / 60)}m ${Math.floor(shotList.totalDuration % 60)}s`));
@@ -410,6 +402,48 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
       }
 
       console.log(chalk.green('✅ Shot list generation complete!\n'));
+
+      // Phase 8 (bd-6c4f): Optional in-process video generation.
+      // Only entered when --generate-video flag is set; shot entries are
+      // passed in-memory — no intermediate JSONL file is written.
+      if (options.generateVideo) {
+        console.log(chalk.bold.blue('🎬 Starting in-process video generation...\n'));
+        const videoGen = new FilmbuffVideoGenerator();
+        const videoOptions: VideoGenerationOptions = {
+          provider: options.provider ?? 'lumaai',
+          model:    options.model,
+          mock:     options.mock ?? false,
+        };
+        const videoOutputDir = options.videoOutput ?? './generated-videos';
+        // Map Shot (generator domain) → ShotEntry (video-generator domain).
+        // Shot.number  → shotNumber (coerced to number; sub-shots use scene number as fallback)
+        // Shot.actions → action (video gen needs a single string)
+        // Shot.set     → setDescription
+        // Shot.characters → characterDescriptions (mapped to video-gen shape)
+        // videoControls built from shot.duration; aspectRatio uses provider default
+        const shotEntries = shotList.shots.map((shot, idx) => ({
+          shotNumber:    typeof shot.number === 'number' ? shot.number : idx + 1,
+          description:   shot.description,
+          action:        shot.actions ?? undefined,
+          setDescription: shot.set ?? undefined,
+          characterDescriptions: shot.characters.map(ch => ({
+            character:          ch.name,
+            physicalAppearance: ch.physicalAppearance ?? ch.appearance,
+            wardrobe:           ch.wardrobe ?? '',
+          })),
+          videoControls: { duration: shot.duration },
+        }));
+
+        const videoResults = await videoGen.generateForShotList(shotEntries, videoOptions);
+
+        fs.mkdirSync(videoOutputDir, { recursive: true });
+        const manifestPath = path.join(videoOutputDir, 'manifest.json');
+        fs.writeFileSync(manifestPath, JSON.stringify(videoResults, null, 2) + '\n', 'utf-8');
+
+        console.log(chalk.green(`✓ Video manifest written to: ${manifestPath}`));
+        console.log(chalk.green(`✅ Video generation complete! (${videoResults.length} clip(s))\n`));
+      }
+
       exitWithCode(ExitCode.SUCCESS);
 
     } catch (parseError: any) {

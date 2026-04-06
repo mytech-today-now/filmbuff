@@ -5,7 +5,6 @@
  */
 
 import { Scene, SceneHeading } from '../parser/types';
-import type { AIProviderConfig } from '../../../utils/ai-provider-config';
 
 /**
  * Shot type classification
@@ -161,7 +160,7 @@ export interface ShotList {
 /**
  * Generator configuration
  */
-export interface GeneratorConfig extends AIProviderConfig {
+export interface GeneratorConfig {
   maxCharacters: number;
   maxShotLength: number;
   warningThreshold: number; // percentage (e.g., 90 for 90%)

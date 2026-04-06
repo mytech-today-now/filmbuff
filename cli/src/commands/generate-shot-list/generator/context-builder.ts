@@ -14,12 +14,11 @@ import { Scene, SceneElement, DialogueElement, ActionElement } from '../parser/t
 import { SceneContext, CharacterState } from './types';
 import { MergedStyleGuidelines } from '../style/types';
 import { AIEntityExtractor } from './ai-entity-extractor';
-import type { AIProviderConfig } from '../../../utils/ai-provider-config';
 
 /**
  * Context builder configuration
  */
-export interface ContextBuilderConfig extends AIProviderConfig {
+export interface ContextBuilderConfig {
   includeAtmosphere: boolean;
   includeWeather: boolean;
   trackCharacterEmotions: boolean;
