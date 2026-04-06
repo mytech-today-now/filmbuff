@@ -104,7 +104,7 @@ export const BUILTIN_DEFAULT_CONFIG: FilmbuffConfig = {
     {
       id: 'openai',
       displayName: 'OpenAI',
-      apiKeyEnvVar: 'OPENAI_API_KEY',
+      // apiKeyEnvVar intentionally omitted: key management delegated to ai-powered (Phase 9, bd-99b2)
       defaultModel: 'gpt-4o',
       supportedModels: ['gpt-4o', 'gpt-4o-mini', 'dall-e-3'],
       videoSupport: false,
@@ -114,7 +114,7 @@ export const BUILTIN_DEFAULT_CONFIG: FilmbuffConfig = {
     {
       id: 'anthropic',
       displayName: 'Anthropic (Claude)',
-      apiKeyEnvVar: 'ANTHROPIC_API_KEY',
+      // apiKeyEnvVar intentionally omitted: key management delegated to ai-powered (Phase 9, bd-99b2)
       defaultModel: 'claude-sonnet-4-5',
       supportedModels: ['claude-sonnet-4-5', 'claude-opus-4-5', 'claude-haiku-3-5'],
       videoSupport: false,

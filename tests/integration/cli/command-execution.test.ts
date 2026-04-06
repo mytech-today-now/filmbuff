@@ -62,7 +62,7 @@ async function executeCommand(
 
 describe('CLI Command Execution', () => {
   let testEnv: TestEnvironment;
-  const CLI_PATH = join(__dirname, '../../../cli/dist/index.js');
+  const CLI_PATH = join(__dirname, '../../../cli/dist/cli.js');
 
   beforeEach(async () => {
     testEnv = new TestEnvironment();
@@ -99,6 +99,8 @@ describe('CLI Command Execution', () => {
       expect(result.exitCode).not.toBe(0);
     });
 
+    // filmbuff init calls extractCommandHelp which spawns external processes —
+    // use a generous timeout so slow CI environments can still complete.
     it('should execute init successfully in a clean project', async () => {
       const projectPath = join(testEnv.tempDir, 'fresh-project');
       await mkdir(projectPath, { recursive: true });
@@ -114,7 +116,7 @@ describe('CLI Command Execution', () => {
       );
 
       expect(config.version).toBe('0.1.0');
-    });
+    }, 60_000);
 
     it('should cancel re-init in a non-interactive environment without crashing', async () => {
       const project = await testEnv.createProject();
@@ -205,6 +207,8 @@ describe('CLI Command Execution', () => {
       expect(result2.stdout).toBeTruthy();
     });
 
+    // Each CLI invocation spawns a Node process loading an ESM-only package
+    // (~2.5 s per invocation) — use a 30 s timeout for multi-invocation tests.
     it('should handle command dependencies', async () => {
       const project = await testEnv.createProject();
 
@@ -223,7 +227,7 @@ describe('CLI Command Execution', () => {
       // Should succeed if the module exists, or fail gracefully if it doesn't
       // Either way, the command should execute without crashing
       expect([0, 1]).toContain(showResult.exitCode);
-    });
+    }, 30_000);
 
     it('should handle parallel command execution', async () => {
       const project = await testEnv.createProject();
@@ -239,7 +243,7 @@ describe('CLI Command Execution', () => {
       results.forEach(result => {
         expect(result.exitCode).toBe(0);
       });
-    });
+    }, 30_000);
   });
 
   describe('CLI Error Messages', () => {
@@ -386,6 +390,6 @@ describe('CLI Command Execution', () => {
       const result = await executeCommand('node', [CLI_PATH, 'list'], project.path);
 
       expect(result.exitCode).toBe(0);
-    });
+    }, 15_000);
   });
 });

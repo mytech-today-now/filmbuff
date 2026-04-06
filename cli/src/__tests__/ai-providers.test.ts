@@ -8,8 +8,8 @@
  *   3. buildVideoPrompt()      — lib/video-generator.ts
  *   4. FilmbuffVideoGenerator  — lib/video-generator.ts
  *
- * All tests that previously mocked Anthropic SDK, profileStore, providerRegistry,
- * resolveActiveProvider, resolveProviderByProfile, AIPoweredClient, and
+ * All tests that previously mocked the legacy AI SDK, profileStore, providerRegistry,
+ * resolveActiveProvider, resolveProviderByProfile, the old HTTP client, and
  * fetchWithTimeout have been removed (Phase 10 spec, bd-2d41).
  *
  * ai-powered is mocked at the module level so no real API calls are made.

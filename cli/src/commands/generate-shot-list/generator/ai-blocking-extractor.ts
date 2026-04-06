@@ -4,7 +4,7 @@
  * Extracts detailed character blocking and spatial positions from screenplay
  * action lines using the ai-powered library via getFilmbuffAiClient().
  *
- * Phase 5 migration (bd-551f): replaced direct @anthropic-ai/sdk usage with
+ * Phase 5 migration (bd-551f): replaced prior direct SDK usage with
  * getFilmbuffAiClient('blocking-extractor').  The client is lazily initialised
  * on the first extractBlocking() call and reused for all subsequent calls
  * (single getFilmbuffAiClient() invocation per AIBlockingExtractor instance).

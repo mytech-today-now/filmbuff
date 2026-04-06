@@ -16,8 +16,8 @@
  */
 
 import { getFilmbuffAiClient } from './filmbuff-ai-client.js';
-// AiClient and AiConfig are sourced from filmbuff-ai-client.ts (the sole
-// importer of 'ai-powered') so that this file never imports from 'ai-powered'.
+// AiClient and AiConfig are re-exported from filmbuff-ai-client.ts (the sole
+// wrapper for the ai-powered library) so that this file stays clean.
 import type { AiClient, AiConfig } from './filmbuff-ai-client.js';
 
 // ---------------------------------------------------------------------------

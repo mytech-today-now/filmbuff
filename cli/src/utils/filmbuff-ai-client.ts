@@ -33,13 +33,26 @@
  * Spec: openspec/changes/ai-powered-not-local/specs/filmbuff-ai-client/spec.md
  */
 
-import { getAiClient } from 'ai-powered';
+// Type-only imports are erased at compile time — safe in CJS output.
 import type { AiClient, AiConfig } from 'ai-powered';
 
-// Re-export loadConfig so that ai-status.ts can read the resolved config without
-// importing from 'ai-powered' directly (sole-importer rule: only this file may
-// import from 'ai-powered').
-export { loadConfig } from 'ai-powered';
+// ---------------------------------------------------------------------------
+// Lazy ESM loader
+// ---------------------------------------------------------------------------
+// ai-powered is ESM-only ("type":"module", no "require" export condition).
+// Dynamic import() is the only CJS-compatible way to load an ESM-only package.
+// The cached _aiPowered reference means the module is resolved at most once.
+
+type AiPoweredModule = typeof import('ai-powered');
+let _aiPowered: AiPoweredModule | undefined;
+
+async function _load(): Promise<AiPoweredModule> {
+  if (!_aiPowered) {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    _aiPowered = await import('ai-powered');
+  }
+  return _aiPowered;
+}
 
 // ---------------------------------------------------------------------------
 // FilmBuff-wide defaults
@@ -79,7 +92,21 @@ export async function getFilmbuffAiClient(
   toolName: string,
   overrides?: Partial<Omit<AiConfig, 'apiKey'>>,
 ): Promise<AiClient> {
+  const { getAiClient } = await _load();
   return getAiClient(toolName, { ...FILMBUFF_DEFAULTS, ...overrides });
+}
+
+/**
+ * Async wrapper around ai-powered's loadConfig().
+ *
+ * Exposed here so ai-status.ts can read the resolved config without importing
+ * from 'ai-powered' directly (sole-importer rule: only this file may import
+ * from 'ai-powered').  The function is async because the ESM module must be
+ * dynamically imported before loadConfig() can be called.
+ */
+export async function loadConfig(): Promise<AiConfig> {
+  const { loadConfig: _loadConfig } = await _load();
+  return _loadConfig();
 }
 
 // Re-export library types so downstream modules can type their references

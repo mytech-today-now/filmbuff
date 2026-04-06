@@ -59,7 +59,7 @@ export async function aiStatusCommand(): Promise<void> {
   let plugins: string[] = ['audit-log'];
 
   try {
-    const config = loadConfig();
+    const config = await loadConfig();
     provider = mockMode ? 'mock' : (config.provider ?? 'openai');
     model    = config.model;
     plugins  = Array.isArray(config.plugins) ? config.plugins : ['audit-log'];

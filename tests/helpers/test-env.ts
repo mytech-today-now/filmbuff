@@ -391,12 +391,30 @@ export class TestEnvironment implements ITestEnvironment {
   }
 
   async cleanup(): Promise<void> {
-    // Run all cleanup tasks
-    await Promise.all(this.cleanupTasks.map(task => task()));
+    // On Windows, spawned child processes may hold directory handles briefly
+    // after the 'close' event fires.  A short pause helps avoid EBUSY errors.
+    if (process.platform === 'win32') {
+      await new Promise<void>(resolve => setTimeout(resolve, 300));
+    }
+
+    // Run individual cleanup tasks, tolerating ENOENT / EBUSY.
+    for (const task of this.cleanupTasks) {
+      try {
+        await task();
+      } catch (err: unknown) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code !== 'ENOENT' && code !== 'EBUSY') throw err;
+      }
+    }
 
     // Remove temp directory
     if (this.tempDir && existsSync(this.tempDir)) {
-      await rm(this.tempDir, { recursive: true, force: true });
+      try {
+        await rm(this.tempDir, { recursive: true, force: true });
+      } catch (err: unknown) {
+        const code = (err as NodeJS.ErrnoException).code;
+        if (code !== 'ENOENT' && code !== 'EBUSY') throw err;
+      }
     }
   }
 }

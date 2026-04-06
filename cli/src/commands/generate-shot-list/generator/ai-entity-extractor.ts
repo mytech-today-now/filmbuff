@@ -9,7 +9,7 @@
  * - Object conventions (airlock door, viewscreen, etc.)
  * - Industry-standard screenplay formatting
  *
- * Phase 5 migration (bd-551f): replaced direct @anthropic-ai/sdk usage with
+ * Phase 5 migration (bd-551f): replaced prior direct SDK usage with
  * getFilmbuffAiClient('entity-extractor').  The client is lazily initialised
  * on the first extractEntities() call and reused for all subsequent calls
  * (single getFilmbuffAiClient() invocation per AIEntityExtractor instance).

@@ -2,7 +2,8 @@ module.exports = {
   testEnvironment: 'node',
   roots: ['<rootDir>/tests/unit/utils', '<rootDir>/cli/src'],
   testMatch: [
-    '**/extractCommandHelp.test.ts',
+    // extractCommandHelp.test.ts uses Vitest APIs (vi.*) — run it with
+    // `npm run test:vitest` / `npm run test:unit` instead.
     '**/extractCommandHelp.integration.test.ts'
   ],
   transform: {
