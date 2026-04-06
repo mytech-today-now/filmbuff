@@ -1,29 +1,24 @@
 /**
  * AI-Powered Entity Extractor
- * 
- * Uses AI to intelligently identify characters and objects from Fountain screenplay text
+ *
+ * Intelligently identifies characters and objects from Fountain screenplay text
  * following MPAA and AMPAS Nicholl Fellowship screenplay standards.
- * 
+ *
  * This replaces rigid regex patterns with fuzzy logic that understands:
  * - Character conventions (THE CAPTAIN, FIRST OFFICER, etc.)
  * - Object conventions (airlock door, viewscreen, etc.)
  * - Industry-standard screenplay formatting
+ *
+ * Phase 5 migration (bd-551f): replaced direct @anthropic-ai/sdk usage with
+ * getFilmbuffAiClient('entity-extractor').  The client is lazily initialised
+ * on the first extractEntities() call and reused for all subsequent calls
+ * (single getFilmbuffAiClient() invocation per AIEntityExtractor instance).
+ *
+ * All prompt builders and response parsers are unchanged (spec requirement).
  */
 
-import Anthropic from '@anthropic-ai/sdk';
-import {
-  normalizeAIModel,
-  normalizeAIProvider
-} from '../../../utils/ai-provider-config';
-import type { AIProviderConfig } from '../../../utils/ai-provider-config';
-
-// Phase 5 (bd-08b4): DEFAULT_AI_PROVIDER / DEFAULT_AI_MODEL / isImplementedAIProvider
-// removed from ai-provider-config. This extractor is legacy Anthropic-only code
-// that will be removed in bd-4g4l. Hard-code Anthropic literals here until then.
-// TODO (bd-4g4l): Remove this file once AIPoweredClient handles all AI inference.
-const LEGACY_DEFAULT_PROVIDER = 'anthropic';
-const LEGACY_DEFAULT_MODEL    = 'claude-sonnet-4-6';
-function isLegacyProvider(p: string): boolean { return p === LEGACY_DEFAULT_PROVIDER; }
+import { getFilmbuffAiClient } from '../../../utils/filmbuff-ai-client.js';
+import type { AiClient } from '../../../utils/filmbuff-ai-client.js';
 
 export interface EntityExtractionResult {
   characters: string[];
@@ -32,65 +27,42 @@ export interface EntityExtractionResult {
 }
 
 /**
- * AI-powered entity extractor using Claude
+ * AI-powered entity extractor using the ai-powered library.
  */
 export class AIEntityExtractor {
-  private client: Anthropic | null = null;
-  private apiKey: string | null = null;
-  private provider: string;
-  private model: string;
+  /** Lazily-initialised ai-powered client; null until first extractEntities() call. */
+  private client: AiClient | null = null;
 
-  constructor(config: AIProviderConfig = {}) {
-    this.provider = normalizeAIProvider(config.aiProvider) || LEGACY_DEFAULT_PROVIDER;
-    this.model = normalizeAIModel(config.aiModel) || LEGACY_DEFAULT_MODEL;
-
-    if (!isLegacyProvider(this.provider)) {
-      return;
-    }
-
-    this.apiKey = process.env.ANTHROPIC_API_KEY || null;
-
-    if (this.apiKey) {
-      this.client = new Anthropic({ apiKey: this.apiKey });
-    }
+  constructor() {
+    // No credentials needed — ai-powered sources them from config layers.
   }
 
   /**
-   * Extract characters and objects from screenplay text using AI
+   * Ensure the AiClient is initialised (lazy, called once per extractor instance).
+   * Subsequent calls return the cached client immediately.
+   */
+  private async ensureClient(): Promise<AiClient> {
+    if (!this.client) {
+      this.client = await getFilmbuffAiClient('entity-extractor');
+    }
+    return this.client;
+  }
+
+  /**
+   * Extract characters and objects from screenplay text using AI.
    */
   async extractEntities(sceneText: string, sceneHeading: string): Promise<EntityExtractionResult> {
-    if (!isLegacyProvider(this.provider)) {
-      console.log(`AI provider "${this.provider}" is not implemented for entity extraction, using fallback regex extraction`);
-      return this.fallbackExtraction(sceneText);
-    }
-
-    if (!this.client) {
-      console.log('No Anthropic API key found, using fallback regex extraction');
-      return this.fallbackExtraction(sceneText);
-    }
-
     const prompt = this.buildExtractionPrompt(sceneText, sceneHeading);
 
     try {
       console.log('Using AI-powered entity extraction...');
-      const response = await this.client.messages.create({
-        model: this.model,
-        max_tokens: 1024,
-        temperature: 0.0, // Deterministic for consistency
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
-      });
+      const client = await this.ensureClient();
+      const response = await client.generateText(prompt, { maxTokens: 2048 });
 
-      const content = response.content[0];
-      if (content.type === 'text') {
-        const result = this.parseAIResponse(content.text);
-        console.log(`AI extracted ${result.characters.length} characters and ${result.objects.length} objects`);
-        return result;
-      }
-
-      return this.fallbackExtraction(sceneText);
+      // response.content IS the generated text string (same as old response.content[0].text)
+      const result = this.parseAIResponse(response.content);
+      console.log(`AI extracted ${result.characters.length} characters and ${result.objects.length} objects`);
+      return result;
     } catch (error) {
       console.warn('AI extraction failed, using fallback:', error);
       return this.fallbackExtraction(sceneText);

@@ -63,7 +63,9 @@ export class ShotListGenerator implements Generator {
       inferFromContext: true
     });
 
-    this.blockingExtractor = new AIBlockingExtractor(undefined, this.styleGuidelines, this.aiConfig);
+    // Phase 5 (bd-551f): AIBlockingExtractor no longer takes credentials; the
+    // ai-powered library sources them from its own config layers.
+    this.blockingExtractor = new AIBlockingExtractor(this.styleGuidelines);
   }
 
   /**

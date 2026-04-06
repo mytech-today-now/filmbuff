@@ -1,25 +1,19 @@
 /**
  * AI-Powered Blocking Extractor
- * 
- * Uses Claude Sonnet 4.6 to extract detailed character blocking and spatial positions
- * from screenplay action lines. Infers stage positions, relative positions, and
- * maintains spatial consistency across shots.
+ *
+ * Extracts detailed character blocking and spatial positions from screenplay
+ * action lines using the ai-powered library via getFilmbuffAiClient().
+ *
+ * Phase 5 migration (bd-551f): replaced direct @anthropic-ai/sdk usage with
+ * getFilmbuffAiClient('blocking-extractor').  The client is lazily initialised
+ * on the first extractBlocking() call and reused for all subsequent calls
+ * (single getFilmbuffAiClient() invocation per AIBlockingExtractor instance).
+ *
+ * All prompt builders and response parsers are unchanged (spec requirement).
  */
 
-import Anthropic from '@anthropic-ai/sdk';
-import {
-  normalizeAIModel,
-  normalizeAIProvider
-} from '../../../utils/ai-provider-config';
-import type { AIProviderConfig } from '../../../utils/ai-provider-config';
-
-// Phase 5 (bd-08b4): DEFAULT_AI_PROVIDER / DEFAULT_AI_MODEL / isImplementedAIProvider
-// removed from ai-provider-config. These extractors are legacy Anthropic-only code
-// that will be removed in bd-4g4l. Hard-code Anthropic literals here until then.
-// TODO (bd-4g4l): Remove this file once AIPoweredClient handles all AI inference.
-const LEGACY_DEFAULT_PROVIDER = 'anthropic';
-const LEGACY_DEFAULT_MODEL    = 'claude-sonnet-4-6';
-function isLegacyProvider(p: string): boolean { return p === LEGACY_DEFAULT_PROVIDER; }
+import { getFilmbuffAiClient } from '../../../utils/filmbuff-ai-client.js';
+import type { AiClient } from '../../../utils/filmbuff-ai-client.js';
 
 export interface CharacterBlockingPosition {
   character: string;
@@ -45,24 +39,24 @@ export interface BlockingExtractionResult {
 }
 
 export class AIBlockingExtractor {
-  private client: Anthropic | null = null;
+  /** Lazily-initialised ai-powered client; null until first extractBlocking() call. */
+  private client: AiClient | null = null;
   private characterDescriptionCache: Map<string, CharacterDescription> = new Map();
   private styleGuidelines: any | null = null; // MergedStyleGuidelines type
-  private aiProvider: string;
-  private aiModel: string;
 
-  constructor(apiKey?: string, styleGuidelines?: any, aiConfig: AIProviderConfig = {}) {
-    this.aiProvider = normalizeAIProvider(aiConfig.aiProvider) || LEGACY_DEFAULT_PROVIDER;
-    this.aiModel = normalizeAIModel(aiConfig.aiModel) || LEGACY_DEFAULT_MODEL;
-
-    const resolvedApiKey = apiKey || process.env.ANTHROPIC_API_KEY;
-    if (isLegacyProvider(this.aiProvider) && resolvedApiKey) {
-      this.client = new Anthropic({
-        apiKey: resolvedApiKey,
-      });
-    }
-
+  constructor(styleGuidelines?: any) {
     this.styleGuidelines = styleGuidelines || null;
+  }
+
+  /**
+   * Ensure the AiClient is initialised (lazy, called once per extractor instance).
+   * Subsequent calls return the cached client immediately.
+   */
+  private async ensureClient(): Promise<AiClient> {
+    if (!this.client) {
+      this.client = await getFilmbuffAiClient('blocking-extractor');
+    }
+    return this.client;
   }
 
   /**
@@ -80,23 +74,13 @@ export class AIBlockingExtractor {
   }
 
   /**
-   * Extract blocking, set description, and actions from action lines using AI
+   * Extract blocking, set description, and actions from action lines using AI.
    */
   async extractBlocking(
     actionLines: string[],
     characterNames: string[],
     previousPositions?: Map<string, CharacterBlockingPosition>
   ): Promise<BlockingExtractionResult> {
-    if (!isLegacyProvider(this.aiProvider)) {
-      console.warn(`AI provider "${this.aiProvider}" is not implemented for blocking extraction, using fallback extraction`);
-      return this.fallbackExtraction(actionLines, characterNames);
-    }
-
-    if (!this.client) {
-      console.log('No Anthropic API key found, using fallback blocking extraction');
-      return this.fallbackExtraction(actionLines, characterNames);
-    }
-
     const actionText = actionLines.join('\n');
 
     // Identify which characters need descriptions (not in cache)
@@ -112,39 +96,31 @@ export class AIBlockingExtractor {
     );
 
     try {
-      const response = await this.client.messages.create({
-        model: this.aiModel,
-        max_tokens: 4096, // Increased for verbose descriptions
-        temperature: 0.0, // Deterministic for consistency
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
+      const client = await this.ensureClient();
+      const response = await client.generateText(prompt, {
+        maxTokens: 4096,   // Increased for verbose descriptions
+        temperature: 0.0,  // Deterministic for consistency
       });
 
-      const content = response.content[0];
-      if (content.type === 'text') {
-        const result = this.parseBlockingResponse(content.text, characterNames);
+      // response.content IS the generated text string (same as old response.content[0].text)
+      const result = this.parseBlockingResponse(response.content, characterNames);
 
-        // Cache new character descriptions
-        for (const desc of result.characterDescriptions) {
-          if (!this.characterDescriptionCache.has(desc.character)) {
-            this.characterDescriptionCache.set(desc.character, desc);
-          }
+      // Cache new character descriptions
+      for (const desc of result.characterDescriptions) {
+        if (!this.characterDescriptionCache.has(desc.character)) {
+          this.characterDescriptionCache.set(desc.character, desc);
         }
-
-        // Add cached descriptions for characters that didn't need new ones
-        for (const name of characterNames) {
-          const cached = this.characterDescriptionCache.get(name);
-          if (cached && !result.characterDescriptions.find(d => d.character === name)) {
-            result.characterDescriptions.push(cached);
-          }
-        }
-
-        return result;
       }
 
-      throw new Error('Unexpected response format from AI');
+      // Add cached descriptions for characters that didn't need new ones
+      for (const name of characterNames) {
+        const cached = this.characterDescriptionCache.get(name);
+        if (cached && !result.characterDescriptions.find(d => d.character === name)) {
+          result.characterDescriptions.push(cached);
+        }
+      }
+
+      return result;
     } catch (error) {
       console.error('AI blocking extraction failed:', error);
       // Fallback to basic extraction

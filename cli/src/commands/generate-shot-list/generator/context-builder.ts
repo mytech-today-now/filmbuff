@@ -75,10 +75,9 @@ export class ContextBuilder {
   constructor(config: ContextBuilderConfig) {
     this.config = config;
     this.styleGuidelines = config.styleGuidelines || null;
-    this.aiExtractor = new AIEntityExtractor({
-      aiProvider: config.aiProvider,
-      aiModel: config.aiModel
-    });
+    // Phase 5 (bd-551f): AIEntityExtractor no longer takes credentials; the
+    // ai-powered library sources them from its own config layers.
+    this.aiExtractor = new AIEntityExtractor();
   }
 
   /**
