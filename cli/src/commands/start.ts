@@ -43,6 +43,23 @@ export interface StartOptions {
   styles?:      string[];
   provider?:    string;
   profile?:     string;
+  // -------------------------------------------------------------------------
+  // bd-jnbf (Phase 6.4): AIPoweredClientOptions override flags.
+  // Stored here for forwarding to resolveAIClient() when any AI call is made
+  // during or after the start workflow.
+  // -------------------------------------------------------------------------
+  /** --ai-powered-url: gateway base URL override. */
+  aiPoweredUrl?: string;
+  /** --ai-model: model identifier override. */
+  aiModel?: string;
+  /** --system-prompt: system prompt override. */
+  systemPrompt?: string;
+  /** --temperature: sampling temperature override (0–2). */
+  temperature?: number;
+  /** --max-tokens: maximum tokens per response override. */
+  maxTokens?: number;
+  /** --timeout: request timeout in milliseconds override. */
+  timeout?: number;
 }
 
 // ---------------------------------------------------------------------------

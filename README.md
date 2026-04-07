@@ -67,6 +67,192 @@ If your shell still does not recognize `filmbuff` immediately after install, ope
 | `filmbuff generate-treatment` | AI-powered treatment generation |
 | `filmbuff validate` | Validate module structure |
 | `filmbuff upgrade` | Upgrade to latest version |
+| `filmbuff inspect <module>` | Inspect module source files |
+| `filmbuff inspect --format json` | JSON inspection report |
+| `filmbuff inspect --format text` | Plain-text inspection report |
+| `filmbuff inspect --format markdown` | Markdown inspection report |
+
+---
+
+## 🔍 Module Inspection
+
+The `filmbuff inspect` command performs **language-aware source inspection** of modules, extracting structured metadata from JavaScript/TypeScript, Python, and PHP source files.
+
+### Quick Start
+
+```bash
+# Inspect a linked module
+filmbuff inspect my-module
+
+# JSON output (pipe-friendly)
+filmbuff inspect my-module --format json
+
+# Only show functions and classes
+filmbuff inspect my-module --filter functions,classes
+
+# Inspect a directory directly
+filmbuff inspect ./src --format markdown
+```
+
+### Language Support
+
+| Language | Extensions | Extracted Elements |
+|----------|------------|-------------------|
+| **TypeScript** | `.ts`, `.tsx`, `.mts` | imports, exports, functions (regular + arrow + async), classes (with methods), interfaces, type aliases, constants |
+| **JavaScript** | `.js`, `.jsx`, `.mjs`, `.cjs` | imports (ES6 + CJS), exports, functions, classes, variables |
+| **Python 3** | `.py`, `.pyw` | imports, functions (sync + async), classes (with methods), decorators, docstrings, type annotations |
+| **PHP** | `.php`, `.php8` | namespaces, use-statements, functions, classes, interfaces, traits, constants |
+
+### Element Filtering
+
+Use `--filter` to restrict output to specific element kinds:
+
+```bash
+filmbuff inspect ./src --filter functions
+filmbuff inspect ./src --filter classes,interfaces
+filmbuff inspect ./src --filter imports,exports
+filmbuff inspect ./src --filter variables,constants
+filmbuff inspect ./src --filter methods
+```
+
+Supported filter kinds: `function`, `class`, `method`, `import`, `export`, `variable`, `constant`, `interface`, `type`, `namespace`
+
+### Output Formats
+
+#### JSON (`--format json`)
+
+Follows the `InspectionResult` schema (version 1.0):
+
+```json
+{
+  "schema": "1.0",
+  "generatedAt": "2026-04-07T10:00:00Z",
+  "module": { "name": "...", "version": "...", "type": "...", "tags": [] },
+  "metadata": { "totalFiles": 6, "rules": 3, "examples": 2 },
+  "files": [ { "relativePath": "src/app.ts", "type": "javascript", "size": 4096 } ],
+  "recommendations": [ { "id": "rec-001", "priority": "high", "title": "..." } ],
+  "optimizations": [ { "id": "opt-001", "category": "performance", "impact": "medium" } ]
+}
+```
+
+Stream large results to a file:
+
+```bash
+filmbuff inspect ./src --format json > report.json
+```
+
+#### Plain Text (`--format text`)
+
+Human-readable output suitable for terminals and VS Code output channels.
+Severity levels are colour-coded when outputting to a TTY:
+- 🔴 **High** — red
+- 🟡 **Medium** — yellow
+- 🟢 **Low** — green
+
+Disable colour for plain-text logs:
+
+```bash
+filmbuff inspect ./src --format text --no-color
+```
+
+#### Markdown (`--format markdown`)
+
+Formatted tables suitable for GitHub, README files, and documentation:
+
+```bash
+filmbuff inspect ./src --format markdown > INSPECTION.md
+```
+
+### Configuration
+
+Add inspection settings to your `filmbuff.config.json` (or `package.json` under `"filmbuff"`):
+
+```json
+{
+  "inspect": {
+    "defaultFormat": "text",
+    "defaultFilter": ["function", "class"],
+    "maxFiles": 200,
+    "cache": {
+      "enabled": true,
+      "ttlSeconds": 300
+    },
+    "skipDirs": ["node_modules", ".git", "dist", "build"],
+    "languages": ["typescript", "javascript", "python", "php"]
+  }
+}
+```
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `defaultFormat` | `"json"` \| `"text"` \| `"markdown"` | `"text"` | Output format when `--format` is not supplied |
+| `defaultFilter` | `string[]` | `[]` (all) | Element kinds included by default |
+| `maxFiles` | `number` | `500` | Maximum files scanned per invocation |
+| `cache.enabled` | `boolean` | `true` | Cache parsed ASTs between runs |
+| `cache.ttlSeconds` | `number` | `300` | AST cache time-to-live in seconds |
+| `skipDirs` | `string[]` | `["node_modules",".git","dist","build"]` | Directory names to skip when scanning |
+| `languages` | `string[]` | all | Restrict inspection to specific languages |
+
+### Dependency Analysis
+
+The inspection engine also extracts **dependency graphs** from source imports:
+
+```bash
+filmbuff inspect ./src --deps             # Show dependency summary
+filmbuff inspect ./src --deps --format json > deps.json
+```
+
+Dependency analysis:
+- Reads `package.json`, `requirements.txt`, or `composer.json` for declared versions
+- Classifies every import as `stdlib | npm | pip | composer | internal | url`
+- Resolves declared version constraints from manifests
+- Validates URL imports for syntactic correctness
+- Flags undeclared (not-in-manifest) third-party packages
+
+### Troubleshooting
+
+| Problem | Cause | Fix |
+|---------|-------|-----|
+| `Unsupported file type: .coffee` | Extension not in supported list | Only `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.py`, `.php` are analysed |
+| `Read error: ENOENT` | File not found | Verify the path; inspection resolves relative to CWD |
+| `Parse error: ...` | Parser hit a syntax edge case | The parser is regex-based; complex macros or JSX transforms may not be fully parsed. Open an issue with a minimal repro |
+| JSON output appears minified | `indent` default changed | Pass `--indent 2` or configure `inspect.defaultFormat` |
+| Cache returning stale results | File changed but cache still warm | Run with `--no-cache` to bypass, or wait for the TTL to expire |
+| VS Code output shows `←[31m` sequences | ANSI codes in non-TTY context | Set `colorize: false` in config or use `--no-color` flag |
+| Missing packages in dependency report | `package.json` not found | Pass `--project-root <dir>` pointing to the directory containing your manifest |
+
+### Architecture Notes
+
+The inspection pipeline has three layers:
+
+```
+Source files
+     │
+     ▼
+┌─────────────────────────────────────────────────┐
+│  Language Parsers  (cli/src/parsers/)           │
+│  js-ts-parser.ts  python-parser.ts  php-parser.ts│
+└────────────────────┬────────────────────────────┘
+                     │ ContentElement[]
+                     ▼
+┌─────────────────────────────────────────────────┐
+│  Content Inspector  (cli/src/utils/)            │
+│  content-inspector.ts                           │
+│  • ElementFilter (kinds, namePattern, exported) │
+│  • InspectionCache (LRU, 5-min TTL)             │
+│  • inspectFile / inspectFiles / inspectDirectory│
+└────────────────────┬────────────────────────────┘
+                     │ ContentInspectionResult
+                     ▼
+┌─────────────────────────────────────────────────┐
+│  Formatters  (cli/src/utils/formatters/)        │
+│  inspection-json-formatter.ts                   │
+│  inspection-text-formatter.ts                   │
+│  inspection-report.ts  (Markdown)               │
+└─────────────────────────────────────────────────┘
+```
+
+---
 
 ## 📄 License
 

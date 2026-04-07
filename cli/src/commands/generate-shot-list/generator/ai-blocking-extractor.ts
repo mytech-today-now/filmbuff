@@ -2,18 +2,18 @@
  * AI-Powered Blocking Extractor
  *
  * Extracts detailed character blocking and spatial positions from screenplay
- * action lines using AIPoweredClient via resolveAIClient().
+ * action lines using the ai-powered library via getFilmbuffAiClient().
  *
- * Phase 4.2 migration (bd-su55): replaced getFilmbuffAiClient() + AiClient
- * with resolveAIClient() + AIPoweredClient.complete().  The client is lazily
- * initialised on the first extractBlocking() call and reused for all
- * subsequent calls (single resolveAIClient() invocation per instance).
+ * Phase 5 migration (bd-551f): replaced resolveAIClient() + AIPoweredClient.complete()
+ * with getFilmbuffAiClient('blocking-extractor') + AiClient.generateText().  The client
+ * is lazily initialised on the first extractBlocking() call and reused for all
+ * subsequent calls (single getFilmbuffAiClient() invocation per instance).
  *
  * All prompt builders and response parsers are unchanged (spec requirement).
  */
 
-import { resolveAIClient } from '../../../utils/runtime-resolver.js';
-import type { AIPoweredClient } from '../../../utils/ai-powered-client.js';
+import { getFilmbuffAiClient } from '../../../utils/filmbuff-ai-client.js';
+import type { AiClient } from '../../../utils/filmbuff-ai-client.js';
 
 export interface CharacterBlockingPosition {
   character: string;
@@ -39,22 +39,28 @@ export interface BlockingExtractionResult {
 }
 
 export class AIBlockingExtractor {
-  /** Lazily-initialised AIPoweredClient; null until first extractBlocking() call. */
-  private client: AIPoweredClient | null = null;
+  /** Lazily-initialised AiClient; null until first extractBlocking() call. */
+  private client: AiClient | null = null;
   private characterDescriptionCache: Map<string, CharacterDescription> = new Map();
   private styleGuidelines: any | null = null; // MergedStyleGuidelines type
 
+  /**
+   * @param styleGuidelines  Optional merged style-system guidelines.
+   */
   constructor(styleGuidelines?: any) {
     this.styleGuidelines = styleGuidelines || null;
   }
 
   /**
-   * Ensure the AIPoweredClient is initialised (lazy, called once per extractor instance).
+   * Ensure the AiClient is initialised (lazy, called once per extractor instance).
    * Subsequent calls return the cached client immediately.
+   *
+   * toolName 'blocking-extractor' is forwarded to the ai-powered audit-log
+   * plugin so every AI call is traceable to this feature.
    */
-  private ensureClient(): AIPoweredClient {
+  private async ensureClient(): Promise<AiClient> {
     if (!this.client) {
-      this.client = resolveAIClient();
+      this.client = await getFilmbuffAiClient('blocking-extractor');
     }
     return this.client;
   }
@@ -96,14 +102,14 @@ export class AIBlockingExtractor {
     );
 
     try {
-      const client = this.ensureClient();
-      const response = await client.complete(prompt, {
+      const client = await this.ensureClient();
+      const content = await (client as any).generateText(prompt, {
         maxTokens: 4096,   // Increased for verbose descriptions
         temperature: 0.0,  // Deterministic for consistency
-      });
+      }) as string;
 
-      // response.content is the generated text string
-      const result = this.parseBlockingResponse(response.content, characterNames);
+      // content is the generated text string
+      const result = this.parseBlockingResponse(content, characterNames);
 
       // Cache new character descriptions
       for (const desc of result.characterDescriptions) {

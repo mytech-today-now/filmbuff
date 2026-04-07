@@ -106,9 +106,15 @@ export interface AugmentConfig {
     summaryCache?: AISummaryCacheConfig;
   };
   /**
-   * ai-powered library integration settings (Phase 7 — bd-e8ad).
-   * Provider, model, API keys, and server URL are managed by ai-powered's own
-   * layered config system — FilmBuff only owns `plugins` and `debug` here.
+   * ai-powered gateway integration settings (Phase 5 — bd-08b4 / Phase 6 — bd-zdru).
+   *
+   * The six AIPoweredClientOptions fields (url → timeoutMs) are written here
+   * by `filmbuff ai set <key> <value>` and read by resolveAIClient() as
+   * Level 3 in the four-level resolution chain:
+   *   CLI overrides > env vars > THIS block > built-in defaults
+   *
+   * FilmBuff does not manage API credentials (apiKey / secret / token).
+   * Those are owned exclusively by the ai-powered gateway.
    */
   aiPowered?: {
     /**
@@ -121,6 +127,18 @@ export interface AugmentConfig {
      * Default: false.
      */
     debug?: boolean;
+    /** Gateway base URL.  Default: http://localhost:3001 */
+    url?: string;
+    /** Model identifier forwarded to the gateway.  Default: gpt-4 */
+    model?: string;
+    /** System prompt injected into every completion request. */
+    systemPrompt?: string;
+    /** Sampling temperature (0–2).  Default: 0.7 */
+    temperature?: number;
+    /** Maximum tokens per response.  Default: 2048 */
+    maxTokens?: number;
+    /** Request timeout in milliseconds.  Default: 30 000 */
+    timeoutMs?: number;
   };
 }
 
@@ -418,6 +436,41 @@ export class ConfigManager {
       }
     }
 
+    // Validate aiPowered block  (bd-08b4 / bd-zdru Phase 5)
+    if (config.aiPowered) {
+      const ap = config.aiPowered;
+      if (ap.url !== undefined && typeof ap.url !== 'string') {
+        errors.push('aiPowered.url must be a string');
+      }
+      if (ap.model !== undefined && typeof ap.model !== 'string') {
+        errors.push('aiPowered.model must be a string');
+      }
+      if (ap.systemPrompt !== undefined && typeof ap.systemPrompt !== 'string') {
+        errors.push('aiPowered.systemPrompt must be a string');
+      }
+      if (ap.temperature !== undefined) {
+        if (typeof ap.temperature !== 'number' || ap.temperature < 0 || ap.temperature > 2) {
+          errors.push('aiPowered.temperature must be a number between 0 and 2');
+        }
+      }
+      if (ap.maxTokens !== undefined) {
+        if (!Number.isInteger(ap.maxTokens) || ap.maxTokens < 1) {
+          errors.push('aiPowered.maxTokens must be a positive integer');
+        }
+      }
+      if (ap.timeoutMs !== undefined) {
+        if (!Number.isInteger(ap.timeoutMs) || ap.timeoutMs < 1) {
+          errors.push('aiPowered.timeoutMs must be a positive integer');
+        }
+      }
+      if (ap.plugins !== undefined && !Array.isArray(ap.plugins)) {
+        errors.push('aiPowered.plugins must be an array');
+      }
+      if (ap.debug !== undefined && typeof ap.debug !== 'boolean') {
+        errors.push('aiPowered.debug must be a boolean');
+      }
+    }
+
     return {
       valid: errors.length === 0,
       errors,
@@ -474,7 +527,9 @@ export class ConfigManager {
       },
       aiPowered: {
         ...base.aiPowered,
-        ...override.aiPowered
+        ...override.aiPowered,
+        // Prefer override plugins array if provided; fall back to base.
+        plugins: override.aiPowered?.plugins ?? base.aiPowered?.plugins,
       }
     };
   }

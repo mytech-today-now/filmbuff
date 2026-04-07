@@ -51,21 +51,20 @@ const ENV_MAP: Record<keyof AIPoweredClientOptions, string> = {
 export function resolveAIClient(
   overrides?: Partial<AIPoweredClientOptions>,
 ): AIPoweredClient {
-  // Level 3: config file — aiPowered block
-  // Phase 5 (bd-*) will add url/model/etc. to the AugmentConfig.aiPowered
-  // interface; for now we read it defensively via type assertion.
+  // Level 3: config file — aiPowered block.
+  // AugmentConfig.aiPowered now includes all six AIPoweredClientOptions fields
+  // (Phase 5 bd-08b4 / Phase 6 bd-zdru) — no type assertion needed.
   const manager = new ConfigManager();
   const config = manager.load();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cfgBlock = (config.aiPowered ?? {}) as Record<string, unknown>;
+  const cfgBlock = config.aiPowered ?? {};
 
   const fromConfig: Partial<AIPoweredClientOptions> = {};
-  if (typeof cfgBlock['url'] === 'string')          fromConfig.url          = cfgBlock['url'];
-  if (typeof cfgBlock['model'] === 'string')        fromConfig.model        = cfgBlock['model'];
-  if (typeof cfgBlock['systemPrompt'] === 'string') fromConfig.systemPrompt = cfgBlock['systemPrompt'];
-  if (typeof cfgBlock['temperature'] === 'number')  fromConfig.temperature  = cfgBlock['temperature'];
-  if (typeof cfgBlock['maxTokens'] === 'number')    fromConfig.maxTokens    = cfgBlock['maxTokens'];
-  if (typeof cfgBlock['timeoutMs'] === 'number')    fromConfig.timeoutMs    = cfgBlock['timeoutMs'];
+  if (typeof cfgBlock.url          === 'string') fromConfig.url          = cfgBlock.url;
+  if (typeof cfgBlock.model        === 'string') fromConfig.model        = cfgBlock.model;
+  if (typeof cfgBlock.systemPrompt === 'string') fromConfig.systemPrompt = cfgBlock.systemPrompt;
+  if (typeof cfgBlock.temperature  === 'number') fromConfig.temperature  = cfgBlock.temperature;
+  if (typeof cfgBlock.maxTokens    === 'number') fromConfig.maxTokens    = cfgBlock.maxTokens;
+  if (typeof cfgBlock.timeoutMs    === 'number') fromConfig.timeoutMs    = cfgBlock.timeoutMs;
 
   // Level 2: environment variables
   const fromEnv: Partial<AIPoweredClientOptions> = {};

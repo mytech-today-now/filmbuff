@@ -28,6 +28,7 @@ import { completeCommand } from './commands/complete';
 import { statusCommand } from './commands/status';
 import { unknownProviderCommand } from './commands/provider';
 import { aiStatusCommand } from './commands/ai-status';
+import { aiSetCommand } from './commands/ai-set';
 
 // Read version from package.json
 const packageJson = JSON.parse(
@@ -388,8 +389,17 @@ const aiCmd = program
 
 aiCmd
   .command('status')
-  .description('Show ai-powered library integration status (provider, model, mock mode, plugins)')
+  .description('Show ai-powered gateway status: resolved params with source labels + health check')
   .action(() => aiStatusCommand());
+
+// bd-6fw8 (Phase 6.3): filmbuff ai set <key> <value>
+aiCmd
+  .command('set <key> <value>')
+  .description(
+    'Set an ai-powered gateway parameter in .augment/augment.json\n' +
+    '  Keys: url  model  systemPrompt  temperature  maxTokens  timeoutMs',
+  )
+  .action((key: string, value: string) => aiSetCommand(key, value));
 
 // Start command — initialise a new FilmBuff project (bd-pipe-c1)
 program
@@ -414,21 +424,34 @@ program
   .option('--ai-profile <name>', 'AI provider profile name')
   .option('--provider <id>', 'AI provider id (alias for --ai-provider)')
   .option('--profile <name>', 'AI provider profile name (alias for --ai-profile)')
+  // bd-jnbf (Phase 6.4): AIPoweredClientOptions override flags
+  .option('--ai-powered-url <url>', 'ai-powered gateway base URL override')
+  .option('--ai-model <model>', 'AI model override — Level-1 precedence')
+  .option('--system-prompt <text>', 'System prompt override')
+  .option('--temperature <number>', 'Sampling temperature override (0–2)', parseFloat)
+  .option('--max-tokens <number>', 'Max response tokens override', parseInt)
+  .option('--timeout <ms>', 'Request timeout override in milliseconds', parseInt)
   .action((options) =>
     startCommand({
-      title:     options.title,
-      genre:     options.genre,
-      slug:      options.slug,
-      tone:      options.tone,
-      audience:  options.audience,
-      budget:    options.budget,
-      outcome:   options.outcome,
-      outputDir: options.outputDir,
-      format:    options.format,
-      detail:    options.detail,
-      styles:    options.style,
-      provider:  options.aiProvider ?? options.provider,
-      profile:   options.aiProfile  ?? options.profile,
+      title:        options.title,
+      genre:        options.genre,
+      slug:         options.slug,
+      tone:         options.tone,
+      audience:     options.audience,
+      budget:       options.budget,
+      outcome:      options.outcome,
+      outputDir:    options.outputDir,
+      format:       options.format,
+      detail:       options.detail,
+      styles:       options.style,
+      provider:     options.aiProvider ?? options.provider,
+      profile:      options.aiProfile  ?? options.profile,
+      aiPoweredUrl: options.aiPoweredUrl,
+      aiModel:      options.aiModel,
+      systemPrompt: options.systemPrompt,
+      temperature:  options.temperature,
+      maxTokens:    options.maxTokens,
+      timeout:      options.timeout,
     })
   );
 
@@ -442,12 +465,25 @@ program
   .option('--provider <id>', 'Override AI provider for this session (alias for --ai-provider)')
   .option('--profile <name>', 'Override AI provider profile (alias for --ai-profile)')
   .option('--dry-run', 'Assemble context without persisting snapshots or running generation')
+  // bd-jnbf (Phase 6.4): AIPoweredClientOptions override flags
+  .option('--ai-powered-url <url>', 'ai-powered gateway base URL override')
+  .option('--ai-model <model>', 'AI model override — Level-1 precedence')
+  .option('--system-prompt <text>', 'System prompt override')
+  .option('--temperature <number>', 'Sampling temperature override (0–2)', parseFloat)
+  .option('--max-tokens <number>', 'Max response tokens override', parseInt)
+  .option('--timeout <ms>', 'Request timeout override in milliseconds', parseInt)
   .action((options) =>
     continueCommand({
-      project:  options.project,
-      provider: options.aiProvider ?? options.provider,
-      profile:  options.aiProfile  ?? options.profile,
-      dryRun:   options.dryRun,
+      project:      options.project,
+      provider:     options.aiProvider ?? options.provider,
+      profile:      options.aiProfile  ?? options.profile,
+      dryRun:       options.dryRun,
+      aiPoweredUrl: options.aiPoweredUrl,
+      aiModel:      options.aiModel,
+      systemPrompt: options.systemPrompt,
+      temperature:  options.temperature,
+      maxTokens:    options.maxTokens,
+      timeout:      options.timeout,
     })
   );
 
@@ -461,12 +497,25 @@ program
   .option('--ai-profile <name>', 'Override AI provider profile for this session')
   .option('--provider <id>', 'Override AI provider for this session (alias for --ai-provider)')
   .option('--profile <name>', 'Override AI provider profile (alias for --ai-profile)')
+  // bd-jnbf (Phase 6.4): AIPoweredClientOptions override flags
+  .option('--ai-powered-url <url>', 'ai-powered gateway base URL override')
+  .option('--ai-model <model>', 'AI model override — Level-1 precedence')
+  .option('--system-prompt <text>', 'System prompt override')
+  .option('--temperature <number>', 'Sampling temperature override (0–2)', parseFloat)
+  .option('--max-tokens <number>', 'Max response tokens override', parseInt)
+  .option('--timeout <ms>', 'Request timeout override in milliseconds', parseInt)
   .action((options) =>
     retryCommand({
-      project:  options.project,
-      step:     options.step,
-      provider: options.aiProvider ?? options.provider,
-      profile:  options.aiProfile  ?? options.profile,
+      project:      options.project,
+      step:         options.step,
+      provider:     options.aiProvider ?? options.provider,
+      profile:      options.aiProfile  ?? options.profile,
+      aiPoweredUrl: options.aiPoweredUrl,
+      aiModel:      options.aiModel,
+      systemPrompt: options.systemPrompt,
+      temperature:  options.temperature,
+      maxTokens:    options.maxTokens,
+      timeout:      options.timeout,
     })
   );
 
@@ -533,7 +582,13 @@ program
   .option('--mute-sfx', 'Remove all MUSIC and SOUND EFFECT content from the output')
   .option('--ai-provider <provider>', 'AI provider id for shot list generation')
   .option('--ai-profile <name>', 'AI provider profile name (requires --ai-provider)')
-  .option('--ai-model <model>', 'AI model override for the selected provider')
+  .option('--ai-model <model>', 'AI model override (AIPoweredClientOptions.model) — Level-1 precedence')
+  // bd-jnbf (Phase 6.4): AIPoweredClientOptions override flags
+  .option('--ai-powered-url <url>', 'ai-powered gateway base URL override (AIPoweredClientOptions.url)')
+  .option('--system-prompt <text>', 'System prompt override (AIPoweredClientOptions.systemPrompt)')
+  .option('--temperature <number>', 'Sampling temperature override, 0–2 (AIPoweredClientOptions.temperature)', parseFloat)
+  .option('--max-tokens <number>', 'Max response tokens override (AIPoweredClientOptions.maxTokens)', parseInt)
+  .option('--timeout <ms>', 'Request timeout override in milliseconds (AIPoweredClientOptions.timeoutMs)', parseInt)
   .option('--provider <id>', 'Video provider id (e.g. lumaai, mock) from filmbuff.config.json')
   .option('--model <id>', 'Video model id override for the selected video provider')
   .option('--offline', 'Skip URL reachability checks (V-3) and provider capability fetch; implies CI-safe mode')
@@ -556,6 +611,12 @@ program
       aiProvider:      options.aiProvider,
       aiProfile:       options.aiProfile,
       aiModel:         options.aiModel,
+      // bd-jnbf (Phase 6.4) override flags
+      aiPoweredUrl:    options.aiPoweredUrl,
+      systemPrompt:    options.systemPrompt,
+      temperature:     options.temperature,
+      maxTokens:       options.maxTokens,
+      timeout:         options.timeout,
       provider:        options.provider,
       model:           options.model,
       offline:         options.offline ?? (process.env['CI'] === 'true'),

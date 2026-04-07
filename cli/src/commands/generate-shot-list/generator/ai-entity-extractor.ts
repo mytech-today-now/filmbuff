@@ -9,16 +9,16 @@
  * - Object conventions (airlock door, viewscreen, etc.)
  * - Industry-standard screenplay formatting
  *
- * Phase 4.2 migration (bd-su55): replaced getFilmbuffAiClient() + AiClient
- * with resolveAIClient() + AIPoweredClient.complete().  The client is lazily
- * initialised on the first extractEntities() call and reused for all subsequent
- * calls (single resolveAIClient() invocation per AIEntityExtractor instance).
+ * Phase 5 migration (bd-551f): replaced resolveAIClient() + AIPoweredClient.complete()
+ * with getFilmbuffAiClient('entity-extractor') + AiClient.generateText().  The client
+ * is lazily initialised on the first extractEntities() call and reused for all
+ * subsequent calls (single getFilmbuffAiClient() invocation per AIEntityExtractor instance).
  *
  * All prompt builders and response parsers are unchanged (spec requirement).
  */
 
-import { resolveAIClient } from '../../../utils/runtime-resolver.js';
-import type { AIPoweredClient } from '../../../utils/ai-powered-client.js';
+import { getFilmbuffAiClient } from '../../../utils/filmbuff-ai-client.js';
+import type { AiClient } from '../../../utils/filmbuff-ai-client.js';
 
 export interface EntityExtractionResult {
   characters: string[];
@@ -30,20 +30,23 @@ export interface EntityExtractionResult {
  * AI-powered entity extractor using the ai-powered library.
  */
 export class AIEntityExtractor {
-  /** Lazily-initialised AIPoweredClient; null until first extractEntities() call. */
-  private client: AIPoweredClient | null = null;
+  /** Lazily-initialised AiClient; null until first extractEntities() call. */
+  private client: AiClient | null = null;
 
   constructor() {
-    // No credentials needed — resolveAIClient() reads config, env vars, and defaults.
+    // No credentials needed — getFilmbuffAiClient() reads config from the ai-powered library.
   }
 
   /**
-   * Ensure the AIPoweredClient is initialised (lazy, called once per extractor instance).
+   * Ensure the AiClient is initialised (lazy, called once per extractor instance).
    * Subsequent calls return the cached client immediately.
+   *
+   * toolName 'entity-extractor' is forwarded to the ai-powered audit-log
+   * plugin so every AI call is traceable to this feature.
    */
-  private ensureClient(): AIPoweredClient {
+  private async ensureClient(): Promise<AiClient> {
     if (!this.client) {
-      this.client = resolveAIClient();
+      this.client = await getFilmbuffAiClient('entity-extractor');
     }
     return this.client;
   }
@@ -56,11 +59,11 @@ export class AIEntityExtractor {
 
     try {
       console.log('Using AI-powered entity extraction...');
-      const client = this.ensureClient();
-      const response = await client.complete(prompt, { maxTokens: 2048 });
+      const client = await this.ensureClient();
+      const content = await (client as any).generateText(prompt, { maxTokens: 2048 }) as string;
 
-      // response.content is the generated text string
-      const result = this.parseAIResponse(response.content);
+      // content is the generated text string
+      const result = this.parseAIResponse(content);
       console.log(`AI extracted ${result.characters.length} characters and ${result.objects.length} objects`);
       return result;
     } catch (error) {

@@ -1,26 +1,23 @@
 # AI Provider Setup — FilmBuff User Guide
 
-> **Phase 9 (bd-99b2):** FilmBuff no longer manages AI providers internally.
-> All configuration is delegated to the
-> [`ai-powered`](https://www.npmjs.com/package/ai-powered) npm library.
-
-FilmBuff routes AI-powered commands (`generate-shot-list`, `generate-video`)
-through the **ai-powered** library. Configure a provider once with the
-`ai-powered` CLI and all FilmBuff commands use it automatically.
+FilmBuff routes AI-powered commands (`generate-shot-list`) through the
+**ai-powered** HTTP gateway. The gateway connects to your chosen provider
+and FilmBuff connects to the gateway.
 
 ---
 
 ## Table of Contents
 
 1. [Quick Start](#quick-start)
-2. [Supported Providers](#supported-providers)
-3. [Environment Variables](#environment-variables)
-4. [Mock Mode (No API Key)](#mock-mode-no-api-key)
-5. [Video Generation](#video-generation)
-6. [Plugin Configuration](#plugin-configuration)
-7. [Checking Status](#checking-status)
-8. [Troubleshooting](#troubleshooting)
-9. [Removed Commands](#removed-commands)
+2. [FilmBuff Configuration Keys](#filmbuff-configuration-keys)
+3. [Supported Providers](#supported-providers)
+4. [Environment Variables](#environment-variables)
+5. [Mock Mode (No API Key)](#mock-mode-no-api-key)
+6. [Video Generation](#video-generation)
+7. [Plugin Configuration](#plugin-configuration)
+8. [Checking Status](#checking-status)
+9. [Troubleshooting](#troubleshooting)
+10. [Removed Commands](#removed-commands)
 
 ---
 
@@ -32,25 +29,79 @@ through the **ai-powered** library. Configure a provider once with the
 npm install -g ai-powered
 ```
 
-### Step 2 — Configure provider and API key
+### Step 2 — Start the ai-powered gateway
+
+```bash
+ai-powered start
+```
+
+The gateway starts on `http://localhost:3001` by default.
+
+### Step 3 — Configure provider and API key (in ai-powered)
 
 ```bash
 ai-powered config set provider openai
 ai-powered config set apiKey sk-proj-...
 ```
 
-### Step 3 — Verify
+### Step 4 — Verify
 
 ```bash
 filmbuff ai status
 ```
 
-You should see your provider, model, and plugin settings.
+You should see gateway URL, model, and all resolved config values.
 
-### Step 4 — Run a command
+### Step 5 — Run a command
 
 ```bash
 filmbuff generate-shot-list script.fountain --output shots.jsonl
+```
+
+---
+
+## FilmBuff Configuration Keys
+
+FilmBuff has six AI configuration keys resolved in priority order:
+
+| Key | Type | Default | Env Var | CLI Flag |
+|-----|------|---------|---------|----------|
+| `url` | `string` | `http://localhost:3001` | `AI_POWERED_URL` | `--ai-powered-url` |
+| `model` | `string` | `gpt-4` | `AI_MODEL` | `--ai-model` |
+| `systemPrompt` | `string` | *(FilmBuff default)* | `AI_SYSTEM_PROMPT` | `--system-prompt` |
+| `temperature` | `number` (0–2) | `0.7` | `AI_TEMPERATURE` | `--temperature` |
+| `maxTokens` | `number` (>0) | `2048` | `AI_MAX_TOKENS` | `--max-tokens` |
+| `timeoutMs` | `number` (>0) | `30000` | `AI_TIMEOUT_MS` | `--timeout` |
+
+**Resolution order (highest precedence first):**
+1. CLI flag (`--ai-model gpt-4o`)
+2. Environment variable (`AI_MODEL=gpt-4o`)
+3. Config file (`filmbuff ai set model gpt-4o`)
+4. Built-in default
+
+**Persist a setting permanently:**
+
+```bash
+filmbuff ai set url http://my-gateway:8080
+filmbuff ai set model gpt-4o
+filmbuff ai set temperature 0.5
+filmbuff ai set maxTokens 4096
+filmbuff ai set timeoutMs 60000
+```
+
+**Per-command CLI override:**
+
+```bash
+filmbuff generate-shot-list script.fountain \
+  --ai-model gpt-4o \
+  --temperature 0.2 \
+  --max-tokens 4096
+```
+
+**Session-wide env override:**
+
+```bash
+AI_MODEL=gpt-4o-mini AI_TEMPERATURE=0.3 filmbuff generate-shot-list script.fountain
 ```
 
 ---
@@ -70,13 +121,18 @@ filmbuff generate-shot-list script.fountain --output shots.jsonl
 
 ## Environment Variables
 
-| Variable   | Purpose                                                      |
-|-----------|--------------------------------------------------------------|
-| `AI_MOCK`  | Set to `true` to use the mock provider (no API calls)        |
-| `AI_POWERED_CONFIG` | Override config file path (default: `~/.ai-powered/config.json`) |
+| Variable | Purpose |
+|----------|---------|
+| `AI_POWERED_URL` | Gateway URL (default: `http://localhost:3001`) |
+| `AI_MODEL` | Model identifier (default: `gpt-4`) |
+| `AI_SYSTEM_PROMPT` | System prompt override |
+| `AI_TEMPERATURE` | Sampling temperature (0–2, default: `0.7`) |
+| `AI_MAX_TOKENS` | Max response tokens (default: `2048`) |
+| `AI_TIMEOUT_MS` | Request timeout in ms (default: `30000`) |
+| `AI_MOCK` | Set to `true` to use the mock provider (no API calls) |
 
-API keys are stored in `~/.ai-powered/config.json` by `ai-powered config set apiKey`.
-They are **never** written to project files.
+API keys are managed by the `ai-powered` gateway and are **never** written to
+project files.
 
 ---
 

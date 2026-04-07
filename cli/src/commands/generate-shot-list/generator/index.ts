@@ -34,7 +34,12 @@ export class ShotListGenerator implements Generator {
   private styleGuidelines: MergedStyleGuidelines | null = null;
   private characterBlockingCache: Map<string, CharacterBlockingPosition> = new Map();
 
-  constructor(styleGuidelines?: MergedStyleGuidelines | null) {
+  /**
+   * @param styleGuidelines  Optional merged style-system guidelines.
+   */
+  constructor(
+    styleGuidelines?: MergedStyleGuidelines | null,
+  ) {
     // Store style guidelines first
     this.styleGuidelines = styleGuidelines || null;
 
@@ -58,8 +63,8 @@ export class ShotListGenerator implements Generator {
       inferFromContext: true
     });
 
-    // Phase 5 (bd-551f): AIBlockingExtractor no longer takes credentials; the
-    // ai-powered library sources them from its own config layers.
+    // Phase 5 (bd-551f): AIBlockingExtractor uses getFilmbuffAiClient() directly;
+    // no aiOverrides chain needed — the ai-powered library manages its own config.
     this.blockingExtractor = new AIBlockingExtractor(this.styleGuidelines);
   }
 
@@ -1117,9 +1122,13 @@ export class ShotListGenerator implements Generator {
 }
 
 /**
- * Create generator instance
+ * Create generator instance.
+ *
+ * @param styleGuidelines  Optional merged style-system guidelines.
  */
-export function createGenerator(styleGuidelines?: MergedStyleGuidelines | null): Generator {
+export function createGenerator(
+  styleGuidelines?: MergedStyleGuidelines | null,
+): Generator {
   return new ShotListGenerator(styleGuidelines);
 }
 

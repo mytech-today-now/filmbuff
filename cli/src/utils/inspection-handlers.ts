@@ -5,6 +5,7 @@
 
 import { InspectionHandler } from './plugin-system';
 import { Module } from './module-system';
+import { contentInspector } from './content-inspector';
 
 /**
  * Handler options interface
@@ -142,9 +143,23 @@ export class WorkflowInspectionHandler extends BaseInspectionHandler {
   }
 
   private extractWorkflowSteps(module: Module): string[] {
-    // Extract workflow steps from module files
-    // This is a placeholder - implement actual extraction logic
-    return [];
+    // Extract numbered / bulleted steps from rule markdown files in the module.
+    // Looks for lines matching "1. …", "- Step:", or "## Step N" patterns.
+    const steps: string[] = [];
+    for (const rule of module.rules ?? []) {
+      const content: string = typeof rule === 'string' ? rule : (rule as any).content ?? '';
+      const lines = content.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Numbered list step: "1. Do something"
+        const numbered = trimmed.match(/^(\d+)\.\s+(.+)/);
+        if (numbered) { steps.push(numbered[2].trim()); continue; }
+        // Heading step: "## Step 1: …" or "### Step …"
+        const heading = trimmed.match(/^#{1,4}\s+(?:Step\s+\d+[:.]?\s*)?(.+)/i);
+        if (heading && /step/i.test(trimmed)) { steps.push(heading[1].trim()); }
+      }
+    }
+    return steps;
   }
 }
 
@@ -193,9 +208,22 @@ export class CodingStandardsHandler extends BaseInspectionHandler {
   }
 
   private extractStandards(module: Module): string[] {
-    // Extract coding standards from module files
-    // This is a placeholder - implement actual extraction logic
-    return [];
+    // Extract coding standard rules (bold/emphasized lines and list items) from rule files.
+    const standards: string[] = [];
+    for (const rule of module.rules ?? []) {
+      const content: string = typeof rule === 'string' ? rule : (rule as any).content ?? '';
+      const lines = content.split('\n');
+      for (const line of lines) {
+        const trimmed = line.trim();
+        // Bold standard rule: "**MUST** use semicolons"
+        const bold = trimmed.match(/\*\*([^*]+)\*\*\s+(.+)/);
+        if (bold) { standards.push(`${bold[1]}: ${bold[2].trim()}`); continue; }
+        // List item standard: "- Always foo" / "* Never bar"
+        const listItem = trimmed.match(/^[-*]\s+(?:Always|Never|Must|Should|Do not|MUST|SHOULD)\s+.+/i);
+        if (listItem) standards.push(trimmed.replace(/^[-*]\s+/, ''));
+      }
+    }
+    return standards;
   }
 }
 

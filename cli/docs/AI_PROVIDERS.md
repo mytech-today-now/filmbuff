@@ -1,12 +1,8 @@
 # AI Integration — Setup & Troubleshooting
 
-> **Phase 9 (bd-99b2):** FilmBuff no longer manages AI providers internally.
-> All provider configuration is delegated to the
-> [`ai-powered`](https://www.npmjs.com/package/ai-powered) npm library.
-
-FilmBuff routes all AI-powered commands (`generate-shot-list`, `generate-video`)
-through the **ai-powered** library. You configure the provider once via the
-`ai-powered` CLI and FilmBuff picks it up automatically at runtime.
+FilmBuff routes all AI-powered commands (`generate-shot-list`) through the
+**ai-powered** HTTP gateway. The gateway runs locally and connects to your
+chosen provider (OpenAI, Anthropic, etc.) on your behalf.
 
 ---
 
@@ -18,16 +14,22 @@ through the **ai-powered** library. You configure the provider once via the
 npm install -g ai-powered
 ```
 
-### 2 — Configure your provider
+### 2 — Start the ai-powered gateway
+
+```bash
+ai-powered start
+```
+
+The gateway listens on `http://localhost:3001` by default.
+
+### 3 — Configure your provider (in ai-powered)
 
 ```bash
 ai-powered config set provider openai
 ai-powered config set apiKey sk-proj-...
 ```
 
-Repeat for any other providers you want to use (e.g. `anthropic`, `xai`, `lumaai`).
-
-### 3 — Verify with FilmBuff
+### 4 — Verify with FilmBuff
 
 ```bash
 filmbuff ai status
@@ -35,19 +37,70 @@ filmbuff ai status
 
 Expected output:
 ```
-ai-powered Library Integration
-  Provider:  openai           [from ~/.ai-powered/config.json]
-  Model:     (provider default) [from ~/.ai-powered/config.json]
-  Mock Mode: false             [AI_MOCK env]
-  Plugins:   audit-log         [from filmbuff config]
+FilmBuff AI Configuration
+  URL:           http://localhost:3001   [from default]
+  Model:         gpt-4                  [from default]
+  System Prompt: (FilmBuff default)     [from default]
+  Temperature:   0.7                    [from default]
+  Max Tokens:    2048                   [from default]
+  Timeout (ms):  30000                  [from default]
 
-Available Models: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
-Video Providers:  lumaai
+Gateway health: ✓ ONLINE
 ```
 
 ---
 
-## Supported Providers
+## Configuration Keys
+
+FilmBuff reads AI configuration from three sources (highest wins):
+
+1. **CLI flags** — per-invocation overrides
+2. **Environment variables** — session-wide overrides
+3. **Config file** — persistent settings via `filmbuff ai set`
+4. **Built-in defaults** — safe fallbacks
+
+The six configurable keys:
+
+| Key | Type | Default | Env Var | CLI Flag |
+|-----|------|---------|---------|----------|
+| `url` | `string` | `http://localhost:3001` | `AI_POWERED_URL` | `--ai-powered-url` |
+| `model` | `string` | `gpt-4` | `AI_MODEL` | `--ai-model` |
+| `systemPrompt` | `string` | *(FilmBuff default)* | `AI_SYSTEM_PROMPT` | `--system-prompt` |
+| `temperature` | `number` (0–2) | `0.7` | `AI_TEMPERATURE` | `--temperature` |
+| `maxTokens` | `number` (>0) | `2048` | `AI_MAX_TOKENS` | `--max-tokens` |
+| `timeoutMs` | `number` (>0) | `30000` | `AI_TIMEOUT_MS` | `--timeout` |
+
+### Persist a setting permanently
+
+```bash
+filmbuff ai set url http://my-gateway:8080
+filmbuff ai set model gpt-4o
+filmbuff ai set temperature 0.5
+```
+
+Settings are saved to `.augment/augment.json` under the `aiPowered` block:
+
+```json
+{
+  "aiPowered": {
+    "url": "http://my-gateway:8080",
+    "model": "gpt-4o",
+    "temperature": 0.5
+  }
+}
+```
+
+### Per-command override via CLI flag
+
+```bash
+filmbuff generate-shot-list script.fountain --ai-model gpt-4o --temperature 0.2
+```
+
+### Session-wide override via environment variable
+
+```bash
+AI_MODEL=gpt-4o-mini AI_TEMPERATURE=0.3 filmbuff generate-shot-list script.fountain
+```
 
 | Provider ID  | Capabilities                           | Notes                        |
 |-------------|----------------------------------------|------------------------------|

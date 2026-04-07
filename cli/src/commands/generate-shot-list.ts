@@ -61,6 +61,21 @@ interface GenerateShotListOptions {
   mock?: boolean;
   help?: boolean;
   h?: boolean;
+  // -------------------------------------------------------------------------
+  // bd-jnbf (Phase 6.4) — AIPoweredClientOptions override flags.
+  // When supplied these are passed as the `overrides` arg to resolveAIClient()
+  // inside the AI extractors, winning over env vars and config file values.
+  // -------------------------------------------------------------------------
+  /** --ai-powered-url: gateway base URL override (AIPoweredClientOptions.url). */
+  aiPoweredUrl?: string;
+  /** --system-prompt: system prompt override. */
+  systemPrompt?: string;
+  /** --temperature: sampling temperature override (0–2). */
+  temperature?: number;
+  /** --max-tokens: maximum tokens per response override. */
+  maxTokens?: number;
+  /** --timeout: request timeout in milliseconds override. */
+  timeout?: number;
 }
 
 export async function generateShotListCommand(options: GenerateShotListOptions): Promise<void> {
@@ -248,6 +263,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
       // Step 3: Generate shot list
       const generationStartMs = Date.now();
       console.log(chalk.gray('🎬 Generating shots...'));
+
       const generator = createGenerator(styleGuidelines);
       const shotList = await generator.generate(screenplay.scenes, {
         maxCharacters,
