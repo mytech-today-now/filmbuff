@@ -324,7 +324,8 @@ family in Phase 9 (bd-99b2).
 
 ### `filmbuff ai status`
 
-Display the current ai-powered library integration status. No HTTP request is made.
+Display the current ai-powered library integration status. No HTTP request is
+made — always exits 0, works with no server running.
 
 ```bash
 filmbuff ai status
@@ -333,13 +334,19 @@ filmbuff ai status
 **Output:**
 ```
 ai-powered Library Integration
-  Provider:  openai             [from ~/.ai-powered/config.json]
-  Model:     (provider default) [from ~/.ai-powered/config.json]
-  Mock Mode: false              [AI_MOCK env]
-  Plugins:   audit-log          [from filmbuff config]
+  Provider:   openai                  [from ~/.ai-powered/config.json]
+  Model:      gpt-4o                  [from ~/.ai-powered/config.json]
+  Mock Mode:  false                   [default]
+  Plugins:    audit-log               [from filmbuff config]
 
-Available Models: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
-Video Providers:  lumaai
+  Available Models:
+    • gpt-4o
+    • gpt-4-turbo
+    • gpt-3.5-turbo
+
+  Video Providers:
+    • lumaai: dream-machine-v2, dream-machine-v1
+    • runway: gen-3-alpha, gen-3-turbo
 ```
 
 **Environment:**
@@ -352,39 +359,45 @@ Video Providers:  lumaai
 Generate video clips for a JSONL shot list using the ai-powered video provider.
 
 ```bash
-filmbuff generate-video <shots-jsonl> [options]
+filmbuff generate-video --input <shots-jsonl> [options]
 ```
 
-**Arguments:**
-- `<shots-jsonl>` — Path to JSONL shot list produced by `filmbuff generate-shot-list`
+**Required:**
+- `--input <file>` — Path to JSONL shot list produced by `filmbuff generate-shot-list`
 
 **Options:**
-- `--output-dir <dir>` — Directory where video manifests are written (default: `./video-output`)
+- `--provider <id>` — Video provider id (default: `lumaai`; also: `runway`, `mock`)
+- `--model <id>` — Model override for the selected provider (optional)
 - `--shots <list>` — Comma-separated shot numbers to generate (e.g. `1,3,5`)
+- `--output <dir>` — Directory where `manifest.json` is written (default: `./generated-videos`)
 - `--concurrency <n>` — Number of parallel generation calls (default: `3`)
-- `--mock` — Use the mock provider regardless of ai-powered config
+- `--mock` — Activate ai-powered MockProvider; no network calls made
 
 **Examples:**
 ```bash
-# Generate all shots
-filmbuff generate-video shots.jsonl --output-dir ./videos
+# Generate all shots with default provider (lumaai)
+filmbuff generate-video --input shots.jsonl --output ./videos
 
 # Generate only shots 2 and 4 in mock mode
-filmbuff generate-video shots.jsonl --shots 2,4 --mock
+filmbuff generate-video --input shots.jsonl --shots 2,4 --mock
 
-# Limit to 1 concurrent call (useful for rate-limited providers)
-filmbuff generate-video shots.jsonl --concurrency 1
+# Use Runway with limited concurrency
+filmbuff generate-video --input shots.jsonl --provider runway --concurrency 1
 
-# Pipe from generate-shot-list
-filmbuff generate-shot-list script.fountain --output shots.jsonl && \
-filmbuff generate-video shots.jsonl --output-dir ./videos
+# One-step pipeline: shot list then video
+filmbuff generate-shot-list script.fountain --output shots.jsonl
+filmbuff generate-video --input shots.jsonl --output ./videos
+
+# One-step pipeline via --generate-video flag
+filmbuff generate-shot-list script.fountain --generate-video --video-output ./videos --mock
 ```
 
 **Exit codes:**
 - `0` — All shots generated successfully
-- `1` — One or more shots failed (details printed to stderr)
+- `1` — One or more shots failed (typed ai-powered error; details on stderr)
+- `2` — `ValidationError` — unexpected API response schema
 
-For provider setup, see [docs/PROVIDER_SETUP.md](PROVIDER_SETUP.md).
+For provider credential setup, see [docs/PROVIDER_SETUP.md](PROVIDER_SETUP.md).
 
 ---
 

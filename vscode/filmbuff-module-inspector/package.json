@@ -12,7 +12,8 @@
   ],
   "activationEvents": [
     "onCommand:filmbuff.inspectModule",
-    "onCommand:filmbuff.inspectModuleOptimizations"
+    "onCommand:filmbuff.inspectModuleOptimizations",
+    "onCommand:filmbuff.showWebviewReport"
   ],
   "main": "./extension.js",
   "contributes": {
@@ -25,6 +26,11 @@
       {
         "command": "filmbuff.inspectModuleOptimizations",
         "title": "FilmBuff: Show Optimization Suggestions",
+        "category": "FilmBuff"
+      },
+      {
+        "command": "filmbuff.showWebviewReport",
+        "title": "FilmBuff: Open Interactive Inspection Webview",
         "category": "FilmBuff"
       }
     ],
@@ -39,6 +45,11 @@
           "command": "filmbuff.inspectModuleOptimizations",
           "group": "navigation@21",
           "when": "explorerResourceIsFolder == false && resourceExtname =~ /\\.(md|json|txt|ts|tsx|js|jsx|py|php|rb|go|rs|java|c|cpp|cs|sh|ps1|yml|yaml|xml|html|css|scss|sql)$/"
+        },
+        {
+          "command": "filmbuff.showWebviewReport",
+          "group": "navigation@22",
+          "when": "explorerResourceIsFolder == false && resourceExtname =~ /\\.(md|json|txt|ts|tsx|js|jsx|py|php|rb|go|rs|java|c|cpp|cs|sh|ps1|yml|yaml|xml|html|css|scss|sql)$/"
         }
       ],
       "editor/context": [
@@ -50,6 +61,11 @@
         {
           "command": "filmbuff.inspectModuleOptimizations",
           "group": "navigation@21",
+          "when": "editorHasDocument && editorLangId =~ /^(markdown|json|plaintext|typescript|typescriptreact|javascript|javascriptreact|python|php|ruby|go|rust|java|c|cpp|csharp|shellscript|powershell|yaml|xml|html|css|scss|sql)$/"
+        },
+        {
+          "command": "filmbuff.showWebviewReport",
+          "group": "navigation@22",
           "when": "editorHasDocument && editorLangId =~ /^(markdown|json|plaintext|typescript|typescriptreact|javascript|javascriptreact|python|php|ruby|go|rust|java|c|cpp|csharp|shellscript|powershell|yaml|xml|html|css|scss|sql)$/"
         }
       ]
@@ -65,6 +81,12 @@
         "command": "filmbuff.inspectModuleOptimizations",
         "key": "ctrl+alt+o",
         "mac": "cmd+alt+o",
+        "when": "editorTextFocus && editorLangId =~ /^(markdown|json|plaintext|typescript|typescriptreact|javascript|javascriptreact|python|php|ruby|go|rust|java|c|cpp|csharp|shellscript|powershell|yaml|xml|html|css|scss|sql)$/"
+      },
+      {
+        "command": "filmbuff.showWebviewReport",
+        "key": "ctrl+alt+w",
+        "mac": "cmd+alt+w",
         "when": "editorTextFocus && editorLangId =~ /^(markdown|json|plaintext|typescript|typescriptreact|javascript|javascriptreact|python|php|ruby|go|rust|java|c|cpp|csharp|shellscript|powershell|yaml|xml|html|css|scss|sql)$/"
       }
     ]

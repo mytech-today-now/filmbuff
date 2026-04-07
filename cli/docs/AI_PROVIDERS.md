@@ -1,8 +1,9 @@
-# AI Integration — Setup & Troubleshooting
+# AI Integration — Developer Reference
 
-FilmBuff routes all AI-powered commands (`generate-shot-list`) through the
-**ai-powered** HTTP gateway. The gateway runs locally and connects to your
-chosen provider (OpenAI, Anthropic, etc.) on your behalf.
+FilmBuff integrates AI through the **ai-powered** npm library, loaded directly
+in-process. There is **no HTTP gateway** and **no local server to start**.
+FilmBuff stores zero API credentials — all credential management is delegated
+to `ai-powered`.
 
 ---
 
@@ -11,152 +12,147 @@ chosen provider (OpenAI, Anthropic, etc.) on your behalf.
 ### 1 — Install ai-powered
 
 ```bash
-npm install -g ai-powered
+npm install ai-powered
 ```
 
-### 2 — Start the ai-powered gateway
-
-```bash
-ai-powered start
-```
-
-The gateway listens on `http://localhost:3001` by default.
-
-### 3 — Configure your provider (in ai-powered)
+### 2 — Configure your provider (one-time)
 
 ```bash
 ai-powered config set provider openai
 ai-powered config set apiKey sk-proj-...
 ```
 
-### 4 — Verify with FilmBuff
+Credentials are written to `~/.ai-powered/config.json` and are read
+automatically by every FilmBuff command. FilmBuff never touches them.
+
+### 3 — Verify
 
 ```bash
 filmbuff ai status
 ```
 
 Expected output:
-```
-FilmBuff AI Configuration
-  URL:           http://localhost:3001   [from default]
-  Model:         gpt-4                  [from default]
-  System Prompt: (FilmBuff default)     [from default]
-  Temperature:   0.7                    [from default]
-  Max Tokens:    2048                   [from default]
-  Timeout (ms):  30000                  [from default]
 
-Gateway health: ✓ ONLINE
+```
+ai-powered Library Integration
+  Provider:   openai                  [from ~/.ai-powered/config.json]
+  Model:      gpt-4o                  [from ~/.ai-powered/config.json]
+  Mock Mode:  false                   [default]
+  Plugins:    audit-log               [from filmbuff config]
+
+  Available Models:
+    • gpt-4o
+    • gpt-4-turbo
+    • gpt-3.5-turbo
+
+  Video Providers:
+    • lumaai: dream-machine-v2, dream-machine-v1
+    • runway: gen-3-alpha, gen-3-turbo
+```
+
+### 4 — Run a command
+
+```bash
+filmbuff generate-shot-list script.fountain --output shots.jsonl
+filmbuff generate-video --input shots.jsonl --output ./videos
 ```
 
 ---
 
-## Configuration Keys
+## How FilmBuff Uses ai-powered
 
-FilmBuff reads AI configuration from three sources (highest wins):
+Every AI feature in FilmBuff calls `getFilmbuffAiClient(toolName)`, the single
+integration point declared in `cli/src/utils/filmbuff-ai-client.ts`.
 
-1. **CLI flags** — per-invocation overrides
-2. **Environment variables** — session-wide overrides
-3. **Config file** — persistent settings via `filmbuff ai set`
-4. **Built-in defaults** — safe fallbacks
+```typescript
+// Only file allowed to import from 'ai-powered'
+import { getFilmbuffAiClient } from '../utils/filmbuff-ai-client.js';
 
-The six configurable keys:
-
-| Key | Type | Default | Env Var | CLI Flag |
-|-----|------|---------|---------|----------|
-| `url` | `string` | `http://localhost:3001` | `AI_POWERED_URL` | `--ai-powered-url` |
-| `model` | `string` | `gpt-4` | `AI_MODEL` | `--ai-model` |
-| `systemPrompt` | `string` | *(FilmBuff default)* | `AI_SYSTEM_PROMPT` | `--system-prompt` |
-| `temperature` | `number` (0–2) | `0.7` | `AI_TEMPERATURE` | `--temperature` |
-| `maxTokens` | `number` (>0) | `2048` | `AI_MAX_TOKENS` | `--max-tokens` |
-| `timeoutMs` | `number` (>0) | `30000` | `AI_TIMEOUT_MS` | `--timeout` |
-
-### Persist a setting permanently
-
-```bash
-filmbuff ai set url http://my-gateway:8080
-filmbuff ai set model gpt-4o
-filmbuff ai set temperature 0.5
+const client = await getFilmbuffAiClient('blocking-extractor');
+const result = await client.complete(prompt);
 ```
 
-Settings are saved to `.augment/augment.json` under the `aiPowered` block:
+### toolName convention
 
-```json
-{
-  "aiPowered": {
-    "url": "http://my-gateway:8080",
-    "model": "gpt-4o",
-    "temperature": 0.5
-  }
-}
-```
+Each caller supplies a stable `toolName` string that appears in audit-log
+records and in `ai-powered` diagnostics:
 
-### Per-command override via CLI flag
+| toolName              | Feature                             |
+|-----------------------|-------------------------------------|
+| `blocking-extractor`  | `generate-shot-list` blocking pass  |
+| `entity-extractor`    | `generate-shot-list` entity pass    |
+| `video-generator`     | `generate-video`                    |
+| `ai-status`           | `filmbuff ai status`                |
 
-```bash
-filmbuff generate-shot-list script.fountain --ai-model gpt-4o --temperature 0.2
-```
+### FILMBUFF_DEFAULTS
 
-### Session-wide override via environment variable
-
-```bash
-AI_MODEL=gpt-4o-mini AI_TEMPERATURE=0.3 filmbuff generate-shot-list script.fountain
-```
-
-| Provider ID  | Capabilities                           | Notes                        |
-|-------------|----------------------------------------|------------------------------|
-| `openai`    | text-generation, generate-shot-list    | Default provider             |
-| `anthropic` | text-generation, generate-shot-list    |                              |
-| `xai`       | text-generation                        | Grok models                  |
-| `venice`    | text-generation                        | Privacy-focused               |
-| `lumaai`    | video-generation, generate-video       | Video clips via Dream Machine |
-| `mock`      | all (no API call made)                 | Set `AI_MOCK=true`           |
+A `FILMBUFF_DEFAULTS` object in `filmbuff-ai-client.ts` is spread into every
+`getAiClient()` call so FilmBuff-wide options (e.g. the `audit-log` plugin)
+are applied consistently without callers repeating them.
 
 ---
 
-## Mock Mode (No API Key Required)
+## Supported Providers
+
+| Provider ID       | Text generation | Video generation | Notes                  |
+|-------------------|:--------------:|:----------------:|------------------------|
+| `anthropic`       | ✓              |                  | Claude family          |
+| `openai`          | ✓              |                  | GPT family             |
+| `google`          | ✓              |                  | Gemini family          |
+| `xai`             | ✓              |                  | Grok models            |
+| `venice`          | ✓              |                  | Privacy-focused        |
+| `lumaai`          |                | ✓                | Dream Machine          |
+| `runway`          |                | ✓                | Gen-3 family           |
+| `stable-diffusion`|                | ✓                | Open-source            |
+| `mock`            | ✓              | ✓                | No API key, no network |
+
+---
+
+## Mock Mode (No Credentials Required)
 
 ```bash
+# Via environment variable (all commands)
 AI_MOCK=true filmbuff generate-shot-list script.fountain --output shots.jsonl
-AI_MOCK=true filmbuff generate-video shots.jsonl
+AI_MOCK=true filmbuff generate-video --input shots.jsonl --output ./videos
+
+# Via flag (generate-video only)
+filmbuff generate-video --input shots.jsonl --mock
 ```
 
-When `AI_MOCK=true` is set, all AI calls return deterministic mock responses.
-`filmbuff ai status` will report `Mock Mode: true`.
+When mock mode is active:
+- All AI calls return deterministic in-process responses
+- No network requests are made
+- No API key is required
+- `filmbuff ai status` reports `Mock Mode: true`
 
 ---
 
-## Video Generation Providers
-
-To generate video clips with `filmbuff generate-video`, you need a **lumaai**
-account and API key:
+## Video Generation
 
 ```bash
-ai-powered config set provider lumaai
-ai-powered config set apiKey luma-...
+# Generate from a shot list
+filmbuff generate-video --input shots.jsonl --output ./videos --provider lumaai
+
+# One-step pipeline (shot list + video in a single command)
+filmbuff generate-shot-list script.fountain --output shots.jsonl --generate-video \
+  --video-output ./videos --mock
 ```
 
-Then run:
-
-```bash
-filmbuff generate-video shots.jsonl --output-dir ./videos
-```
-
-See `filmbuff generate-video --help` for all options.
+See [docs/CLI_REFERENCE.md](../../docs/CLI_REFERENCE.md) for all flags.
 
 ---
 
 ## Plugins
 
-FilmBuff enables the `audit-log` plugin by default. Configure plugins in your
-`.augment/augment.json`:
+FilmBuff enables the `audit-log` plugin by default via `FILMBUFF_DEFAULTS`.
+To add plugins, edit the `FILMBUFF_DEFAULTS` constant in
+`cli/src/utils/filmbuff-ai-client.ts`:
 
-```json
-{
-  "aiPowered": {
-    "plugins": ["audit-log"],
-    "debug": false
-  }
-}
+```typescript
+export const FILMBUFF_DEFAULTS = {
+  plugins: ['audit-log', 'my-plugin'],
+  debug: false,
+};
 ```
 
 ---
@@ -165,44 +161,43 @@ FilmBuff enables the `audit-log` plugin by default. Configure plugins in your
 
 | Symptom | Likely Cause | Fix |
 |---------|-------------|-----|
-| `Error: No provider configured` | ai-powered config missing | Run `ai-powered config set provider <name>` |
-| `Error: API key not found` | API key not set | Run `ai-powered config set apiKey <key>` |
-| `Error: Unknown command "provider ..."` | Using removed command | Run `filmbuff ai status` instead |
-| `Error: Unknown command "configure"` | Using removed command | Run `ai-powered config set provider <name>` |
-| Unexpected AI output | Wrong provider/model | Check `filmbuff ai status` output |
-| Network timeout | Slow API response | Use `--mock` flag to test without network |
-
-### Debug mode
+| `ConfigError: No provider configured` | Config file missing | `ai-powered config set provider <name>` |
+| `ConfigError: API key not found` | API key not set | `ai-powered config set apiKey <key>` |
+| `ProviderCapabilityError` | Provider can't do text/video | Check supported providers table above |
+| `BudgetExceededError` | Spend limit reached | Check `~/.ai-powered/config.json` budget settings |
+| `ValidationError` (exit 2) | Unexpected API response schema | Report at GitHub Issues |
+| `filmbuff provider *` not found | Removed command | Use `filmbuff ai status` + `ai-powered config set` |
+| Unexpected output | Wrong provider/model | Check `filmbuff ai status` |
 
 ```bash
-# Show ai-powered config without running a command
+# Inspect resolved config at any time — no network call
 filmbuff ai status
 
-# Run with mock provider to test pipeline without AI calls
+# Test the full pipeline with no credentials
 AI_MOCK=true filmbuff generate-shot-list script.fountain --output shots.jsonl
+AI_MOCK=true filmbuff generate-video --input shots.jsonl
 ```
 
 ---
 
 ## Removed Commands
 
-The following commands were removed in **Phase 9 (bd-99b2)**:
+The following commands were removed and now print migration guidance + exit 1:
 
-| Removed Command | Replacement |
-|----------------|-------------|
-| `filmbuff configure` | `ai-powered config set provider <name>` |
-| `filmbuff provider list` | `filmbuff ai status` |
+| Removed Command          | Replacement                               |
+|--------------------------|-------------------------------------------|
+| `filmbuff configure`     | `ai-powered config set provider <name>`   |
+| `filmbuff provider list` | `filmbuff ai status`                      |
 | `filmbuff provider create` | `ai-powered config set provider <name>` |
-| `filmbuff provider activate` | `ai-powered config set provider <name>` |
-| `filmbuff provider status` | `filmbuff ai status` |
-| `filmbuff provider show` | `filmbuff ai status` |
-| `filmbuff provider validate` | `ai-powered config validate` |
-| `filmbuff provider edit` | `ai-powered config set <key> <value>` |
-| `filmbuff provider delete` | `ai-powered config remove <key>` |
-
-Any of the above commands will print migration guidance and exit non-zero.
+| `filmbuff provider activate` | `ai-powered config set provider <name>`|
+| `filmbuff provider status` | `filmbuff ai status`                    |
+| `filmbuff provider show` | `filmbuff ai status`                      |
+| `filmbuff provider validate` | `ai-powered config validate`          |
+| `filmbuff provider edit` | `ai-powered config set <key> <value>`     |
+| `filmbuff provider delete` | `ai-powered config remove <key>`        |
 
 ---
 
-*For complete CLI reference, see [docs/CLI_REFERENCE.md](../../docs/CLI_REFERENCE.md).*
+*For the complete CLI reference, see [docs/CLI_REFERENCE.md](../../docs/CLI_REFERENCE.md).*
+*For provider credential setup, see [docs/PROVIDER_SETUP.md](../../docs/PROVIDER_SETUP.md).*
 

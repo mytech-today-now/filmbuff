@@ -842,3 +842,7 @@
 {"id":"bd-024w","status":"closed","close_reason":"Phase 9 - Verification & Acceptance complete. All gates passed: (1) tsc --noEmit exit 0; (2) 93 tests pass across ai-providers (57), ai-powered-client (22), config-system (14); (3) grep resolveActiveProvider/resolveProviderByProfile/@anthropic-ai returns empty (active code only); (4) grep provider-registry/profile-store/custom-provider-store returns empty (active imports only); (5) filmbuff ai status + ai set implemented; (6) six override flags on all 4 AI commands; (7) AI_PROVIDERS.md + PROVIDER_SETUP.md fully rewritten for ai-powered integration; (8) openspec/changes/replace-ai-with-ai-powered archived to openspec/archive/replace-ai-with-ai-powered.","updated_at":"2026-04-07T04:30:00Z"}
 {"id":"bd-99b2","updated_at":"2026-04-07T13:34:03Z","status":"closed"}
 {"id":"bd-2d41","updated_at":"2026-04-07T13:34:22Z","status":"closed"}
+{"id":"bd-3807","updated_at":"2026-04-07T13:39:58Z","status":"in-progress","claimed_by":"kyle_"}
+{"id":"bd-modinsp.4.4","updated_at":"2026-04-07T13:44:31Z","status":"in-progress","claimed_by":"kyle_"}
+{"id":"bd-3807","updated_at":"2026-04-07T13:48:01Z","status":"closed"}
+{"id":"bd-modinsp.4.4","updated_at":"2026-04-07T13:48:22Z","status":"closed"}

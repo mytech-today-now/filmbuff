@@ -1,172 +1,121 @@
 # AI Provider Setup — FilmBuff User Guide
 
-FilmBuff routes AI-powered commands (`generate-shot-list`) through the
-**ai-powered** HTTP gateway. The gateway connects to your chosen provider
-and FilmBuff connects to the gateway.
+FilmBuff integrates AI through the **ai-powered** npm library, loaded
+in-process. There is **no local server to start**. FilmBuff stores zero
+credentials — all provider and API key management is handled entirely by
+`ai-powered`.
 
 ---
 
 ## Table of Contents
 
-1. [Quick Start](#quick-start)
-2. [FilmBuff Configuration Keys](#filmbuff-configuration-keys)
-3. [Supported Providers](#supported-providers)
-4. [Environment Variables](#environment-variables)
-5. [Mock Mode (No API Key)](#mock-mode-no-api-key)
-6. [Video Generation](#video-generation)
-7. [Plugin Configuration](#plugin-configuration)
-8. [Checking Status](#checking-status)
-9. [Troubleshooting](#troubleshooting)
-10. [Removed Commands](#removed-commands)
+1. [Credential Options](#credential-options)
+2. [Supported Providers](#supported-providers)
+3. [Mock Mode (No Credentials)](#mock-mode-no-credentials)
+4. [Video Generation](#video-generation)
+5. [Plugin Configuration](#plugin-configuration)
+6. [Checking Status](#checking-status)
+7. [Troubleshooting](#troubleshooting)
+8. [Removed Commands](#removed-commands)
 
 ---
 
-## Quick Start
+## Credential Options
 
-### Step 1 — Install ai-powered
+Choose **one** of the three options below. All three are supported
+simultaneously — environment variables override the config file.
 
-```bash
-npm install -g ai-powered
-```
-
-### Step 2 — Start the ai-powered gateway
+### Option 1 — Config file (recommended for development)
 
 ```bash
-ai-powered start
-```
-
-The gateway starts on `http://localhost:3001` by default.
-
-### Step 3 — Configure provider and API key (in ai-powered)
-
-```bash
+# Set provider and API key once — saved to ~/.ai-powered/config.json
 ai-powered config set provider openai
 ai-powered config set apiKey sk-proj-...
-```
 
-### Step 4 — Verify
-
-```bash
+# Verify
 filmbuff ai status
 ```
 
-You should see gateway URL, model, and all resolved config values.
+FilmBuff reads `~/.ai-powered/config.json` automatically on every run.
+You never need to edit this file by hand.
 
-### Step 5 — Run a command
+### Option 2 — Environment variables (recommended for CI/CD)
 
 ```bash
+export AI_PROVIDER=openai
+export AI_API_KEY=sk-proj-...
 filmbuff generate-shot-list script.fountain --output shots.jsonl
 ```
 
----
+Environment variables override the config file for the current session.
 
-## FilmBuff Configuration Keys
-
-FilmBuff has six AI configuration keys resolved in priority order:
-
-| Key | Type | Default | Env Var | CLI Flag |
-|-----|------|---------|---------|----------|
-| `url` | `string` | `http://localhost:3001` | `AI_POWERED_URL` | `--ai-powered-url` |
-| `model` | `string` | `gpt-4` | `AI_MODEL` | `--ai-model` |
-| `systemPrompt` | `string` | *(FilmBuff default)* | `AI_SYSTEM_PROMPT` | `--system-prompt` |
-| `temperature` | `number` (0–2) | `0.7` | `AI_TEMPERATURE` | `--temperature` |
-| `maxTokens` | `number` (>0) | `2048` | `AI_MAX_TOKENS` | `--max-tokens` |
-| `timeoutMs` | `number` (>0) | `30000` | `AI_TIMEOUT_MS` | `--timeout` |
-
-**Resolution order (highest precedence first):**
-1. CLI flag (`--ai-model gpt-4o`)
-2. Environment variable (`AI_MODEL=gpt-4o`)
-3. Config file (`filmbuff ai set model gpt-4o`)
-4. Built-in default
-
-**Persist a setting permanently:**
+### Option 3 — Mock mode (no credentials required)
 
 ```bash
-filmbuff ai set url http://my-gateway:8080
-filmbuff ai set model gpt-4o
-filmbuff ai set temperature 0.5
-filmbuff ai set maxTokens 4096
-filmbuff ai set timeoutMs 60000
+# All AI calls return deterministic in-process responses
+AI_MOCK=true filmbuff generate-shot-list script.fountain --output shots.jsonl
+AI_MOCK=true filmbuff generate-video --input shots.jsonl
 ```
 
-**Per-command CLI override:**
-
-```bash
-filmbuff generate-shot-list script.fountain \
-  --ai-model gpt-4o \
-  --temperature 0.2 \
-  --max-tokens 4096
-```
-
-**Session-wide env override:**
-
-```bash
-AI_MODEL=gpt-4o-mini AI_TEMPERATURE=0.3 filmbuff generate-shot-list script.fountain
-```
+Mock mode is ideal for local development, CI pipelines, and demos.
+No API key, no network, no cost.
 
 ---
 
 ## Supported Providers
 
-| Provider ID  | Capabilities                        | Notes                     |
-|-------------|-------------------------------------|---------------------------|
-| `openai`    | text-generation, generate-shot-list | Default; gpt-4o family    |
-| `anthropic` | text-generation, generate-shot-list | Claude family             |
-| `xai`       | text-generation                     | Grok models               |
-| `venice`    | text-generation                     | Privacy-focused           |
-| `lumaai`    | **video-generation**, generate-video | Dream Machine / Photon   |
-| `mock`      | all (no API call)                   | `AI_MOCK=true`            |
+`ai-powered` handles all provider communication. FilmBuff supports any
+provider that `ai-powered` recognises.
+
+| Provider ID       | Text generation | Video generation | Notes                  |
+|-------------------|:--------------:|:----------------:|------------------------|
+| `anthropic`       | ✓              |                  | Claude family          |
+| `openai`          | ✓              |                  | GPT family             |
+| `google`          | ✓              |                  | Gemini family          |
+| `xai`             | ✓              |                  | Grok models            |
+| `venice`          | ✓              |                  | Privacy-focused        |
+| `lumaai`          |                | ✓                | Dream Machine          |
+| `runway`          |                | ✓                | Gen-3 family           |
+| `stable-diffusion`|                | ✓                | Open-source            |
+| `mock`            | ✓              | ✓                | No key, no network     |
 
 ---
 
-## Environment Variables
-
-| Variable | Purpose |
-|----------|---------|
-| `AI_POWERED_URL` | Gateway URL (default: `http://localhost:3001`) |
-| `AI_MODEL` | Model identifier (default: `gpt-4`) |
-| `AI_SYSTEM_PROMPT` | System prompt override |
-| `AI_TEMPERATURE` | Sampling temperature (0–2, default: `0.7`) |
-| `AI_MAX_TOKENS` | Max response tokens (default: `2048`) |
-| `AI_TIMEOUT_MS` | Request timeout in ms (default: `30000`) |
-| `AI_MOCK` | Set to `true` to use the mock provider (no API calls) |
-
-API keys are managed by the `ai-powered` gateway and are **never** written to
-project files.
-
----
-
-## Mock Mode (No API Key Required)
+## Mock Mode (No Credentials)
 
 ```bash
 AI_MOCK=true filmbuff generate-shot-list script.fountain --output shots.jsonl
-AI_MOCK=true filmbuff generate-video shots.jsonl --mock
+AI_MOCK=true filmbuff generate-video --input shots.jsonl
 ```
 
-`AI_MOCK=true` routes all AI calls to a deterministic mock — useful for CI/CD
-and development without incurring API costs.
+When mock mode is active, all AI calls return deterministic in-process
+responses. No network, no key, no cost.
 
 ---
 
 ## Video Generation
 
-To generate video clips from a shot list, use the **lumaai** provider:
+To generate video clips from a shot list, configure a video-capable
+provider (e.g. **lumaai** or **runway**):
 
 ```bash
 ai-powered config set provider lumaai
 ai-powered config set apiKey luma-...
 
-filmbuff generate-video shots.jsonl --output-dir ./videos
+filmbuff generate-video --input shots.jsonl --output ./videos
 ```
 
-**Options:**
+**All generate-video flags:**
 
 ```bash
-filmbuff generate-video shots.jsonl \
-  --output-dir ./videos \
-  --shots 1,3,5 \        # only generate shots 1, 3, 5
-  --concurrency 3 \      # parallel generation (default: 3)
-  --mock                 # use mock provider (overrides AI_MOCK)
+filmbuff generate-video \
+  --input shots.jsonl \     # (required) JSONL shot list
+  --provider lumaai \       # video provider (default: lumaai)
+  --model dream-machine-v2 \# model override (optional)
+  --shots 1,3,5 \           # only generate shots 1, 3, 5
+  --output ./videos \       # output directory (default: ./generated-videos)
+  --concurrency 3 \         # parallel calls (default: 3)
+  --mock                    # use mock provider
 ```
 
 ---
@@ -198,16 +147,22 @@ filmbuff ai status
 Output:
 ```
 ai-powered Library Integration
-  Provider:  openai             [from ~/.ai-powered/config.json]
-  Model:     (provider default) [from ~/.ai-powered/config.json]
-  Mock Mode: false              [AI_MOCK env]
-  Plugins:   audit-log          [from filmbuff config]
+  Provider:   openai                  [from ~/.ai-powered/config.json]
+  Model:      gpt-4o                  [from ~/.ai-powered/config.json]
+  Mock Mode:  false                   [default]
+  Plugins:    audit-log               [from filmbuff config]
 
-Available Models: gpt-4o, gpt-4o-mini, gpt-4-turbo, gpt-3.5-turbo
-Video Providers:  lumaai
+  Available Models:
+    • gpt-4o
+    • gpt-4-turbo
+    • gpt-3.5-turbo
+
+  Video Providers:
+    • lumaai: dream-machine-v2, dream-machine-v1
+    • runway: gen-3-alpha, gen-3-turbo
 ```
 
-No HTTP request is made; all information comes from the config file and env vars.
+The command makes **no network requests** and always exits 0.
 
 ---
 
