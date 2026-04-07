@@ -557,63 +557,94 @@ describe('FilmbuffVideoGenerator', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5. aiStatusCommand — source labels and health check (bd-b0da)
+// 5. aiStatusCommand — Phase 9 (bd-99b2): in-process library status
 // ---------------------------------------------------------------------------
+//
+// New behavior: uses loadConfig() from ai-powered in-process (no HTTP calls).
+// Shows Provider, Model, Mock Mode, Plugins, Available Models, Video Providers.
+// Command always succeeds (exit 0) even with no server running.
 
-describe('aiStatusCommand', () => {
+const mockLoadConfig = (jest.requireMock('ai-powered') as { loadConfig: jest.Mock })
+  .loadConfig as jest.MockedFunction<() => Promise<unknown>>;
+
+describe('aiStatusCommand — Phase 9 in-process status', () => {
   let consoleSpy: jest.SpiedFunction<typeof console.log>;
 
   beforeEach(() => {
     consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
-    // Clean env vars that ai-status.ts reads
-    ['AI_POWERED_URL','AI_MODEL','AI_SYSTEM_PROMPT','AI_TEMPERATURE','AI_MAX_TOKENS','AI_TIMEOUT_MS']
-      .forEach(k => delete process.env[k]);
+    mockLoadConfig.mockReset();
+    // Clean AI_MOCK env var before each test
+    delete process.env['AI_MOCK'];
   });
 
   afterEach(() => jest.restoreAllMocks());
 
-  it('shows [from env] label when AI_MODEL env var is set', async () => {
-    process.env.AI_MODEL = 'my-env-model';
-    mockCfg({});
-    mockFetchSeq(HEALTH_OK);
+  it('shows provider and model from loadConfig() result', async () => {
+    mockLoadConfig.mockResolvedValue({ provider: 'anthropic', model: 'claude-3-5-sonnet' });
     await aiStatusCommand();
     const output = consoleSpy.mock.calls.flat().join('\n');
-    expect(output).toMatch(/my-env-model/);
+    expect(output).toMatch(/anthropic/);
+    expect(output).toMatch(/claude-3-5-sonnet/);
+  });
+
+  it('shows [from ~/.ai-powered/config.json] source when loadConfig returns provider', async () => {
+    mockLoadConfig.mockResolvedValue({ provider: 'openai', model: 'gpt-4o' });
+    await aiStatusCommand();
+    const output = consoleSpy.mock.calls.flat().join('\n');
+    expect(output).toMatch(/config\.json/);
+  });
+
+  it('shows Mock Mode: true when AI_MOCK=true', async () => {
+    process.env['AI_MOCK'] = 'true';
+    mockLoadConfig.mockResolvedValue({});
+    await aiStatusCommand();
+    const output = consoleSpy.mock.calls.flat().join('\n');
+    expect(output).toMatch(/Mock Mode/);
+    expect(output).toMatch(/true/);
     expect(output).toMatch(/\[from env\]/);
   });
 
-  it('shows [from config] label when model is in aiPowered config block', async () => {
-    mockCfg({ model: 'config-model-x' });
-    mockFetchSeq(HEALTH_OK);
+  it('shows Mock Mode: false (default) when AI_MOCK is not set', async () => {
+    mockLoadConfig.mockResolvedValue({ provider: 'openai' });
     await aiStatusCommand();
     const output = consoleSpy.mock.calls.flat().join('\n');
-    expect(output).toMatch(/config-model-x/);
-    expect(output).toMatch(/\[from config\]/);
+    expect(output).toMatch(/Mock Mode/);
+    expect(output).toMatch(/false/);
   });
 
-  it('shows [from default] labels when nothing is configured', async () => {
-    mockCfg({});
-    mockFetchSeq(HEALTH_OK);
+  it('shows Plugins: audit-log from filmbuff config', async () => {
+    mockLoadConfig.mockResolvedValue({});
     await aiStatusCommand();
     const output = consoleSpy.mock.calls.flat().join('\n');
-    expect(output).toMatch(/\[from default\]/);
-    expect(output).toMatch(/localhost:3001/);
+    expect(output).toMatch(/Plugins/);
+    expect(output).toMatch(/audit-log/);
   });
 
-  it('shows ONLINE when gateway health check succeeds', async () => {
-    mockCfg({});
-    mockFetchSeq(HEALTH_OK);
+  it('shows Available Models section in output', async () => {
+    mockLoadConfig.mockResolvedValue({ provider: 'anthropic' });
     await aiStatusCommand();
     const output = consoleSpy.mock.calls.flat().join('\n');
-    expect(output).toMatch(/ONLINE/);
+    expect(output).toMatch(/Available Models/);
   });
 
-  it('shows OFFLINE when gateway health check fails', async () => {
-    mockCfg({});
-    jest.spyOn(global, 'fetch').mockRejectedValue(new Error('connection refused'));
+  it('shows Video Providers section in output', async () => {
+    mockLoadConfig.mockResolvedValue({});
     await aiStatusCommand();
     const output = consoleSpy.mock.calls.flat().join('\n');
-    expect(output).toMatch(/OFFLINE/);
+    expect(output).toMatch(/Video Providers/);
+    expect(output).toMatch(/lumaai/);
+  });
+
+  it('does NOT make any HTTP fetch calls (no server required)', async () => {
+    mockLoadConfig.mockResolvedValue({ provider: 'anthropic' });
+    const fetchSpy = jest.spyOn(global, 'fetch');
+    await aiStatusCommand();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('succeeds (does not throw) when loadConfig() rejects', async () => {
+    mockLoadConfig.mockRejectedValue(new Error('config not found'));
+    await expect(aiStatusCommand()).resolves.not.toThrow();
   });
 });
 
