@@ -9,16 +9,16 @@
  * - Object conventions (airlock door, viewscreen, etc.)
  * - Industry-standard screenplay formatting
  *
- * Phase 5 migration (bd-551f): replaced prior direct SDK usage with
- * getFilmbuffAiClient('entity-extractor').  The client is lazily initialised
- * on the first extractEntities() call and reused for all subsequent calls
- * (single getFilmbuffAiClient() invocation per AIEntityExtractor instance).
+ * Phase 4.2 migration (bd-su55): replaced getFilmbuffAiClient() + AiClient
+ * with resolveAIClient() + AIPoweredClient.complete().  The client is lazily
+ * initialised on the first extractEntities() call and reused for all subsequent
+ * calls (single resolveAIClient() invocation per AIEntityExtractor instance).
  *
  * All prompt builders and response parsers are unchanged (spec requirement).
  */
 
-import { getFilmbuffAiClient } from '../../../utils/filmbuff-ai-client.js';
-import type { AiClient } from '../../../utils/filmbuff-ai-client.js';
+import { resolveAIClient } from '../../../utils/runtime-resolver.js';
+import type { AIPoweredClient } from '../../../utils/ai-powered-client.js';
 
 export interface EntityExtractionResult {
   characters: string[];
@@ -30,20 +30,20 @@ export interface EntityExtractionResult {
  * AI-powered entity extractor using the ai-powered library.
  */
 export class AIEntityExtractor {
-  /** Lazily-initialised ai-powered client; null until first extractEntities() call. */
-  private client: AiClient | null = null;
+  /** Lazily-initialised AIPoweredClient; null until first extractEntities() call. */
+  private client: AIPoweredClient | null = null;
 
   constructor() {
-    // No credentials needed — ai-powered sources them from config layers.
+    // No credentials needed — resolveAIClient() reads config, env vars, and defaults.
   }
 
   /**
-   * Ensure the AiClient is initialised (lazy, called once per extractor instance).
+   * Ensure the AIPoweredClient is initialised (lazy, called once per extractor instance).
    * Subsequent calls return the cached client immediately.
    */
-  private async ensureClient(): Promise<AiClient> {
+  private ensureClient(): AIPoweredClient {
     if (!this.client) {
-      this.client = await getFilmbuffAiClient('entity-extractor');
+      this.client = resolveAIClient();
     }
     return this.client;
   }
@@ -56,10 +56,10 @@ export class AIEntityExtractor {
 
     try {
       console.log('Using AI-powered entity extraction...');
-      const client = await this.ensureClient();
-      const response = await client.generateText(prompt, { maxTokens: 2048 });
+      const client = this.ensureClient();
+      const response = await client.complete(prompt, { maxTokens: 2048 });
 
-      // response.content IS the generated text string (same as old response.content[0].text)
+      // response.content is the generated text string
       const result = this.parseAIResponse(response.content);
       console.log(`AI extracted ${result.characters.length} characters and ${result.objects.length} objects`);
       return result;

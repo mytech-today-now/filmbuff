@@ -2,18 +2,18 @@
  * AI-Powered Blocking Extractor
  *
  * Extracts detailed character blocking and spatial positions from screenplay
- * action lines using the ai-powered library via getFilmbuffAiClient().
+ * action lines using AIPoweredClient via resolveAIClient().
  *
- * Phase 5 migration (bd-551f): replaced prior direct SDK usage with
- * getFilmbuffAiClient('blocking-extractor').  The client is lazily initialised
- * on the first extractBlocking() call and reused for all subsequent calls
- * (single getFilmbuffAiClient() invocation per AIBlockingExtractor instance).
+ * Phase 4.2 migration (bd-su55): replaced getFilmbuffAiClient() + AiClient
+ * with resolveAIClient() + AIPoweredClient.complete().  The client is lazily
+ * initialised on the first extractBlocking() call and reused for all
+ * subsequent calls (single resolveAIClient() invocation per instance).
  *
  * All prompt builders and response parsers are unchanged (spec requirement).
  */
 
-import { getFilmbuffAiClient } from '../../../utils/filmbuff-ai-client.js';
-import type { AiClient } from '../../../utils/filmbuff-ai-client.js';
+import { resolveAIClient } from '../../../utils/runtime-resolver.js';
+import type { AIPoweredClient } from '../../../utils/ai-powered-client.js';
 
 export interface CharacterBlockingPosition {
   character: string;
@@ -39,8 +39,8 @@ export interface BlockingExtractionResult {
 }
 
 export class AIBlockingExtractor {
-  /** Lazily-initialised ai-powered client; null until first extractBlocking() call. */
-  private client: AiClient | null = null;
+  /** Lazily-initialised AIPoweredClient; null until first extractBlocking() call. */
+  private client: AIPoweredClient | null = null;
   private characterDescriptionCache: Map<string, CharacterDescription> = new Map();
   private styleGuidelines: any | null = null; // MergedStyleGuidelines type
 
@@ -49,12 +49,12 @@ export class AIBlockingExtractor {
   }
 
   /**
-   * Ensure the AiClient is initialised (lazy, called once per extractor instance).
+   * Ensure the AIPoweredClient is initialised (lazy, called once per extractor instance).
    * Subsequent calls return the cached client immediately.
    */
-  private async ensureClient(): Promise<AiClient> {
+  private ensureClient(): AIPoweredClient {
     if (!this.client) {
-      this.client = await getFilmbuffAiClient('blocking-extractor');
+      this.client = resolveAIClient();
     }
     return this.client;
   }
@@ -96,13 +96,13 @@ export class AIBlockingExtractor {
     );
 
     try {
-      const client = await this.ensureClient();
-      const response = await client.generateText(prompt, {
+      const client = this.ensureClient();
+      const response = await client.complete(prompt, {
         maxTokens: 4096,   // Increased for verbose descriptions
         temperature: 0.0,  // Deterministic for consistency
       });
 
-      // response.content IS the generated text string (same as old response.content[0].text)
+      // response.content is the generated text string
       const result = this.parseBlockingResponse(response.content, characterNames);
 
       // Cache new character descriptions
