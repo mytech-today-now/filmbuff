@@ -115,10 +115,10 @@ export async function startCommand(options: StartOptions): Promise<void> {
   const outputDir = options.outputDir
     ?? path.join(process.cwd(), 'output', slug);
 
-  // Record session start
+  // Record session start without project_id — project doesn't exist yet.
+  // project_id is linked via completeSession() once the project row is created.
   sessionRepo.recordSession({
     id:          sessionId,
-    project_id:  projectId,
     command:     'start',
     flags:       options as unknown as Record<string, unknown>,
     provider_id: options.provider,
@@ -143,7 +143,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
       active_profile_name: options.profile,
     });
 
-    sessionRepo.completeSession(sessionId, 0);
+    sessionRepo.completeSession(sessionId, 0, undefined, project.id);
 
     console.log(chalk.green('✓ Project created successfully\n'));
     console.log(chalk.bold('Project details:'));

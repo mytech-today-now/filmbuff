@@ -106,7 +106,6 @@ export function runMigrations(
 
   // -- Phase 2: apply pending migrations --------------------------------------
   let count = 0;
-  const recordMigration = db.prepare(INSERT_MIGRATION_SQL);
 
   for (const filename of files) {
     const version = path.basename(filename, '.sql');
@@ -118,8 +117,8 @@ export function runMigrations(
     try {
       // Run the full SQL file (may contain multiple statements)
       db.exec(sql);
-      // Record successful application
-      recordMigration.run(version, checksum);
+      // Prepare AFTER exec so the migrations table exists (created by first migration)
+      db.prepare(INSERT_MIGRATION_SQL).run(version, checksum);
     } catch (err) {
       throw translateSQLiteError(err);
     }

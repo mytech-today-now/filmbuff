@@ -40,7 +40,8 @@ const COMPLETE_SESSION = `
   UPDATE sessions
   SET completed_at  = @completed_at,
       exit_code     = @exit_code,
-      error_message = @error_message
+      error_message = @error_message,
+      project_id    = COALESCE(@project_id, project_id)
   WHERE id = @id
 `;
 
@@ -105,11 +106,13 @@ export class SessionRepository {
 
   /**
    * Mark a session as completed, recording exit code and optional error message.
+   * Optionally links the session to a project (used by `start` after project creation).
    */
   completeSession(
     id: string,
     exitCode: number,
     errorMessage?: string,
+    projectId?: string,
   ): void {
     const now = new Date().toISOString();
     try {
@@ -118,6 +121,7 @@ export class SessionRepository {
         completed_at:  now,
         exit_code:     exitCode,
         error_message: errorMessage ?? null,
+        project_id:    projectId    ?? null,
       });
     } catch (err) {
       throw translateSQLiteError(err, 'sessions');
