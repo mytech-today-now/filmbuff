@@ -24,6 +24,28 @@ control it, and how to troubleshoot common problems.
 
 ---
 
+## Project Initialisation
+
+Before running the pipeline you must create a project with `filmbuff start`.
+The command seeds all pipeline steps in the database and can be driven through
+an interactive wizard or via CLI flags:
+
+```bash
+# Interactive wizard (auto-launches in a TTY when --title / --genre are missing)
+filmbuff start
+
+# Non-interactive
+filmbuff start --title "My Screenplay" --genre thriller --output-dir ./projects/my-screenplay
+```
+
+For full flag reference and wizard step details see the
+[CLI Reference — filmbuff start](CLI_REFERENCE.md#filmbuff-start).
+
+Once a project exists, use `filmbuff continue --project <slug>` to advance it
+through the pipeline and `filmbuff status --project <slug>` to inspect progress.
+
+---
+
 ## Pipeline Overview
 
 ```

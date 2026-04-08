@@ -317,6 +317,124 @@ When using `--json` flag, output follows this structure:
 
 ---
 
+## FilmBuff CLI — Project Commands
+
+### `filmbuff start`
+
+Initialise a new FilmBuff film project and seed all pipeline steps. Runs an
+**interactive 12-step wizard** when called from an interactive terminal without
+the two required fields, or accepts all settings as CLI flags for scripts and CI.
+
+```bash
+filmbuff start [options]
+```
+
+**Auto-trigger rule**
+The wizard launches automatically when:
+- Running in a TTY (`process.stdout.isTTY === true`), AND
+- `--title` or `--genre` is missing, AND
+- `--no-wizard` is not set, AND
+- `CI` environment variable is not `"true"`
+
+**Options:**
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--title <title>` | Project display title | *(wizard)* |
+| `--genre <genre>` | Film genre | *(wizard)* |
+| `--wizard` | Force interactive wizard even when flags are supplied | auto |
+| `--no-wizard` | Suppress wizard; requires `--title` and `--genre` | — |
+| `--slug <slug>` | URL-safe identifier | derived from `--title` |
+| `--tone <tone>` | Tone description (e.g. `dark`, `hopeful`) | — |
+| `--audience <audience>` | Target audience description | — |
+| `--budget <tier>` | `micro` · `low` · `mid` · `studio` | — |
+| `--outcome <outcome>` | Desired outcome or logline intent | — |
+| `--output-dir <dir>` | Output directory for generated files | `./output/<slug>` |
+| `--format <fmt>` | `md` · `json` · `fountain` · `pdf` | `md` |
+| `--detail <level>` | `brief` · `standard` · `detailed` | `standard` |
+| `--style <module>` | Style module path (repeatable) | — |
+| `--ai-provider <id>` | AI provider id (alias: `--provider`) | global default |
+| `--ai-profile <name>` | AI provider profile (alias: `--profile`) | provider default |
+
+**Wizard steps:**
+
+| Step | Field | Notes |
+|------|-------|-------|
+| 1 | **Title** | 3–120 characters |
+| 2 | **Genre** | Aliases normalised (e.g. `sci fi` → `sci-fi`) |
+| 3 | **Slug** | Derived from title; collision-checked |
+| 4 | **Tone** | Optional |
+| 5 | **Audience** | Optional |
+| 6 | **Budget tier** | Optional — `micro` · `low` · `mid` · `studio` |
+| 7 | **Outcome** | Optional |
+| 8 | **Output directory** | Default: `./output/<slug>` |
+| 9 | **Format + Detail** | Two selects in one step |
+| 10 | **Style modules** | Zero or more paths |
+| 11 | **AI provider** | Discovered from `ai-powered` config; video-only providers excluded |
+| 12 | **AI profile** | Profiles for the chosen provider |
+
+After Step 12 a confirmation panel shows all values and the equivalent
+one-liner command. Options: **Proceed** · **Edit** (re-enter Step 1 with values
+pre-filled) · **Start Over** · **Quit**. Press `Ctrl-C` at any prompt to cancel
+cleanly (exit 0, no database write).
+
+**Examples:**
+
+```bash
+# Interactive — wizard launches automatically
+filmbuff start
+
+# Force wizard with pre-filled title
+filmbuff start --title "Neon Requiem" --wizard
+
+# Non-interactive
+filmbuff start --title "The Midnight Run" --genre thriller --tone dark
+
+# CI pipeline (wizard suppressed automatically; exits 1 if --title/--genre missing)
+CI=true filmbuff start --no-wizard --title "CI Film" --genre drama
+```
+
+---
+
+### `filmbuff continue`
+
+Resume a FilmBuff project at its next pending pipeline step.
+
+```bash
+filmbuff continue --project <slug> [options]
+```
+
+**Required:** `--project <slug>`
+**Options:** `--ai-provider <id>`, `--ai-profile <name>` (aliases: `--provider`, `--profile`)
+
+---
+
+### `filmbuff retry`
+
+Re-queue the last failed or rejected pipeline step.
+
+```bash
+filmbuff retry --project <slug> [options]
+```
+
+**Required:** `--project <slug>`
+**Options:** `--step <name>`, `--ai-provider <id>`, `--ai-profile <name>`
+
+---
+
+### `filmbuff status`
+
+Display pipeline step statuses for a project.
+
+```bash
+filmbuff status --project <slug> [options]
+```
+
+**Required:** `--project <slug>`
+**Options:** `--next`, `--pending`, `--all`, `--format <table|json>`
+
+---
+
 ## FilmBuff CLI — AI Commands (Phase 9)
 
 These commands replaced the removed `filmbuff provider *` and `filmbuff configure`
