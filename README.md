@@ -63,6 +63,11 @@ If your shell still does not recognize `filmbuff` immediately after install, ope
 | `filmbuff list` | List available modules |
 | `filmbuff show <module>` | Display module content |
 | `filmbuff search <term>` | Search for modules |
+| `filmbuff start` | Start a new project (interactive wizard or flags) |
+| `filmbuff start --wizard` | Force the interactive 12-step setup wizard |
+| `filmbuff continue --project <slug>` | Resume a project at its next pending step |
+| `filmbuff retry --project <slug>` | Re-queue the last failed pipeline step |
+| `filmbuff status --project <slug>` | Show pipeline step statuses |
 | `filmbuff generate-shot-list` | AI-powered shot list generation |
 | `filmbuff generate-treatment` | AI-powered treatment generation |
 | `filmbuff validate` | Validate module structure |
@@ -71,6 +76,116 @@ If your shell still does not recognize `filmbuff` immediately after install, ope
 | `filmbuff inspect --format json` | JSON inspection report |
 | `filmbuff inspect --format text` | Plain-text inspection report |
 | `filmbuff inspect --format markdown` | Markdown inspection report |
+
+---
+
+## 🎬 Starting a New Project
+
+`filmbuff start` initialises a new FilmBuff film project and seeds all pipeline steps. It can be driven entirely by CLI flags (for scripts and CI) or through an **interactive 12-step wizard** (for interactive terminals).
+
+### Interactive Wizard
+
+When run in a TTY without `--title` and `--genre`, the wizard launches automatically:
+
+```bash
+filmbuff start
+```
+
+You can also force the wizard even when flags are supplied:
+
+```bash
+filmbuff start --wizard
+```
+
+The wizard walks you through 12 steps and displays a confirmation panel before creating the project:
+
+| Step | Field | Notes |
+|------|-------|-------|
+| 1 | **Title** | Display name; 3–120 characters |
+| 2 | **Genre** | e.g. `thriller`, `sci-fi`, `romantic-comedy`; aliases normalised automatically |
+| 3 | **Slug** | URL-safe identifier derived from the title; collision check against existing projects |
+| 4 | **Tone** | Optional — e.g. `dark`, `comedic`, `hopeful`, `gritty` |
+| 5 | **Audience** | Optional — target audience description |
+| 6 | **Budget tier** | Optional — `micro` · `low` · `mid` · `studio` |
+| 7 | **Outcome** | Optional — logline intent or desired result |
+| 8 | **Output directory** | Default: `./output/<slug>` |
+| 9 | **Format + Detail** | Format: `md` · `json` · `fountain` · `pdf`; Detail: `brief` · `standard` · `detailed` |
+| 10 | **Style modules** | Zero or more cinematic style module paths |
+| 11 | **AI provider** | Discovered from `ai-powered` config; video-only providers excluded |
+| 12 | **AI profile** | Profiles for the chosen provider |
+
+After all steps, a summary panel shows your choices and the equivalent one-liner command. You can then **Proceed**, **Edit** (return to Step 1 with values pre-filled), **Start Over**, or **Quit**.
+
+Press `Ctrl-C` at any prompt to cancel cleanly without writing to the database.
+
+### Non-Interactive / CI Mode
+
+Supply `--title` and `--genre` to skip the wizard entirely:
+
+```bash
+filmbuff start --title "The Midnight Run" --genre thriller
+```
+
+Use `--no-wizard` to explicitly suppress the wizard and enforce non-interactive behaviour (exits with an error if either required flag is missing):
+
+```bash
+filmbuff start --no-wizard --title "My Screenplay" --genre drama
+```
+
+In non-TTY environments (pipes, CI) the wizard is suppressed automatically. Set `CI=true` to be explicit:
+
+```bash
+CI=true filmbuff start --title "Pipeline Film" --genre drama --format md
+```
+
+### All Flags
+
+```bash
+filmbuff start [options]
+```
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `--title <title>` | Project display title | *(wizard)* |
+| `--genre <genre>` | Film genre | *(wizard)* |
+| `--wizard` | Force the interactive wizard | auto when title/genre missing |
+| `--no-wizard` | Suppress wizard; require `--title` and `--genre` | — |
+| `--slug <slug>` | URL-safe identifier | derived from `--title` |
+| `--tone <tone>` | Tone description | — |
+| `--audience <audience>` | Target audience | — |
+| `--budget <tier>` | `micro` · `low` · `mid` · `studio` | — |
+| `--outcome <outcome>` | Desired outcome or logline intent | — |
+| `--output-dir <dir>` | Output directory | `./output/<slug>` |
+| `--format <fmt>` | `md` · `json` · `fountain` · `pdf` | `md` |
+| `--detail <level>` | `brief` · `standard` · `detailed` | `standard` |
+| `--style <module>` | Style module path (repeatable) | — |
+| `--ai-provider <id>` | AI provider for this project | global default |
+| `--ai-profile <name>` | AI provider profile | provider default |
+
+### Examples
+
+```bash
+# Fully interactive — wizard launches automatically
+filmbuff start
+
+# Wizard with a pre-filled title (shown as default in Step 1)
+filmbuff start --title "Neon Requiem" --wizard
+
+# Non-interactive with all options
+filmbuff start \
+  --title "The Midnight Run" \
+  --genre thriller \
+  --tone dark \
+  --budget low \
+  --output-dir ./projects/midnight-run \
+  --format fountain \
+  --detail detailed \
+  --style filmbuff/writing-standards/screenplay/styles/neo-noir \
+  --ai-provider anthropic
+
+# CI pipeline (no wizard, exits 1 if --title or --genre missing)
+CI=true filmbuff start --no-wizard --title "CI Film" --genre drama
+```
 
 ---
 
