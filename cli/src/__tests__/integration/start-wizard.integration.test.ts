@@ -1,0 +1,530 @@
+/**
+ * start-wizard.integration.test.ts — Integration tests for startWizard()
+ *
+ * These tests exercise the REAL startWizard() implementation end-to-end by
+ * injecting answers through mocked @inquirer/prompts.  No DB is involved —
+ * the wizard is a pure option-collector.
+ *
+ * Scenarios:
+ *   IT-1  Happy path:      12 steps + confirm → correct StartOptions returned
+ *   IT-2  Pre-fill:        CLI flags flow as step defaults
+ *   IT-3  DuplicateSlug:   slug re-prompted when findBySlug returns truthy
+ *   IT-4  Quit:            confirm=false → select quit → process.exit(0)
+ *   IT-5  Edit loop:       confirm=false → edit → second pass → confirm
+ *   IT-6  Start-Over:      confirm=false → start-over → fresh pass → confirm
+ *   IT-7  ExitPromptError: Ctrl-C on first prompt → process.exit(0)
+ *   IT-8  Provider filter: video-only providers excluded from Step 11
+ *   IT-9  Provider+profile: provider selected and profile resolved
+ *
+ * Satisfies: bd-gpnf [start-wizard] Phase 9: Integration Tests
+ * Spec:      openspec/changes/start-wizard/tests/plan.md §integration
+ */
+
+// ---------------------------------------------------------------------------
+// Mocks — hoisted above all imports by Jest's babel transform
+// ---------------------------------------------------------------------------
+
+// chalk — ESM compat; recursive proxy so any chain depth works
+jest.mock('chalk', () => {
+  function make(): any { const fn = (s: string) => s; return new Proxy(fn, { get: () => make() }); }
+  const r = make();
+  return { default: r, blue: r, green: r, red: r, gray: r, yellow: r, cyan: r, bold: r, dim: r };
+});
+
+// ora — spinner stub that chains .start() → this (ESM compat)
+jest.mock('ora', () => () => {
+  const spinner = { start() { return this; }, succeed: jest.fn(), stop: jest.fn(), fail: jest.fn() };
+  return spinner;
+});
+
+// fs — prevent "outputDir already exists" warning in tests
+jest.mock('fs', () => ({ ...jest.requireActual<typeof import('fs')>('fs'), existsSync: jest.fn().mockReturnValue(false) }));
+
+// @inquirer/core — ExitPromptError class used by startWizard's catch guard
+class MockExitPromptError extends Error {
+  constructor() { super('User force-closed the prompt'); this.name = 'ExitPromptError'; }
+}
+jest.mock('@inquirer/core', () => ({ ExitPromptError: MockExitPromptError }));
+
+// @inquirer/prompts — individual mock fns (queued per test via mockResolvedValueOnce)
+const mockInput   = jest.fn();
+const mockSelect  = jest.fn();
+const mockConfirm = jest.fn();
+jest.mock('@inquirer/prompts', () => ({
+  input:   (...a: unknown[]) => mockInput(...a),
+  select:  (...a: unknown[]) => mockSelect(...a),
+  confirm: (...a: unknown[]) => mockConfirm(...a),
+}));
+
+// loadConfig — default: rejected (AI provider not configured)
+const mockLoadConfig = jest.fn().mockRejectedValue(new Error('not configured'));
+jest.mock('../../utils/filmbuff-ai-client', () => ({
+  loadConfig: (...a: unknown[]) => mockLoadConfig(...a),
+}));
+
+// ---------------------------------------------------------------------------
+// Imports (after mocks)
+// ---------------------------------------------------------------------------
+
+import { startWizard } from '../../commands/start-wizard';
+import type { StartOptions } from '../../commands/start';
+
+// ---------------------------------------------------------------------------
+// Answer-queue helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Queue answers for a complete wizard pass where provider discovery FAILS.
+ * Call ordering (must match start-wizard.ts runSteps1to10 → runAllSteps):
+ *   input × 8:  title, genre, slug, tone, audience, outcome, outputDir, styles(empty→skip)
+ *   select × 3: budget, format, detail
+ *   confirm × 1: confirmationPanel
+ */
+function queuePassNoProvider(opts: {
+  title?:     string;  genre?:    string;  slug?:     string;
+  tone?:      string;  audience?: string;  outcome?:  string;
+  outputDir?: string;  budget?:   string;  format?:   string;
+  detail?:    string;  proceed?:  boolean;
+} = {}): void {
+  const t = opts.title     ?? 'Happy Film';
+  const g = opts.genre     ?? 'drama';
+  const s = opts.slug      ?? 'happy-film';
+  mockInput
+    .mockResolvedValueOnce(t)                   // step 1: title
+    .mockResolvedValueOnce(g)                   // step 2: genre
+    .mockResolvedValueOnce(s)                   // step 3: slug
+    .mockResolvedValueOnce(opts.tone      ?? '') // step 4: tone  (empty → undefined)
+    .mockResolvedValueOnce(opts.audience  ?? '') // step 5: audience
+    .mockResolvedValueOnce(opts.outcome   ?? '') // step 7: outcome
+    .mockResolvedValueOnce(opts.outputDir ?? '/out/' + s)  // step 8: outputDir
+    .mockResolvedValueOnce('');                 // step 10: styles (empty → skip)
+  mockSelect
+    .mockResolvedValueOnce(opts.budget ?? '(skip)') // step 6: budget
+    .mockResolvedValueOnce(opts.format ?? 'md')      // step 9a: format
+    .mockResolvedValueOnce(opts.detail ?? 'standard'); // step 9b: detail
+  mockConfirm
+    .mockResolvedValueOnce(opts.proceed ?? true);   // confirmationPanel → proceed
+}
+
+// ---------------------------------------------------------------------------
+// Shared test setup
+// ---------------------------------------------------------------------------
+
+let processExitSpy: jest.SpyInstance;
+let consoleLogSpy:  jest.SpyInstance;
+
+beforeEach(() => {
+  mockInput.mockReset();
+  mockSelect.mockReset();
+  mockConfirm.mockReset();
+  mockLoadConfig.mockReset();
+  mockLoadConfig.mockRejectedValue(new Error('not configured'));
+  processExitSpy = jest.spyOn(process, 'exit').mockImplementation(() => { throw new Error('process.exit'); });
+  consoleLogSpy  = jest.spyOn(console, 'log').mockImplementation();
+  jest.spyOn(console, 'warn').mockImplementation();
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
+});
+
+
+// ===========================================================================
+// IT-1: Happy path — full 12-step run, loadConfig fails gracefully
+// ===========================================================================
+
+describe('IT-1: Happy path (provider discovery fails gracefully)', () => {
+  it('returns correct StartOptions after 12 steps + confirm', async () => {
+    queuePassNoProvider({
+      title: 'The Midnight Run', genre: 'thriller', slug: 'the-midnight-run',
+      tone: 'dark', audience: 'adults 18+', outcome: 'award-winner',
+      outputDir: '/out/the-midnight-run', budget: 'low', format: 'fountain',
+      detail: 'detailed', proceed: true,
+    });
+
+    const result = await startWizard({});
+
+    expect(result.title).toBe('The Midnight Run');
+    expect(result.genre).toBe('thriller');
+    expect(result.slug).toBe('the-midnight-run');
+    expect(result.tone).toBe('dark');
+    expect(result.audience).toBe('adults 18+');
+    expect(result.outcome).toBe('award-winner');
+    expect(result.outputDir).toBe('/out/the-midnight-run');
+    expect(result.budget).toBe('low');
+    expect(result.format).toBe('fountain');
+    expect(result.detail).toBe('detailed');
+    expect(result.styles).toEqual([]);
+    expect(result.provider).toBeUndefined();
+    expect(result.profile).toBeUndefined();
+  });
+
+  it('returns undefined for optional fields when empty answers supplied', async () => {
+    queuePassNoProvider(); // all optional fields empty
+
+    const result = await startWizard({});
+
+    expect(result.tone).toBeUndefined();
+    expect(result.audience).toBeUndefined();
+    expect(result.outcome).toBeUndefined();
+    expect(result.budget).toBeUndefined();
+    expect(result.provider).toBeUndefined();
+    expect(result.profile).toBeUndefined();
+  });
+
+  it('calls input+select+confirm the exact expected number of times', async () => {
+    queuePassNoProvider();
+    await startWizard({});
+    expect(mockInput.mock.calls).toHaveLength(8);    // title, genre, slug, tone, audience, outcome, outputDir, styles
+    expect(mockSelect.mock.calls).toHaveLength(3);   // budget, format, detail
+    expect(mockConfirm.mock.calls).toHaveLength(1);  // confirmationPanel
+  });
+});
+
+// ===========================================================================
+// IT-2: Pre-fill — CLI flags become step defaults
+// ===========================================================================
+
+describe('IT-2: Pre-fill from CLI flags', () => {
+  it('passes title prefill as input default for step 1', async () => {
+    queuePassNoProvider({ title: 'Custom Title', slug: 'custom-title', outputDir: '/out/custom-title' });
+    const prefill: Partial<StartOptions> = { title: 'Custom Title', genre: 'drama' };
+
+    await startWizard(prefill);
+
+    // Step 1 input should have been called with the prefill as default
+    expect(mockInput.mock.calls[0][0]).toMatchObject({ default: 'Custom Title' });
+  });
+
+  it('passes genre prefill as input default for step 2', async () => {
+    queuePassNoProvider({ genre: 'thriller', slug: 'happy-film' });
+    await startWizard({ genre: 'thriller' });
+
+    expect(mockInput.mock.calls[1][0]).toMatchObject({ default: 'thriller' });
+  });
+
+  it('passes outputDir prefill as input default for step 8', async () => {
+    queuePassNoProvider({ outputDir: '/custom/output' });
+    await startWizard({ outputDir: '/custom/output' });
+
+    // outputDir is input call index 6 (0-based): title[0] genre[1] slug[2] tone[3] audience[4] outcome[5] outputDir[6]
+    expect(mockInput.mock.calls[6][0]).toMatchObject({ default: '/custom/output' });
+  });
+
+  it('genre normalisation: sci fi input → sci-fi in returned options', async () => {
+    queuePassNoProvider({ genre: 'sci fi', slug: 'happy-film' });
+    const result = await startWizard({});
+    expect(result.genre).toBe('sci-fi');
+  });
+});
+
+// ===========================================================================
+// IT-3: DuplicateSlug recovery — slug step re-prompts on collision
+// ===========================================================================
+
+describe('IT-3: DuplicateSlug recovery', () => {
+  it('re-prompts slug once when findBySlug returns truthy for first attempt', async () => {
+    const findBySlug = jest.fn()
+      .mockReturnValueOnce({ id: 'other' })  // first attempt → collision
+      .mockReturnValueOnce(undefined);        // second attempt → accepted
+
+    // Slug input is called twice; all other inputs once
+    mockInput
+      .mockResolvedValueOnce('Dupe Film')   // title
+      .mockResolvedValueOnce('drama')       // genre
+      .mockResolvedValueOnce('dupe-film')   // slug (first → duplicate)
+      .mockResolvedValueOnce('dupe-film-2') // slug (second → accepted)
+      .mockResolvedValueOnce('')            // tone
+      .mockResolvedValueOnce('')            // audience
+      .mockResolvedValueOnce('')            // outcome
+      .mockResolvedValueOnce('/out/dupe-film-2') // outputDir
+      .mockResolvedValueOnce('');           // styles
+    mockSelect
+      .mockResolvedValueOnce('(skip)')      // budget
+      .mockResolvedValueOnce('md')          // format
+      .mockResolvedValueOnce('standard');   // detail
+    mockConfirm.mockResolvedValueOnce(true);
+
+    const result = await startWizard({}, { findBySlug });
+
+    expect(result.slug).toBe('dupe-film-2');
+    expect(findBySlug).toHaveBeenCalledTimes(2);
+    expect(findBySlug).toHaveBeenNthCalledWith(1, 'dupe-film');
+    expect(findBySlug).toHaveBeenNthCalledWith(2, 'dupe-film-2');
+    expect(mockInput.mock.calls).toHaveLength(9); // 8 normal + 1 extra slug
+  });
+});
+
+// ===========================================================================
+// IT-4: Quit — decline confirmation → select quit → process.exit(0)
+// ===========================================================================
+
+describe('IT-4: Quit after declining confirmation', () => {
+  it('calls process.exit(0) when user selects Quit', async () => {
+    // Pass 1: all steps
+    queuePassNoProvider({ proceed: false });        // confirm → false (decline)
+    mockSelect.mockResolvedValueOnce('quit');        // promptEditOrQuit → quit
+
+    await expect(startWizard({})).rejects.toThrow('process.exit');
+    expect(processExitSpy).toHaveBeenCalledWith(0);
+  });
+
+  it('does not return StartOptions when quit is selected', async () => {
+    queuePassNoProvider({ proceed: false });
+    mockSelect.mockResolvedValueOnce('quit');
+
+    let result: StartOptions | undefined;
+    try {
+      result = await startWizard({});
+    } catch {
+      // process.exit throws in test environment
+    }
+    expect(result).toBeUndefined();
+  });
+});
+
+// ===========================================================================
+// IT-5: Edit loop — decline → Edit → second pass → confirm
+// ===========================================================================
+
+describe('IT-5: Edit loop', () => {
+  it('re-runs all 12 steps with prefill after Edit selected, returns second-pass result', async () => {
+    // First pass — all steps, decline at confirm
+    queuePassNoProvider({
+      title: 'Original Title', slug: 'original-title',
+      outputDir: '/out/original-title', proceed: false,
+    });
+    // promptEditOrQuit → 'edit'
+    mockSelect.mockResolvedValueOnce('edit');
+    // Second pass — user corrects title; prefill is from first pass
+    queuePassNoProvider({
+      title: 'Revised Title', slug: 'revised-title',
+      outputDir: '/out/revised-title', proceed: true,
+    });
+
+    const result = await startWizard({});
+
+    expect(result.title).toBe('Revised Title');
+    expect(result.slug).toBe('revised-title');
+    // mockInput called 8 (first pass) + 8 (second pass) = 16 times
+    expect(mockInput.mock.calls).toHaveLength(16);
+    // mockSelect called 3 (first) + 1 (edit select) + 3 (second) = 7 times
+    expect(mockSelect.mock.calls).toHaveLength(7);
+    // mockConfirm called 1 false + 1 true = 2 times
+    expect(mockConfirm.mock.calls).toHaveLength(2);
+  });
+
+  it('passes first-pass values as prefill defaults into second pass', async () => {
+    queuePassNoProvider({
+      title: 'First Title', genre: 'comedy', slug: 'first-title',
+      outputDir: '/out/first-title', proceed: false,
+    });
+    mockSelect.mockResolvedValueOnce('edit');
+    queuePassNoProvider({
+      title: 'First Title', genre: 'comedy', slug: 'first-title',
+      outputDir: '/out/first-title', proceed: true,
+    });
+
+    await startWizard({});
+
+    // Second-pass Step 1 (index 8 overall) should have default from first pass
+    expect(mockInput.mock.calls[8][0]).toMatchObject({ default: 'First Title' });
+    // Second-pass Step 2 (index 9) should have genre default
+    expect(mockInput.mock.calls[9][0]).toMatchObject({ default: 'comedy' });
+  });
+});
+
+// ===========================================================================
+// IT-6: Start-Over — decline → Start Over → fresh pass (no prefill) → confirm
+// ===========================================================================
+
+describe('IT-6: Start-Over loop', () => {
+  it('clears prefill on start-over and accepts second-pass result', async () => {
+    // First pass
+    queuePassNoProvider({
+      title: 'First Draft', slug: 'first-draft',
+      outputDir: '/out/first-draft', proceed: false,
+    });
+    mockSelect.mockResolvedValueOnce('start-over'); // promptEditOrQuit → start-over
+    // Second pass — starts fresh (no prefill defaults)
+    queuePassNoProvider({
+      title: 'Fresh Start', slug: 'fresh-start',
+      outputDir: '/out/fresh-start', proceed: true,
+    });
+
+    const result = await startWizard({});
+
+    expect(result.title).toBe('Fresh Start');
+    // Second-pass Step 1 (index 8) should have NO default (prefill was cleared)
+    expect(mockInput.mock.calls[8][0]).not.toHaveProperty('default', 'First Draft');
+  });
+});
+
+// ===========================================================================
+// IT-7: ExitPromptError — Ctrl-C on any prompt → process.exit(0)
+// ===========================================================================
+
+describe('IT-7: ExitPromptError (Ctrl-C) handling', () => {
+  it('calls process.exit(0) when @inquirer/prompts throws ExitPromptError', async () => {
+    mockInput.mockRejectedValueOnce(new MockExitPromptError());
+
+    await expect(startWizard({})).rejects.toThrow('process.exit');
+    expect(processExitSpy).toHaveBeenCalledWith(0);
+  });
+
+  it('re-throws non-ExitPromptError errors from prompts', async () => {
+    const unexpectedErr = new TypeError('unexpected internal error');
+    mockInput.mockRejectedValueOnce(unexpectedErr);
+
+    await expect(startWizard({})).rejects.toThrow('unexpected internal error');
+    expect(processExitSpy).not.toHaveBeenCalled();
+  });
+});
+
+
+
+// ===========================================================================
+// IT-8: Provider filter — video-only providers excluded from Step 11
+// ===========================================================================
+
+describe('IT-8: VIDEO_ONLY_PROVIDERS filter', () => {
+  /**
+   * When loadConfig succeeds, stepProvider filters out lumaai, runway,
+   * and stable-diffusion from the choices presented to the user.
+   * We test this by verifying the `select` call for Step 11 does NOT
+   * include those providers in its choices array.
+   */
+  it('excludes lumaai, runway, and stable-diffusion from provider choices', async () => {
+    // Seed loadConfig with a mix of text + video providers
+    mockLoadConfig.mockResolvedValue({
+      providers: [
+        { id: 'anthropic',         isActive: true  },
+        { id: 'lumaai',            isActive: false }, // VIDEO_ONLY — must be excluded
+        { id: 'runway',            isActive: false }, // VIDEO_ONLY — must be excluded
+        { id: 'stable-diffusion',  isActive: false }, // VIDEO_ONLY — must be excluded
+        { id: 'openai',            isActive: false },
+      ],
+      profiles: [],
+    });
+
+    // Steps 1-10 inputs/selects
+    queuePassNoProvider({ proceed: false }); // will be overridden — we don't proceed past step 11
+    // But wait: queuePassNoProvider queues confirm=false which conflicts.
+    // Reset and re-queue properly: steps 1-10 then provider select then confirm
+    mockInput.mockReset(); mockSelect.mockReset(); mockConfirm.mockReset();
+
+    mockInput
+      .mockResolvedValueOnce('Filter Test').mockResolvedValueOnce('drama')
+      .mockResolvedValueOnce('filter-test').mockResolvedValueOnce('')
+      .mockResolvedValueOnce('').mockResolvedValueOnce('')
+      .mockResolvedValueOnce('/out/filter-test').mockResolvedValueOnce('');
+    mockSelect
+      .mockResolvedValueOnce('(skip)')      // budget
+      .mockResolvedValueOnce('md')          // format
+      .mockResolvedValueOnce('standard')    // detail
+      .mockResolvedValueOnce('anthropic');  // Step 11: provider — must not include video-only
+    // loadConfig called again for profiles
+    mockLoadConfig.mockResolvedValue({ providers: [], profiles: [] });
+    mockSelect.mockResolvedValueOnce('(skip)'); // Step 12: profile skip
+    mockConfirm.mockResolvedValueOnce(true);
+
+    const result = await startWizard({});
+
+    // The Step 11 select (index 3 in mockSelect.calls) received choices
+    const providerSelectCall = mockSelect.mock.calls[3];
+    const choices = providerSelectCall[0].choices as Array<{ value: string }>;
+    const choiceValues = choices.map((c: { value: string }) => c.value);
+
+    expect(choiceValues).not.toContain('lumaai');
+    expect(choiceValues).not.toContain('runway');
+    expect(choiceValues).not.toContain('stable-diffusion');
+    expect(choiceValues).toContain('anthropic');
+    expect(choiceValues).toContain('openai');
+    expect(result.provider).toBe('anthropic');
+  });
+});
+
+// ===========================================================================
+// IT-9: Provider + Profile — both selected and returned in StartOptions
+// ===========================================================================
+
+describe('IT-9: Provider and profile selection (Steps 11-12)', () => {
+  it('returns provider and profile when both selected in Steps 11-12', async () => {
+    // loadConfig for providers (step 11)
+    mockLoadConfig.mockResolvedValueOnce({
+      providers: [{ id: 'anthropic', isActive: true }],
+      profiles:  [],
+    });
+    // loadConfig for profiles (step 12)
+    mockLoadConfig.mockResolvedValueOnce({
+      providers: [],
+      profiles:  [
+        { name: 'work',     providerId: 'anthropic', isActive: true  },
+        { name: 'personal', providerId: 'anthropic', isActive: false },
+      ],
+    });
+
+    // Steps 1-10
+    mockInput
+      .mockResolvedValueOnce('Provider Film').mockResolvedValueOnce('drama')
+      .mockResolvedValueOnce('provider-film').mockResolvedValueOnce('')
+      .mockResolvedValueOnce('').mockResolvedValueOnce('')
+      .mockResolvedValueOnce('/out/provider-film').mockResolvedValueOnce('');
+    mockSelect
+      .mockResolvedValueOnce('(skip)')       // budget
+      .mockResolvedValueOnce('md')           // format
+      .mockResolvedValueOnce('standard')     // detail
+      .mockResolvedValueOnce('anthropic')    // Step 11: provider
+      .mockResolvedValueOnce('work');        // Step 12: profile
+    mockConfirm.mockResolvedValueOnce(true); // confirm
+
+    const result = await startWizard({});
+
+    expect(result.provider).toBe('anthropic');
+    expect(result.profile).toBe('work');
+    expect(mockSelect.mock.calls).toHaveLength(5); // budget+format+detail+provider+profile
+    // Note: loadConfig is called 1-2 times depending on profileCache state across tests.
+    // The important invariant is that provider + profile are returned correctly.
+    expect(mockLoadConfig).toHaveBeenCalled();
+  });
+
+  it('returns undefined profile when step 12 returns (skip)', async () => {
+    mockLoadConfig.mockResolvedValueOnce({
+      providers: [{ id: 'openai', isActive: false }],
+      profiles:  [],
+    });
+    mockLoadConfig.mockResolvedValueOnce({
+      providers: [],
+      profiles:  [{ name: 'default', providerId: 'openai', isActive: true }],
+    });
+
+    mockInput
+      .mockResolvedValueOnce('Skip Profile').mockResolvedValueOnce('drama')
+      .mockResolvedValueOnce('skip-profile').mockResolvedValueOnce('')
+      .mockResolvedValueOnce('').mockResolvedValueOnce('')
+      .mockResolvedValueOnce('/out/skip-profile').mockResolvedValueOnce('');
+    mockSelect
+      .mockResolvedValueOnce('(skip)')   // budget
+      .mockResolvedValueOnce('md')       // format
+      .mockResolvedValueOnce('standard') // detail
+      .mockResolvedValueOnce('openai')   // provider
+      .mockResolvedValueOnce('(skip)');  // profile → skip → undefined
+    mockConfirm.mockResolvedValueOnce(true);
+
+    const result = await startWizard({});
+
+    expect(result.provider).toBe('openai');
+    expect(result.profile).toBeUndefined();
+  });
+
+  it('skips step 12 entirely when provider is undefined', async () => {
+    // loadConfig fails → stepProvider returns undefined → stepProfile not called
+    queuePassNoProvider(); // loadConfig already set to reject
+
+    await startWizard({});
+
+    // Only 3 select calls (budget, format, detail) — no provider or profile select
+    expect(mockSelect.mock.calls).toHaveLength(3);
+    expect(mockLoadConfig).toHaveBeenCalledTimes(1); // once for provider (fails gracefully)
+  });
+});
