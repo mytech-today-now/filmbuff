@@ -19,6 +19,7 @@ import {
   DuplicateSlugError,
   MIGRATIONS_DIR,
 } from '../db/index.js';
+import { startWizard } from './start-wizard.js';
 import type {
   BudgetTier,
   DocumentFormat,
@@ -60,6 +61,13 @@ export interface StartOptions {
   maxTokens?: number;
   /** --timeout: request timeout in milliseconds override. */
   timeout?: number;
+  // -------------------------------------------------------------------------
+  // bd-ama1: Wizard control flags — populated by --wizard / --no-wizard in cli.ts
+  // -------------------------------------------------------------------------
+  /** --wizard: force-launch the interactive wizard regardless of other flags. */
+  wizard?: boolean;
+  /** --no-wizard: suppress the wizard; exit 1 if --title or --genre is missing. */
+  noWizard?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -69,11 +77,31 @@ export interface StartOptions {
 export async function startCommand(options: StartOptions): Promise<void> {
   console.log(chalk.bold.blue('\n🎬 FilmBuff — Starting new project\n'));
 
+  // Initialise DB first so findBySlug is available for slug collision pre-flight
   const db = openDatabase();
   runMigrations(db, MIGRATIONS_DIR);
 
   const projectRepo = new ProjectRepository(db);
   const sessionRepo = new SessionRepository(db);
+
+  // ── bd-ama1: Wizard trigger preamble ─────────────────────────────────────
+  // When both --wizard and --no-wizard are given, --no-wizard takes precedence.
+  if (options.wizard && options.noWizard) {
+    console.warn(chalk.yellow('Warning: --no-wizard takes precedence over --wizard.'));
+  }
+  if (!options.title || !options.genre || options.wizard) {
+    if (options.noWizard || !process.stdout.isTTY || process.env['CI'] === 'true') {
+      if (!options.title || !options.genre) {
+        console.error(chalk.red('Error: --title and --genre are required in non-interactive mode.'));
+        process.exit(1);
+      }
+    } else {
+      options = await startWizard(options, {
+        findBySlug: (s) => projectRepo.findBySlug(s),
+      });
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   // Derive slug from title if not provided
   const slug = options.slug

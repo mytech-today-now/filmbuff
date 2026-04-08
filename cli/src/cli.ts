@@ -401,12 +401,15 @@ aiCmd
   )
   .action((key: string, value: string) => aiSetCommand(key, value));
 
-// Start command — initialise a new FilmBuff project (bd-pipe-c1)
+// Start command — initialise a new FilmBuff project (bd-pipe-c1, bd-8mff)
 program
   .command('start')
   .description('Initialise a new FilmBuff film project and seed all pipeline steps')
-  .requiredOption('--title <title>', 'Project display title (e.g. "My Screenplay")')
-  .requiredOption('--genre <genre>', 'Film genre (e.g. thriller, drama, comedy)')
+  .option('--title <title>', 'Project display title (e.g. "My Screenplay")')
+  .option('--genre <genre>', 'Film genre (e.g. thriller, drama, comedy)')
+  // bd-8mff: wizard flags
+  .option('--wizard', 'Launch interactive project-setup wizard')
+  .option('--no-wizard', 'Force non-interactive mode (requires --title and --genre)')
   .option('--slug <slug>', 'URL-safe project identifier (derived from title if omitted)')
   .option('--tone <tone>', 'Tone description (e.g. dark, comedic, hopeful)')
   .option('--audience <audience>', 'Target audience description')
@@ -433,9 +436,11 @@ program
   .option('--timeout <ms>', 'Request timeout override in milliseconds', parseInt)
   .action((options) =>
     startCommand({
-      title:        options.title,
-      genre:        options.genre,
+      title:        options.title    ?? '',
+      genre:        options.genre    ?? '',
       slug:         options.slug,
+      wizard:       options.wizard,
+      noWizard:     options.noWizard,
       tone:         options.tone,
       audience:     options.audience,
       budget:       options.budget,

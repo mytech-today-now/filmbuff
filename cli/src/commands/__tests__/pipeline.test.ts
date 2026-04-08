@@ -58,6 +58,13 @@ const mockProviderRepo = {
   getActiveSelection: jest.fn(),
 };
 
+// Mock start-wizard so ESM-only @inquirer/prompts is never loaded in pipeline tests.
+// startCommand() has title+genre in all pipeline tests, so the wizard never fires.
+jest.mock('../start-wizard', () => ({
+  startWizard: jest.fn().mockImplementation((opts: unknown) => Promise.resolve(opts)),
+  stateToStartOptions: jest.fn().mockImplementation((state: unknown) => state),
+}));
+
 jest.mock('../../db/index', () => {
   class DuplicateSlugError extends Error {
     constructor(msg: string) { super(msg); this.name = 'DuplicateSlugError'; }

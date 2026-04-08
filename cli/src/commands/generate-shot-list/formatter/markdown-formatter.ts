@@ -8,6 +8,7 @@ import chalk from 'chalk';
 import { BaseFormatter } from './base-formatter';
 import { ShotList, Shot } from '../generator/types';
 import { FormatterOptions } from './types';
+import { renderVideoControlsTable } from '../../../lib/video-controls';
 
 /**
  * Markdown formatter implementation
@@ -160,6 +161,14 @@ export class MarkdownFormatter extends BaseFormatter {
     parts.push('**Technical Details:**');
     parts.push(shot.techDetails || 'No technical details specified');
 
+    // Video Controls — ALWAYS the LAST content section, placed immediately after
+    // Technical Details per spec (Phase 5 / bd-kt6j, DR-2).
+    // Rendered only when videoControls has been resolved (md format after Phase 4/5).
+    if (shot.videoControls) {
+      parts.push('');
+      parts.push(renderVideoControlsTable(shot.videoControls, shot.durationNotes ?? ''));
+    }
+
     // Shot warnings
     if (options?.includeWarnings && shot.warnings.length > 0) {
       parts.push('');
@@ -262,6 +271,12 @@ export class MarkdownFormatter extends BaseFormatter {
     // Technical Details - always has value
     parts.push('**Technical Details:**');
     parts.push(shot.techDetails || 'No technical details specified');
+
+    // Video Controls — included in character count calculation to match actual output
+    if (shot.videoControls) {
+      parts.push('');
+      parts.push(renderVideoControlsTable(shot.videoControls, shot.durationNotes ?? ''));
+    }
 
     // Shot warnings (if included)
     if (options?.includeWarnings && shot.warnings.length > 0) {

@@ -16,9 +16,14 @@ import { ConfigManager } from '../utils/config-system';
 // backward-compat; they are not used for actual inference.
 import { loadFilmbuffConfig, resolveProvider } from '../lib/filmbuff-config';
 import { loadPipelineInputs } from '../lib/pipeline-inputs';
+import { deriveDuration } from '../lib/duration-derivation';
+import type { ShotData } from '../lib/duration-derivation';
+import { resolveVideoControls } from '../lib/video-controls';
+import type { ShotFramingHints } from '../lib/video-controls';
 import { validateBatchPayload } from '../lib/pre-export-validator';
 import type { ValidatablePayload } from '../lib/pre-export-validator';
-import { serializeBatchToJsonl } from '../lib/batch-serializer';
+import { serializeBatch, serializeBatchToJsonl, assertApiKeyAbsent } from '../lib/batch-serializer';
+import type { ResolvedShot } from '../lib/batch-serializer';
 import type { OutputFormat } from './generate-shot-list/formatter/types';
 import type { MergedStyleGuidelines } from './generate-shot-list/style/types';
 
@@ -274,6 +279,35 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
         muteSfx: options.muteSfx || false,
       });
       console.log(chalk.green(`✓ Generated ${shotList.totalShots} shots`));
+
+      // Phase 4 (bd-eu39) + Phase 5 (bd-kt6j): Derive duration and resolve video controls
+      // for every shot using the 4-priority chain (shooting-script → beat-sheet →
+      // action-density → clamp fallback).  Also attaches VideoControls for the
+      // markdown formatter's "Video Controls:" block.
+      let derivedTotalDuration = 0;
+      for (const shot of shotList.shots) {
+        const shotData: ShotData = {
+          id: String(shot.number),
+          shootingScriptDuration: pipelineInputs.shootingScript.get(String(shot.number)) ?? null,
+          beatSheetCue:           pipelineInputs.beatSheet.get(String(shot.sceneNumber)) ?? null,
+          // Split the actions string into individual lines for density estimation
+          actionLines: shot.actions ? shot.actions.split('\n') : [],
+        };
+        const durationResult = deriveDuration(shotData);
+        // Overwrite generator's rough estimate with the deterministic derived value
+        shot.duration      = durationResult.seconds;
+        shot.durationNotes = durationResult.notes;
+
+        const hints: ShotFramingHints = {
+          // Combine shot description and framing metadata as keyword sources
+          framingDescription: [shot.description, shot.metadata.framing].filter(Boolean).join(' '),
+        };
+        shot.videoControls = resolveVideoControls(hints, durationResult);
+        derivedTotalDuration += durationResult.seconds;
+      }
+      // Recalculate aggregate after per-shot duration update
+      shotList.totalDuration = derivedTotalDuration;
+
       console.log(chalk.gray(`   Total duration: ${Math.floor(shotList.totalDuration / 60)}m ${Math.floor(shotList.totalDuration % 60)}s`));
       console.log(chalk.gray(`   Total characters: ${shotList.totalCharacters}`));
 
@@ -356,28 +390,46 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
           }
         }
 
-        // Write batch payload (AFTER successful validation)
+        // Write batch payload (AFTER successful validation).
+        // Build ResolvedShot[] from fully-resolved shots — Phase 4 (deriveDuration)
+        // and Phase 5 (resolveVideoControls) already populated shot.videoControls.
+        // Per-shot references and provider overrides are added in Phase 7 (bd-74fy)
+        // when the references manager is integrated; omitted here to use envelope defaults.
+        const resolvedShots: ResolvedShot[] = shotList.shots.map(shot => {
+          if (!shot.videoControls) {
+            throw new Error(
+              `Shot ${shot.number} is missing videoControls — ` +
+              `deriveDuration/resolveVideoControls must run before batch serialization`
+            );
+          }
+          return {
+            id:      String(shot.number),
+            heading: shot.heading.raw,
+            prompt:  shot.description,
+            controls: shot.videoControls
+            // references, provider, model: populated in Phase 7 (bd-74fy)
+          };
+        });
+
+        const serializedPayload = serializeBatch(
+          resolvedShots,
+          resolvedVideoProvider.providerId,
+          resolvedVideoProvider.model
+          // referencesMap (4th arg): passed in Phase 7 (bd-74fy)
+        );
+
+        // Security invariant (DR-6 / AC-7): apiKey MUST NEVER appear in batch output.
+        if (!assertApiKeyAbsent(serializedPayload)) {
+          console.error(chalk.red('❌ Security violation: API key detected in batch payload. Aborting export.'));
+          exitWithCode(ExitCode.GENERAL_ERROR);
+        }
+
         // AC-16: --jsonl flag writes JSONL format with _type:references sentinel
         let batchContent: string;
         if (options.jsonl) {
-          batchContent = serializeBatchToJsonl({
-            provider: batchPayload.provider,
-            model:    batchPayload.model,
-            createdAt: new Date().toISOString(),
-            references: batchPayload.references,
-            items: batchPayload.items.map(i => ({
-              id:       i.name,
-              modality: 'video' as const,
-              name:     i.name,
-              prompt:   '',
-              duration: 5,
-              ...(i.references && { references: i.references }),
-              ...(i.provider   && { provider:   i.provider }),
-              ...(i.model      && { model:       i.model })
-            }))
-          });
+          batchContent = serializeBatchToJsonl(serializedPayload);
         } else {
-          batchContent = JSON.stringify(batchPayload, null, 2);
+          batchContent = JSON.stringify(serializedPayload, null, 2);
         }
         fs.writeFileSync(options.batchOutput, batchContent, 'utf-8');
         console.log(chalk.green(`✓ Batch payload saved to: ${options.batchOutput}${options.jsonl ? ' (JSONL)' : ''}\n`));

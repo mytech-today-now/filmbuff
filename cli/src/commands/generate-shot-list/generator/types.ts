@@ -1,10 +1,11 @@
 /**
  * Shot List Generator Types
- * 
+ *
  * Data structures for AI-optimized shot list generation
  */
 
 import { Scene, SceneHeading } from '../parser/types';
+import type { VideoControls } from '../../../lib/video-controls';
 
 /**
  * Shot type classification
@@ -133,9 +134,22 @@ export interface Shot {
   techDetails: string;      // Technical notes and camera details
 
   metadata: ShotMetadata;
-  duration: number; // in seconds
+  duration: number; // in seconds — overwritten by deriveDuration() in Phase 4/5
   characterCount: number;
   warnings: Warning[];
+
+  /**
+   * Resolved video generation controls for this shot (Phase 5 / bd-kt6j).
+   * Populated in generate-shot-list.ts after the generator runs.
+   * undefined before resolution (e.g. in non-md formatters that skip it).
+   */
+  videoControls?: VideoControls;
+
+  /**
+   * Human-readable notes from DurationResult (AC-3 / AC-4).
+   * Populated alongside videoControls; used in the Video Controls table Notes column.
+   */
+  durationNotes?: string;
 }
 
 /**
