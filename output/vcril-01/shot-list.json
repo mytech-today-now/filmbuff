@@ -1,0 +1,238 @@
+```json
+{
+  "shot_list": [
+    {
+      "scene": 1,
+      "shot": 1,
+      "description": "Establishing shot of the commercial property",
+      "camera_angle": "wide",
+      "camera_movement": "static",
+      "lighting": "natural"
+    },
+    {
+      "scene": 1,
+      "shot": 2,
+      "description": "Close-up of the building's façade",
+      "camera_angle": "medium",
+      "camera_movement": "dolly",
+      "lighting": "natural"
+    },
+    {
+      "scene": 2,
+      "shot": 1,
+      "description": "Medium shot of Jen at her desk",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 2,
+      "shot": 2,
+      "description": "Over-the-shoulder shot of Mike entering the room",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 3,
+      "shot": 1,
+      "description": "Wide shot of the storm approaching",
+      "camera_angle": "wide",
+      "camera_movement": "static",
+      "lighting": "natural"
+    },
+    {
+      "scene": 3,
+      "shot": 2,
+      "description": "Close-up of the wind blowing through the trees",
+      "camera_angle": "close-up",
+      "camera_movement": "handheld",
+      "lighting": "natural"
+    },
+    {
+      "scene": 4,
+      "shot": 1,
+      "description": "Medium shot of Jen looking out the window",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 4,
+      "shot": 2,
+      "description": "Over-the-shoulder shot of Mike nodding in agreement",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 5,
+      "shot": 1,
+      "description": "Wide shot of the storm intensifying",
+      "camera_angle": "wide",
+      "camera_movement": "static",
+      "lighting": "natural"
+    },
+    {
+      "scene": 5,
+      "shot": 2,
+      "description": "Close-up of water pouring into the building",
+      "camera_angle": "close-up",
+      "camera_movement": "handheld",
+      "lighting": "natural"
+    },
+    {
+      "scene": 6,
+      "shot": 1,
+      "description": "Medium shot of Jen trying to call a repair service",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 6,
+      "shot": 2,
+      "description": "Close-up of Jen's frustrated expression",
+      "camera_angle": "close-up",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 7,
+      "shot": 1,
+      "description": "Wide shot of the employees trying to mitigate the damage",
+      "camera_angle": "wide",
+      "camera_movement": "static",
+      "lighting": "natural"
+    },
+    {
+      "scene": 7,
+      "shot": 2,
+      "description": "Close-up of the water pouring into the building",
+      "camera_angle": "close-up",
+      "camera_movement": "handheld",
+      "lighting": "natural"
+    },
+    {
+      "scene": 8,
+      "shot": 1,
+      "description": "Medium shot of Jen receiving the call from VCRIL",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 8,
+      "shot": 2,
+      "description": "Over-the-shoulder shot of the VCRIL representative explaining their services",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 9,
+      "shot": 1,
+      "description": "Wide shot of the VCRIL team arriving at the property",
+      "camera_angle": "wide",
+      "camera_movement": "static",
+      "lighting": "natural"
+    },
+    {
+      "scene": 9,
+      "shot": 2,
+      "description": "Close-up of the VCRIL team's equipment and vehicles",
+      "camera_angle": "close-up",
+      "camera_movement": "handheld",
+      "lighting": "natural"
+    },
+    {
+      "scene": 10,
+      "shot": 1,
+      "description": "Medium shot of the VCRIL team repairing the leaks",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 10,
+      "shot": 2,
+      "description": "Over-the-shoulder shot of Jen watching the repairs",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 11,
+      "shot": 1,
+      "description": "Wide shot of the storm raging outside",
+      "camera_angle": "wide",
+      "camera_movement": "static",
+      "lighting": "natural"
+    },
+    {
+      "scene": 11,
+      "shot": 2,
+      "description": "Close-up of the VCRIL team working tirelessly",
+      "camera_angle": "close-up",
+      "camera_movement": "handheld",
+      "lighting": "natural"
+    },
+    {
+      "scene": 12,
+      "shot": 1,
+      "description": "Medium shot of the VCRIL team completing the temporary repairs",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 12,
+      "shot": 2,
+      "description": "Over-the-shoulder shot of Jen thanking the VCRIL team",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 13,
+      "shot": 1,
+      "description": "Wide shot of the storm clearing",
+      "camera_angle": "wide",
+      "camera_movement": "static",
+      "lighting": "natural"
+    },
+    {
+      "scene": 13,
+      "shot": 2,
+      "description": "Close-up of the VCRIL team returning to complete the permanent repairs",
+      "camera_angle": "close-up",
+      "camera_movement": "handheld",
+      "lighting": "natural"
+    },
+    {
+      "scene": 14,
+      "shot": 1,
+      "description": "Medium shot of the property returning to normal",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 14,
+      "shot": 2,
+      "description": "Over-the-shoulder shot of employees working and customers returning",
+      "camera_angle": "medium",
+      "camera_movement": "static",
+      "lighting": "softbox"
+    },
+    {
+      "scene": 15,
+      "shot": 1,
+      "description": "Wide shot of the VCRIL logo and tagline",
+      "camera_angle": "wide",
+      "camera_movement": "static",
+      "lighting": "natural"
+    }
+  ]
+}
+```

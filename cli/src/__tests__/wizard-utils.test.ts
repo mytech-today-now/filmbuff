@@ -22,7 +22,7 @@ function makeState(overrides: Partial<WizardState> = {}): WizardState {
     genre:     'thriller',
     slug:      'the-midnight-run',
     outputDir: '/output/the-midnight-run',
-    format:    'md',
+    format:    ['md'],
     detail:    'standard',
     styles:    [],
     ...overrides,
@@ -112,12 +112,14 @@ describe('normaliseGenre()', () => {
 // ===========================================================================
 
 describe('buildEquivalentCommand()', () => {
-  it('includes required flags (title, genre, outputDir, format, detail)', () => {
+  it('includes required flags (title, genre, format, detail) and omits --output-dir', () => {
     const cmd = buildEquivalentCommand(makeState());
     expect(cmd).toContain('filmbuff start');
     expect(cmd).toContain('--title');
     expect(cmd).toContain('--genre');
-    expect(cmd).toContain('--output-dir');
+    // --output-dir is intentionally omitted: it is auto-derived from slug
+    // (see buildEquivalentCommand comment in wizard-utils.ts line 140)
+    expect(cmd).not.toContain('--output-dir');
     expect(cmd).toContain('--format');
     expect(cmd).toContain('--detail');
   });

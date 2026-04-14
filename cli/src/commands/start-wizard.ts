@@ -15,8 +15,8 @@
  *            bd-orx4  [start-wizard] Phase 7: Confirmation Panel & Edit Loop
  */
 
-import { input, select, confirm } from '@inquirer/prompts';
-import { ExitPromptError }        from '@inquirer/core';
+import { input, select, confirm, checkbox, Separator } from '@inquirer/prompts';
+import { ExitPromptError }                              from '@inquirer/core';
 import chalk from 'chalk';
 import ora   from 'ora';
 import * as path from 'path';
@@ -45,9 +45,96 @@ export interface WizardDeps {
 // Constants
 // ---------------------------------------------------------------------------
 
-const TOTAL_STEPS = 12;
+const TOTAL_STEPS = 11;
 
 const VIDEO_ONLY_PROVIDERS = new Set(['lumaai', 'runway', 'stable-diffusion']);
+
+// ---------------------------------------------------------------------------
+// Style module catalogue — grouped by category for the checkbox prompt
+// ---------------------------------------------------------------------------
+
+const _SP = 'writing-standards/screenplay/cinematic-styles';
+
+const STYLE_MODULE_CHOICES: Array<InstanceType<typeof Separator> | { name: string; value: string }> = [
+  new Separator(chalk.cyan('── Directors ──')),
+  { name: 'Alfred Hitchcock',          value: `${_SP}/directors/alfred-hitchcock` },
+  { name: 'Ari Aster',                 value: `${_SP}/directors/ari-aster` },
+  { name: 'Brad Bird',                 value: `${_SP}/directors/brad-bird` },
+  { name: 'Brian De Palma',            value: `${_SP}/directors/brian-de-palma` },
+  { name: 'Buster Keaton',             value: `${_SP}/directors/buster-keaton` },
+  { name: 'Christopher Nolan',         value: `${_SP}/directors/christopher-nolan` },
+  { name: 'Clint Eastwood',            value: `${_SP}/directors/clint-eastwood` },
+  { name: 'Coen Brothers',             value: `${_SP}/directors/coen-brothers` },
+  { name: 'Darren Aronofsky',          value: `${_SP}/directors/darren-aronofsky` },
+  { name: 'David Fincher',             value: `${_SP}/directors/david-fincher` },
+  { name: 'David Lynch',               value: `${_SP}/directors/david-lynch` },
+  { name: 'Denis Villeneuve',          value: `${_SP}/directors/denis-villeneuve` },
+  { name: 'Francis Ford Coppola',      value: `${_SP}/directors/francis-ford-coppola` },
+  { name: 'Gary Marshall',             value: `${_SP}/directors/gary-marshall` },
+  { name: 'George A. Romero',          value: `${_SP}/directors/george-a-romero` },
+  { name: 'George Lucas',              value: `${_SP}/directors/george-lucas` },
+  { name: 'Guillermo Del Toro',        value: `${_SP}/directors/guillermo-del-toro` },
+  { name: 'Gus Van Sant',              value: `${_SP}/directors/gus-van-sant` },
+  { name: 'James Ivory / I. Merchant', value: `${_SP}/directors/james-ivory-ismail-merchant` },
+  { name: 'Jim Jarmusch',              value: `${_SP}/directors/jim-jarmusch` },
+  { name: 'John Carpenter',            value: `${_SP}/directors/john-carpenter` },
+  { name: 'John Ford',                 value: `${_SP}/directors/john-ford` },
+  { name: 'John Huston',               value: `${_SP}/directors/john-huston` },
+  { name: 'John Landis',               value: `${_SP}/directors/john-landis` },
+  { name: 'Jonathan Demme',            value: `${_SP}/directors/jonathan-demme` },
+  { name: 'Joseph L. Mankiewicz',      value: `${_SP}/directors/joseph-l-mankiewicz` },
+  { name: 'Kathryn Bigelow',           value: `${_SP}/directors/kathryn-bigelow` },
+  { name: 'Kelly Reichardt',           value: `${_SP}/directors/kelly-reichardt` },
+  { name: 'Kevin Smith',               value: `${_SP}/directors/kevin-smith` },
+  { name: 'Linda Shayne',              value: `${_SP}/directors/linda-shayne` },
+  { name: 'Martin Scorsese',           value: `${_SP}/directors/martin-scorsese` },
+  { name: 'Mel Brooks',                value: `${_SP}/directors/mel-brooks` },
+  { name: 'Michael Curtiz',            value: `${_SP}/directors/michael-curtiz` },
+  { name: 'Michael Mann',              value: `${_SP}/directors/michael-mann` },
+  { name: 'Mike Nichols',              value: `${_SP}/directors/mike-nichols` },
+  { name: 'Orson Welles',              value: `${_SP}/directors/orson-welles` },
+  { name: 'Park Chan-wook',            value: `${_SP}/directors/park-chan-wook` },
+  { name: 'Paul Thomas Anderson',      value: `${_SP}/directors/paul-thomas-anderson` },
+  { name: 'Penny Marshall',            value: `${_SP}/directors/penny-marshall` },
+  { name: 'Peter Bogdanovich',         value: `${_SP}/directors/peter-bogdanovich` },
+  { name: 'Quentin Tarantino',         value: `${_SP}/directors/quentin-tarantino` },
+  { name: 'Richard Linklater',         value: `${_SP}/directors/richard-linklater` },
+  { name: 'Rob Reiner',                value: `${_SP}/directors/rob-reiner` },
+  { name: 'Robert Altman',             value: `${_SP}/directors/robert-altman` },
+  { name: 'Robert Eggers',             value: `${_SP}/directors/robert-eggers` },
+  { name: 'Robert Zemeckis',           value: `${_SP}/directors/robert-zemeckis` },
+  { name: 'Sam Peckinpah',             value: `${_SP}/directors/sam-peckinpah` },
+  { name: 'Sidney Lumet',              value: `${_SP}/directors/sidney-lumet` },
+  { name: 'Spike Lee',                 value: `${_SP}/directors/spike-lee` },
+  { name: 'Stanley Donen / Gene Kelly',value: `${_SP}/directors/stanley-donen-gene-kelly` },
+  { name: 'Stanley Kubrick',           value: `${_SP}/directors/stanley-kubrick` },
+  { name: 'Steve Martin',              value: `${_SP}/directors/steve-martin` },
+  { name: 'Steven Spielberg',          value: `${_SP}/directors/steven-spielberg` },
+  { name: 'Sydney Pollack',            value: `${_SP}/directors/sydney-pollack` },
+  { name: 'Terry Gilliam',             value: `${_SP}/directors/terry-gilliam` },
+  { name: 'Tim Burton',                value: `${_SP}/directors/tim-burton` },
+  { name: 'Tobe Hooper',               value: `${_SP}/directors/tobe-hooper` },
+  { name: 'Wes Anderson',              value: `${_SP}/directors/wes-anderson` },
+  { name: 'William Friedkin',          value: `${_SP}/directors/william-friedkin` },
+  new Separator(chalk.cyan('── Franchises ──')),
+  { name: 'Marvel Cinematic Universe', value: `${_SP}/franchises/mcu` },
+  { name: 'Star Trek',                 value: `${_SP}/franchises/star-trek` },
+  { name: 'Star Wars',                 value: `${_SP}/franchises/star-wars` },
+  { name: 'Harry Potter',              value: `${_SP}/franchises/harry-potter` },
+  { name: 'John Wick',                 value: `${_SP}/franchises/john-wick` },
+  { name: 'James Bond',                value: `${_SP}/franchises/james-bond` },
+  { name: 'Lord of the Rings',         value: `${_SP}/franchises/lord-of-the-rings` },
+  { name: 'Fast & Furious',            value: `${_SP}/franchises/fast-and-furious` },
+  new Separator(chalk.cyan('── Films ──')),
+  { name: 'Blue Ruin',                 value: `${_SP}/films/blue-ruin` },
+  new Separator(chalk.cyan('── Comedy Formats ──')),
+  { name: 'Monty Python',              value: `${_SP}/comedy-formats/monty-python` },
+  { name: 'Saturday Night Live',       value: `${_SP}/comedy-formats/saturday-night-live` },
+  new Separator(chalk.cyan('── Narrative Theory ──')),
+  { name: 'Joseph Campbell',           value: `${_SP}/narrative-theory/joseph-campbell` },
+  new Separator(chalk.cyan('── Producers ──')),
+  { name: 'Bruckheimer & Simpson',     value: `${_SP}/producers/bruckheimer-and-simpson` },
+];
 
 const TEXT_PROVIDER_DISPLAY_NAMES: Readonly<Record<string, string>> = {
   anthropic: 'Anthropic (Claude)',
@@ -55,8 +142,26 @@ const TEXT_PROVIDER_DISPLAY_NAMES: Readonly<Record<string, string>> = {
   google:    'Google (Gemini)',
   xai:       'xAI (Grok)',
   venice:    'Venice AI',
+  custom:    'Custom / Ollama (local)',
   mock:      'Mock  (no API key — offline / CI testing)',
 };
+
+/**
+ * Maps environment variable names to their provider id.
+ * Used to detect which providers are configured via .env without needing a
+ * ~/.ai-powered/config.json.  Any provider whose key is present and non-empty
+ * is treated as "available" and shown in the wizard.
+ */
+const ENV_KEY_TO_PROVIDER: ReadonlyArray<{ envKey: string; provider: string }> = [
+  { envKey: 'OPENAI_API_KEY',      provider: 'openai'    },
+  { envKey: 'ANTHROPIC_API_KEY',   provider: 'anthropic' },
+  { envKey: 'XAI_API_KEY',         provider: 'xai'       },
+  { envKey: 'VENICE_API_KEY',      provider: 'venice'    },
+  { envKey: 'LUMAAI_API_KEY',      provider: 'lumaai'    },
+  { envKey: 'RUNWAYML_API_SECRET', provider: 'runway'    },
+  { envKey: 'AI_CUSTOM_API_KEY',   provider: 'custom'    },
+  { envKey: 'AI_CUSTOM_BASE_URL',  provider: 'custom'    },
+];
 
 // ---------------------------------------------------------------------------
 // Banner
@@ -192,37 +297,33 @@ async function stepOutcome(prefill?: string): Promise<string | undefined> {
 }
 
 // ---------------------------------------------------------------------------
-// Steps 8–10: Output Directory, Format, Detail Level, Style Modules
+// Steps 8–10: Format, Detail Level, Style Modules
 // ---------------------------------------------------------------------------
 
-async function stepOutputDir(slug: string, prefill?: string): Promise<string> {
-  printBanner(8);
-  const defaultDir = path.join(process.cwd(), 'output', slug);
-  const target     = prefill ?? defaultDir;
+async function stepFormat(prefill?: WizardState['format']): Promise<WizardState['format']> {
+  printBanner(8);  // 8a
+  const preChecked = new Set<string>(prefill ?? ['md']);
 
-  if (fs.existsSync(target)) {
-    console.log(chalk.yellow(
-      `  ⚠ Directory "${target}" already exists.\n` +
-      `    Existing files with matching names will be overwritten.\n` +
-      `    Press Enter to continue, or type a new path.`
-    ));
+  let selected: WizardState['format'] = [];
+  while (selected.length === 0) {
+    selected = await checkbox({
+      message: 'Default output format(s)  (↑/↓ move  Space select  Enter confirm):',
+      choices: [
+        { name: 'md       — Markdown  (recommended for editing and version control)', value: 'md'       as const, checked: preChecked.has('md')       },
+        { name: 'json     — JSON  (machine-readable; useful for downstream tooling)',  value: 'json'     as const, checked: preChecked.has('json')     },
+        { name: 'fountain — Fountain  (industry-standard screenplay plain text)',      value: 'fountain' as const, checked: preChecked.has('fountain') },
+        { name: 'pdf      — PDF  (fixed layout; requires a Markdown → PDF renderer)',  value: 'pdf'      as const, checked: preChecked.has('pdf')      },
+      ],
+    }) as WizardState['format'];
+    if (selected.length === 0) {
+      console.log(chalk.yellow('  ⚠ Please select at least one output format.'));
+    }
   }
 
-  return await input({ message: 'Output directory:', default: target });
-}
-
-async function stepFormat(prefill?: WizardState['format']): Promise<WizardState['format']> {
-  printBanner(9);  // 9a
-  return await select({
-    message: 'Default output format:',
-    default: prefill ?? 'md',
-    choices: [
-      { name: 'md       — Markdown  (recommended for editing and version control)', value: 'md'       },
-      { name: 'json     — JSON  (machine-readable; useful for downstream tooling)',  value: 'json'     },
-      { name: 'fountain — Fountain  (industry-standard screenplay plain text)',      value: 'fountain' },
-      { name: 'pdf      — PDF  (fixed layout; requires a Markdown → PDF renderer)',  value: 'pdf'      },
-    ],
-  }) as WizardState['format'];
+  if (selected.length > 1) {
+    console.log(chalk.dim(`  → Primary format: ${selected[0]}  (${selected.length} formats selected; first = default)`));
+  }
+  return selected;
 }
 
 async function stepDetail(prefill?: WizardState['detail']): Promise<WizardState['detail']> {
@@ -239,30 +340,27 @@ async function stepDetail(prefill?: WizardState['detail']): Promise<WizardState[
 }
 
 async function stepStyles(prefill?: string[]): Promise<string[]> {
-  printBanner(10);
-  const styles: string[] = [...(prefill ?? [])];
+  printBanner(9);
+  const preChecked = new Set<string>(prefill ?? []);
 
-  if (styles.length > 0) {
-    console.log(chalk.dim('  Current style modules:'));
-    styles.forEach((s, i) => console.log(chalk.dim(`    ${i + 1}. ${s}`)));
+  console.log(chalk.dim('  Select cinematic style modules in priority order (top = highest priority).'));
+  console.log(chalk.dim('  Use Space to select, Enter to confirm. Press Enter with nothing selected to skip.\n'));
+
+  const selected = await checkbox({
+    message: 'Select cinematic style modules:',
+    pageSize: 18,
+    choices: STYLE_MODULE_CHOICES.map((c) => {
+      if (c instanceof Separator) return c;
+      return { ...c, checked: preChecked.has(c.value) };
+    }),
+  });
+
+  if (selected.length > 0) {
+    console.log(chalk.green('\n  ✓ Selected style modules (priority order):'));
+    selected.forEach((s, i) => console.log(chalk.green(`    ${i + 1}. ${s}`)));
   }
 
-  while (true) {
-    const entry = await input({
-      message: styles.length === 0
-        ? 'Add a cinematic style module path? (Press Enter to skip)'
-        : 'Add another style module path? (Press Enter to finish)',
-    });
-
-    if (!entry.trim()) break;
-    styles.push(entry.trim());
-    console.log(chalk.green(`  ✓ Added: ${entry.trim()}`));
-
-    const addMore = await confirm({ message: 'Add another style module?', default: false });
-    if (!addMore) break;
-  }
-
-  return styles;
+  return selected;
 }
 
 
@@ -273,39 +371,86 @@ async function stepStyles(prefill?: string[]): Promise<string[]> {
 /** Profile cache — keyed by provider ID; persists across Edit loop iterations. */
 const profileCache = new Map<string, Array<{ name: string; isActive: boolean }> | null>();
 
+/**
+ * Scan process.env for known API key variable names and return a deduplicated
+ * list of provider ids that have a non-empty key configured.
+ */
+function _detectEnvProviders(): string[] {
+  const seen = new Set<string>();
+  const found: string[] = [];
+  for (const { envKey, provider } of ENV_KEY_TO_PROVIDER) {
+    if (process.env[envKey]?.trim() && !seen.has(provider)) {
+      seen.add(provider);
+      found.push(provider);
+    }
+  }
+  return found;
+}
+
 async function stepProvider(prefill?: string): Promise<string | undefined> {
-  printBanner(11);
+  printBanner(10);
+
+  // AI_PROVIDER env var sets the default selection.
+  const envProvider = process.env['AI_PROVIDER'];
+
+  // Detect ALL providers that have API keys in the environment.
+  const envDetectedProviders = _detectEnvProviders();
+
   const spinner = ora('Discovering configured AI providers…').start();
 
+  // providers === null  → loadConfig threw AND no env vars found
+  // providers === []    → fresh-install (no config + no env keys found)
+  // providers.length>0  → providers from config or env discovery
   let providers: Array<{ id: string; isActive: boolean }> | null = null;
   try {
     const config = await loadConfig();
     spinner.succeed('AI providers loaded.');
-    providers = ((config as any).providers ?? []).filter(
-      (p: { id: string }) => !VIDEO_ONLY_PROVIDERS.has(p.id)
-    );
+    const raw: Array<{ id: string; isActive?: boolean }> =
+      ((config as any).providers ?? []);
+    providers = raw
+      .filter((p) => !VIDEO_ONLY_PROVIDERS.has(p.id))
+      .map((p) => ({ id: p.id, isActive: p.isActive ?? false }));
   } catch {
     spinner.stop();
+    providers = [];
   }
 
-  if (providers === null) {
+  // Merge env-detected providers into the list.
+  // Any provider with an API key in .env should appear, even if the
+  // ~/.ai-powered/config.json hasn't registered it yet.
+  for (const id of envDetectedProviders) {
+    if (!VIDEO_ONLY_PROVIDERS.has(id) && !providers.some(p => p.id === id)) {
+      providers.push({ id, isActive: false });
+    }
+  }
+
+  // Apply AI_PROVIDER env var: mark it active or inject it if missing.
+  if (envProvider && !VIDEO_ONLY_PROVIDERS.has(envProvider)) {
+    const exists = providers.some(p => p.id === envProvider);
+    if (exists) {
+      providers = providers.map(p => ({ ...p, isActive: p.id === envProvider }));
+    } else {
+      providers = [{ id: envProvider, isActive: true }, ...providers];
+    }
+  }
+
+  // Show info about where providers were discovered from.
+  if (providers.length === 0) {
     console.log(chalk.yellow(
-      '  ⚠ Could not load AI provider list (ai-powered may not be configured).\n' +
-      '    Skipping provider selection — the global ai-powered default will be used.\n' +
-      '    Run "filmbuff ai status" after project creation to inspect your provider.'
+      '  ⚠ No providers found in ~/.ai-powered/config.json or .env API keys.\n' +
+      '    Add API keys to your .env file (e.g. OPENAI_API_KEY=sk-...).'
     ));
-    return undefined;
+    providers = [];
+  } else if (envDetectedProviders.length > 0) {
+    console.log(chalk.blue(
+      `  ℹ Providers discovered from .env: ${envDetectedProviders.filter(p => !VIDEO_ONLY_PROVIDERS.has(p)).join(', ')}`
+    ));
   }
 
+  // providers is never null at this point; empty means no keys found.
   const isFreshInstall = providers.length === 0;
-  if (isFreshInstall) {
-    console.log(chalk.yellow(
-      '  ⚠ No AI provider is configured. "mock" uses in-process responses (no API key).\n' +
-      '    Run: ai-powered config set provider anthropic  after setup.'
-    ));
-  }
 
-  const providerChoices = isFreshInstall
+  const providerChoices = (isFreshInstall
     ? Object.entries(TEXT_PROVIDER_DISPLAY_NAMES).map(([id, name]) => ({
         name: `${id.padEnd(14)} — ${name}`,
         value: id, short: id,
@@ -313,7 +458,8 @@ async function stepProvider(prefill?: string): Promise<string | undefined> {
     : providers.map((p) => ({
         name:  `${p.id.padEnd(14)} — ${TEXT_PROVIDER_DISPLAY_NAMES[p.id] ?? p.id}${p.isActive ? '  (active ★)' : ''}`,
         value: p.id, short: p.id,
-      }));
+      }))
+  );
 
   const choices = [
     ...providerChoices,
@@ -321,9 +467,16 @@ async function stepProvider(prefill?: string): Promise<string | undefined> {
   ];
 
   const activeId = providers.find(p => p.isActive)?.id;
+  // Precedence: explicit prefill > active from config > AI_PROVIDER env > 'mock' (fresh) / global default
+  const defaultChoice =
+    prefill ??
+    activeId ??
+    envProvider ??
+    (isFreshInstall ? 'mock' : '(global default)');
+
   const chosen = await select({
     message: 'Select AI provider for this project:',
-    default: prefill ?? (isFreshInstall ? 'mock' : activeId ?? '(global default)'),
+    default: defaultChoice,
     choices,
   });
 
@@ -331,7 +484,7 @@ async function stepProvider(prefill?: string): Promise<string | undefined> {
 }
 
 async function stepProfile(providerId: string, prefill?: string): Promise<string | undefined> {
-  printBanner(12);
+  printBanner(11);
 
   if (!profileCache.has(providerId)) {
     const spinner = ora(`Loading profiles for ${providerId}…`).start();
@@ -400,7 +553,8 @@ async function runSteps1to10(
   const audience  = await stepAudience(prefill.audience);
   const budget    = await stepBudget(prefill.budget);
   const outcome   = await stepOutcome(prefill.outcome);
-  const outputDir = await stepOutputDir(slug, prefill.outputDir);
+  // Output directory is auto-derived from slug — no user prompt needed.
+  const outputDir = path.join(process.cwd(), 'output', slug);
   const format    = await stepFormat(prefill.format);
   const detail    = await stepDetail(prefill.detail);
   const styles    = await stepStyles(prefill.styles);
@@ -444,7 +598,9 @@ function renderSummaryTable(state: WizardState): void {
   console.log(row('Budget:',     state.budget));
   console.log(row('Outcome:',    state.outcome));
   console.log(row('Output dir:', state.outputDir));
-  console.log(row('Format:',     state.format));
+  console.log(row('Format:',     state.format.length > 1
+    ? state.format.map((f, i) => `${i + 1}. ${f}`).join('  ')
+    : state.format[0]));
   console.log(row('Detail:',     state.detail));
 
   if (state.styles.length === 0) {
@@ -509,7 +665,7 @@ export function stateToStartOptions(state: WizardState): StartOptions {
     budget:    state.budget,
     outcome:   state.outcome,
     outputDir: state.outputDir,
-    format:    state.format,
+    format:    state.format[0],   // primary format stored in DB; full list preserved in wizard state
     detail:    state.detail,
     styles:    [...state.styles],
     provider:  state.provider,

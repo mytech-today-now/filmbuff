@@ -33,13 +33,16 @@ jest.mock('ora', () => () => ({
 }));
 
 // Mock @inquirer/prompts — individual exports
-const mockInput   = jest.fn();
-const mockSelect  = jest.fn();
-const mockConfirm = jest.fn();
+const mockInput    = jest.fn();
+const mockSelect   = jest.fn();
+const mockConfirm  = jest.fn();
+const mockCheckbox = jest.fn();
 jest.mock('@inquirer/prompts', () => ({
-  input:   (...args: unknown[]) => mockInput(...args),
-  select:  (...args: unknown[]) => mockSelect(...args),
-  confirm: (...args: unknown[]) => mockConfirm(...args),
+  input:     (...args: unknown[]) => mockInput(...args),
+  select:    (...args: unknown[]) => mockSelect(...args),
+  confirm:   (...args: unknown[]) => mockConfirm(...args),
+  checkbox:  (...args: unknown[]) => mockCheckbox(...args),
+  Separator: class Separator { constructor(public readonly separator?: string) {} },
 }));
 
 // Mock @inquirer/core — ExitPromptError
@@ -116,7 +119,7 @@ function makeState(overrides: Partial<WizardState> = {}): WizardState {
     genre:     'thriller',
     slug:      'the-midnight-run',
     outputDir: '/output/the-midnight-run',
-    format:    'md',
+    format:    ['md'],
     detail:    'standard',
     styles:    [],
     ...overrides,

@@ -26,6 +26,7 @@
 
 import chalk from 'chalk';
 import { loadConfig } from '../utils/filmbuff-ai-client.js';
+import { getDotEnvResult } from '../utils/env-loader.js';
 
 // ---------------------------------------------------------------------------
 // Static provider / model tables for display
@@ -58,7 +59,8 @@ const LABEL_WIDTH = 14;
 const VALUE_WIDTH = 28;
 
 function sourceTag(source: string): string {
-  if (source === 'env')      return chalk.yellow('[from env]');
+  if (source === 'dotenv')   return chalk.yellow('[from .env]');
+  if (source === 'env')      return chalk.blue('[from shell env]');
   if (source === 'config')   return chalk.blue('[from ~/.ai-powered/config.json]');
   if (source === 'filmbuff') return chalk.cyan('[from filmbuff config]');
   return chalk.gray('[default]');
@@ -101,10 +103,30 @@ export async function aiStatusCommand(): Promise<void> {
     // If loadConfig fails (e.g. no config file), keep defaults — no HTTP fallback.
   }
 
+  // Determine .env-awareness for env var source labelling.
+  const dotEnvVars = getDotEnvResult()?.fromDotEnv ?? new Set<string>();
+
+  // Override provider/model from AI_PROVIDER / AI_MODEL env vars (with .env awareness).
+  const aiProviderEnv = process.env['AI_PROVIDER'];
+  if (aiProviderEnv) {
+    provider  = aiProviderEnv;
+    cfgSource = dotEnvVars.has('AI_PROVIDER') ? 'dotenv' : 'env';
+  }
+  const aiModelEnv = process.env['AI_MODEL'];
+  if (aiModelEnv) {
+    model = aiModelEnv;
+    // Keep cfgSource updated if model has a more specific source
+    if (cfgSource === 'default') {
+      cfgSource = dotEnvVars.has('AI_MODEL') ? 'dotenv' : 'env';
+    }
+  }
+
   // Mock mode: AI_MOCK env var overrides the provider display entirely.
   const mockEnvVal = process.env['AI_MOCK'];
   const mockMode   = mockEnvVal === 'true' || mockEnvVal === '1';
-  const mockSource = mockEnvVal !== undefined ? 'env' : 'default';
+  const mockSource = mockEnvVal !== undefined
+    ? (dotEnvVars.has('AI_MOCK') ? 'dotenv' : 'env')
+    : 'default';
 
   if (mockMode) {
     provider  = 'mock';

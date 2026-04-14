@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 
+// Load .env before any command handler reads process.env.
+// This must run before the first import that accesses process.env.
+import { loadDotEnv } from './utils/env-loader';
+loadDotEnv();
+
 import { Command } from 'commander';
 import chalk from 'chalk';
 import { readFileSync } from 'fs';
@@ -29,6 +34,7 @@ import { statusCommand } from './commands/status';
 import { unknownProviderCommand } from './commands/provider';
 import { aiStatusCommand } from './commands/ai-status';
 import { aiSetCommand } from './commands/ai-set';
+import { aiEnvCommand } from './commands/ai-env';
 
 // Read version from package.json
 const packageJson = JSON.parse(
@@ -400,6 +406,14 @@ aiCmd
     '  Keys: url  model  systemPrompt  temperature  maxTokens  timeoutMs',
   )
   .action((key: string, value: string) => aiSetCommand(key, value));
+
+aiCmd
+  .command('env')
+  .description(
+    'Show AI-related environment variables and their sources\n' +
+    '  Loads from .env in the current directory; shows [from .env] vs [from shell]',
+  )
+  .action(() => aiEnvCommand());
 
 // Start command — initialise a new FilmBuff project (bd-pipe-c1, bd-8mff)
 program

@@ -179,7 +179,8 @@ export interface DbSession {
 
 export interface ContextSnapshot {
   id:                    string;
-  generation_attempt_id: string;
+  /** Null when the snapshot was assembled before a generation attempt was created. */
+  generation_attempt_id: string | null;
   context_type:          ContextType;
   source_step_name:      string | null;
   content:               string;
@@ -258,7 +259,8 @@ export interface StartSessionInput {
 
 export interface ContextSnapshotInput {
   id:                    string;
-  generation_attempt_id: string;
+  /** Pass null when no generation attempt exists yet (e.g. context pre-assembled by `continue`). */
+  generation_attempt_id: string | null;
   context_type:          ContextType;
   source_step_name?:     string;
   content:               string;

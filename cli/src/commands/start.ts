@@ -11,6 +11,7 @@
 import chalk from 'chalk';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
 import {
   openDatabase,
   runMigrations,
@@ -124,6 +125,27 @@ export async function startCommand(options: StartOptions): Promise<void> {
     provider_id: options.provider,
     profile_name: options.profile,
   });
+
+  // Auto-create the output directory so the folder is ready before any pipeline step runs.
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  // ── Provider FK guard ─────────────────────────────────────────────────────
+  // projects.active_provider_id has a FOREIGN KEY constraint referencing
+  // providers.id.  The seed data only contains 'anthropic', 'openai', 'google'.
+  // The wizard discovers providers from ai-powered's external config (loadConfig),
+  // so providers like 'venice' or 'xai' may not yet have a row in the local DB.
+  // INSERT OR IGNORE leaves all existing seeded/custom rows untouched and only
+  // creates a placeholder row when the id is genuinely absent.
+  if (options.provider) {
+    const now = new Date().toISOString();
+    db.prepare(`
+      INSERT OR IGNORE INTO providers
+        (id, display_name, provider_type, capabilities, is_enabled, created_at, updated_at)
+      VALUES
+        (@id, @display_name, 'custom', '[]', 1, @now, @now)
+    `).run({ id: options.provider, display_name: options.provider, now });
+  }
+  // ─────────────────────────────────────────────────────────────────────────
 
   try {
     const project = projectRepo.create({

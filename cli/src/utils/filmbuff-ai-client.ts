@@ -40,16 +40,26 @@ import type { AiClient, AiConfig } from 'ai-powered';
 // Lazy ESM loader
 // ---------------------------------------------------------------------------
 // ai-powered is ESM-only ("type":"module", no "require" export condition).
-// Dynamic import() is the only CJS-compatible way to load an ESM-only package.
+// TypeScript with "module":"commonjs" compiles `import()` calls into
+// `Promise.resolve().then(() => require(...))`, which fails for ESM-only
+// packages because require() cannot load ES modules.
+//
+// Fix: wrap the import() call in `new Function(...)` so TypeScript cannot
+// detect and transform it.  At runtime, Node.js ≥14 executes this as a true
+// native dynamic import() and correctly resolves the "import" export condition.
+//
 // The cached _aiPowered reference means the module is resolved at most once.
 
 type AiPoweredModule = typeof import('ai-powered');
 let _aiPowered: AiPoweredModule | undefined;
 
+// eslint-disable-next-line @typescript-eslint/no-implied-eval
+const _dynamicImport: (specifier: string) => Promise<AiPoweredModule> =
+  new Function('specifier', 'return import(specifier)') as (s: string) => Promise<AiPoweredModule>;
+
 async function _load(): Promise<AiPoweredModule> {
   if (!_aiPowered) {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    _aiPowered = await import('ai-powered');
+    _aiPowered = await _dynamicImport('ai-powered');
   }
   return _aiPowered;
 }

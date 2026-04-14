@@ -29,7 +29,8 @@ export interface WizardState {
   budget?:   BudgetTier;
   outcome?:  string;
   outputDir: string;
-  format:    DocumentFormat;
+  /** Ordered list of output formats; first entry is the primary format stored in the DB. */
+  format:    DocumentFormat[];
   detail:    DetailLevel;
   styles:    string[];
   provider?: string;
@@ -136,8 +137,10 @@ export function buildEquivalentCommand(state: WizardState): string {
   if (state.budget)   flags.push(`  --budget ${state.budget}`);
   if (state.outcome)  flags.push(`  --outcome ${q(state.outcome)}`);
 
-  flags.push(`  --output-dir ${q(state.outputDir)}`);
-  flags.push(`  --format ${state.format}`);
+  // output-dir is auto-derived from slug — omit it from the equivalent command
+  for (const fmt of state.format) {
+    flags.push(`  --format ${fmt}`);
+  }
   flags.push(`  --detail ${state.detail}`);
 
   for (const style of state.styles) {

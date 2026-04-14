@@ -189,7 +189,8 @@ describe('startCommand', () => {
     expect(mockProjectRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({ display_title: 'Test Film', genre: 'drama', slug: 'test-film' }),
     );
-    expect(mockSessionRepo.completeSession).toHaveBeenCalledWith(SESSION_ID, 0);
+    // start.ts calls completeSession(id, exitCode, errorMessage?, projectId?)
+    expect(mockSessionRepo.completeSession).toHaveBeenCalledWith(SESSION_ID, 0, undefined, PROJECT_ID);
     expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining('created'));
   });
 
