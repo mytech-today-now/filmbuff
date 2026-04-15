@@ -1,0 +1,1 @@
+Write-Host "`n✅ Done. Run '& `"$queryScript`" search filmb-ai-p' to verify." -ForegroundColor Green

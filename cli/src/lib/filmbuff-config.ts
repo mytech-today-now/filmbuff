@@ -115,8 +115,8 @@ export const BUILTIN_DEFAULT_CONFIG: FilmbuffConfig = {
       id: 'anthropic',
       displayName: 'Anthropic (Claude)',
       // apiKeyEnvVar intentionally omitted: key management delegated to ai-powered (Phase 9, bd-99b2)
-      defaultModel: 'claude-sonnet-4-5',
-      supportedModels: ['claude-sonnet-4-5', 'claude-opus-4-5', 'claude-haiku-3-5'],
+      defaultModel: 'claude-sonnet-4-6',
+      supportedModels: ['claude-sonnet-4-6', 'claude-opus-4-5', 'claude-haiku-3-5'],
       videoSupport: false,
       maxI2VImages: 0,
       baseUrl: 'https://api.anthropic.com'

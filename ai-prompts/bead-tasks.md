@@ -1,11 +1,8 @@
-EPIC	bd-ww07	open
-Phase 1 — Spec Approval	bd-twn2	open
-Phase 2 — Shared Utilities	bd-bugs	open
-Phase 3 — CLI Wiring	bd-8mff	open
-Phase 4 — Trigger Preamble	bd-ama1	open
-Phase 5 — Step Prompts 1–10	bd-049a	open (3 blockers)
-Phase 6 — Provider Discovery	bd-vlup	open
-Phase 7 — Confirmation Panel	bd-orx4	open
-Phase 8 — Unit Tests	bd-lt43	open
-Phase 9 — Integration Tests	bd-gpnf	open
-Phase 10 — Verification	bd-85ch	open (2 blockers)
+bd-114f	EPIC	0	[FB-0042] filmb-ai-p: Per-Shot Video Generation Control for filmbuff CLI
+bd-5fde	Phase 2	1	ai-powered Library — Per-Shot API (WS-1)
+bd-b3e9	Phase 3	1	Shot State Machine & Status File (WS-2)
+bd-92c1	Phase 4	1	filmbuff video Sub-Commands — 10 commands (WS-3)
+bd-7767	Phase 5	1	Agent Mode & Exit Codes — AC-16 through AC-22
+bd-ea74	Phase 6	1	MCP Tool Server — stdio + HTTP, 10 tools (WS-4)
+bd-aafe	Phase 7	1	Credential Security — agentToken audit (AC-27)
+bd-1751	Phase 8	5	Testing & Quality Gates — AC-01 through AC-27

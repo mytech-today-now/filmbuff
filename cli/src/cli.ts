@@ -25,6 +25,8 @@ import { catalogCommand, catalogHookCommand } from './commands/catalog';
 import { unlinkCommand } from './commands/unlink';
 import { generateShotListCommand } from './commands/generate-shot-list';
 import { generateVideoCommand } from './commands/generate-video';
+import { registerVideoCommands } from './commands/video/index';
+import { mcpServerCommand } from './commands/mcp-server';
 import { guiCommand } from './commands/gui';
 import { startCommand } from './commands/start';
 import { continueCommand } from './commands/continue';
@@ -647,10 +649,31 @@ program
     });
   });
 
+// Video sub-command group (filmb-ai-p, Phase 4 — bd-92c1)
+// 10 per-shot video generation commands: init, next, generate, retry, approve,
+// reject, status, compile, reopen, generate-all
+registerVideoCommands(program);
+
+// MCP Tool Server (filmb-ai-p, Phase 6 — bd-ea74)
+program
+  .command('mcp-server')
+  .description('Start the FilmBuff MCP tool server (stdio or Streamable HTTP)')
+  .option('-p, --project <path>', 'Project directory', process.cwd())
+  .option('--transport <type>',   'Transport: stdio (default) | http')
+  .option('--port <number>',      'HTTP port (default: 3742)', '3742')
+  .action((options) =>
+    mcpServerCommand({
+      project:   options.project,
+      transport: options.transport ?? 'stdio',
+      port:      parseInt(options.port ?? '3742', 10),
+    })
+  );
+
 // Generate Video command (Phase 8 — bd-6c4f)
+// DEPRECATED: use `filmbuff video init && filmbuff video generate-all && filmbuff video compile` instead.
 program
   .command('generate-video')
-  .description('Generate video clips from a JSONL shot list using ai-powered')
+  .description('[DEPRECATED] Use: filmbuff video init → video generate-all → video compile')
   .requiredOption('--input <file>', 'Path to JSONL shot list file')
   .option('--provider <id>', 'Video provider id (e.g. lumaai, runway, mock)', 'lumaai')
   .option('--model <id>', 'Model override for the selected provider')
@@ -658,7 +681,17 @@ program
   .option('--output <dir>', 'Output directory for manifest.json', './generated-videos')
   .option('--concurrency <n>', 'Batch size for concurrent generation', '3')
   .option('--mock', 'Activate ai-powered MockProvider (no network calls)')
-  .action((options) => {
+  .action(async (options) => {
+    // Deprecation notice per spec §Deprecation: filmbuff generate-video
+    const isAgent = process.env['FILMBUFF_AGENT_MODE'] === '1' || !process.stdin.isTTY;
+    if (!isAgent) {
+      console.warn(chalk.yellow(
+        '\n⚠  DEPRECATED: `filmbuff generate-video` is deprecated.\n' +
+        '   Use: filmbuff video init → filmbuff video generate-all → filmbuff video compile\n' +
+        '   Proceeding in 3 seconds…',
+      ));
+      await new Promise(r => setTimeout(r, 3_000));
+    }
     return generateVideoCommand({
       input:        options.input,
       provider:     options.provider,
