@@ -431,6 +431,7 @@ program
   .option('--audience <audience>', 'Target audience description')
   .option('--budget <tier>', 'Budget tier: micro | low | mid | studio')
   .option('--outcome <outcome>', 'Desired outcome or logline intent')
+  .option('--narrative-length <format>', 'Industry-standard narrative format id (e.g. feature-std, tv-half-hour, short-film)')
   .option('--output-dir <dir>', 'Directory for generated output files')
   .option('--format <fmt>', 'Default output format: md | json | fountain | pdf')
   .option('--detail <level>', 'Detail level: brief | standard | detailed')
@@ -464,8 +465,9 @@ program
       outputDir:    options.outputDir,
       format:       options.format,
       detail:       options.detail,
-      styles:       options.style,
-      provider:     options.aiProvider ?? options.provider,
+      styles:          options.style,
+      narrativeLength: options.narrativeLength,
+      provider:        options.aiProvider ?? options.provider,
       profile:      options.aiProfile  ?? options.profile,
       aiPoweredUrl: options.aiPoweredUrl,
       aiModel:      options.aiModel,

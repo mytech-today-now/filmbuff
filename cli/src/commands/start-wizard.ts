@@ -45,7 +45,7 @@ export interface WizardDeps {
 // Constants
 // ---------------------------------------------------------------------------
 
-const TOTAL_STEPS = 11;
+const TOTAL_STEPS = 12;
 
 const VIDEO_ONLY_PROVIDERS = new Set(['lumaai', 'runway', 'stable-diffusion']);
 
@@ -297,11 +297,59 @@ async function stepOutcome(prefill?: string): Promise<string | undefined> {
 }
 
 // ---------------------------------------------------------------------------
-// Steps 8–10: Format, Detail Level, Style Modules
+// Step 8: Narrative Length
+// ---------------------------------------------------------------------------
+
+/**
+ * Industry-standard narrative format catalogue.
+ * Value strings are stored as narrative_format_id in the database.
+ */
+const NARRATIVE_LENGTH_CHOICES: Array<InstanceType<typeof Separator> | { name: string; value: string }> = [
+  new Separator(chalk.cyan('── Short Content ──')),
+  { name: 'micro-short      — Micro-short / flash (1–5 min, ~1–5 pages)',              value: 'micro-short'     },
+  { name: 'short-film       — Short film (10–40 min, ~10–40 pages)',                    value: 'short-film'      },
+  new Separator(chalk.cyan('── Television ──')),
+  { name: 'tv-sketch        — TV sketch / short-form (5–15 min, ~5–15 pages)',          value: 'tv-sketch'       },
+  { name: 'tv-half-hour     — TV half-hour comedy (22–30 min, ~22–30 pages)',           value: 'tv-half-hour'    },
+  { name: 'tv-one-hour      — TV drama / procedural (42–60 min, ~42–60 pages)',         value: 'tv-one-hour'     },
+  { name: 'miniseries-ep    — Mini-series episode (60–90 min, ~60–90 pages)',           value: 'miniseries-ep'   },
+  { name: 'tv-movie         — TV movie / MOW (90 min, ~90 pages)',                      value: 'tv-movie'        },
+  { name: 'streaming-pilot  — Streaming pilot (25–60 min, ~25–60 pages)',               value: 'streaming-pilot' },
+  new Separator(chalk.cyan('── Feature Film ──')),
+  { name: 'feature-short    — Short feature (70–89 min, ~70–89 pages)',                 value: 'feature-short'   },
+  { name: 'feature-std      — Feature film, standard (90–110 min, ~90–110 pages)',      value: 'feature-std'     },
+  { name: 'feature-drama    — Feature drama / action (110–130 min, ~110–130 pages)',    value: 'feature-drama'   },
+  { name: 'feature-epic     — Epic / blockbuster (130–180 min, ~130–180 pages)',        value: 'feature-epic'    },
+  new Separator(chalk.cyan('── Web / Streaming Series ──')),
+  { name: 'web-series-ep    — Web series episode (3–15 min, ~3–15 pages)',              value: 'web-series-ep'   },
+  new Separator(chalk.cyan('── Stage & Live Performance ──')),
+  { name: 'one-act          — One-act play (~20–45 min)',                               value: 'one-act'         },
+  { name: 'stage-full       — Full-length stage play (~90–120 min)',                    value: 'stage-full'      },
+  { name: 'stage-musical    — Stage musical (~90–150 min)',                             value: 'stage-musical'   },
+  new Separator(chalk.cyan('── Documentary ──')),
+  { name: 'doc-short        — Short documentary (15–40 min)',                           value: 'doc-short'       },
+  { name: 'doc-feature      — Feature documentary (75–120 min)',                        value: 'doc-feature'     },
+  new Separator(chalk.cyan('── Other ──')),
+  { name: '(skip / not set) — Determine later',                                         value: '(skip)'          },
+];
+
+async function stepNarrativeLength(prefill?: string): Promise<string | undefined> {
+  printBanner(8);
+  const choice = await select({
+    message:  'Narrative length  (industry-standard format):',
+    default:  prefill ?? '(skip)',
+    pageSize: 16,
+    choices:  NARRATIVE_LENGTH_CHOICES,
+  });
+  return choice === '(skip)' ? undefined : choice;
+}
+
+// ---------------------------------------------------------------------------
+// Steps 9–11: Format, Detail Level, Style Modules
 // ---------------------------------------------------------------------------
 
 async function stepFormat(prefill?: WizardState['format']): Promise<WizardState['format']> {
-  printBanner(8);  // 8a
+  printBanner(9);  // 9a
   const preChecked = new Set<string>(prefill ?? ['md']);
 
   let selected: WizardState['format'] = [];
@@ -340,7 +388,7 @@ async function stepDetail(prefill?: WizardState['detail']): Promise<WizardState[
 }
 
 async function stepStyles(prefill?: string[]): Promise<string[]> {
-  printBanner(9);
+  printBanner(10);
   const preChecked = new Set<string>(prefill ?? []);
 
   console.log(chalk.dim('  Select cinematic style modules in priority order (top = highest priority).'));
@@ -388,7 +436,7 @@ function _detectEnvProviders(): string[] {
 }
 
 async function stepProvider(prefill?: string): Promise<string | undefined> {
-  printBanner(10);
+  printBanner(11);
 
   // AI_PROVIDER env var sets the default selection.
   const envProvider = process.env['AI_PROVIDER'];
@@ -484,7 +532,7 @@ async function stepProvider(prefill?: string): Promise<string | undefined> {
 }
 
 async function stepProfile(providerId: string, prefill?: string): Promise<string | undefined> {
-  printBanner(11);
+  printBanner(12);
 
   if (!profileCache.has(providerId)) {
     const spinner = ora(`Loading profiles for ${providerId}…`).start();
@@ -546,19 +594,20 @@ async function runSteps1to10(
   prefill: Partial<WizardState> = {},
   deps: WizardDeps = {},
 ): Promise<Steps1to10Result> {
-  const title     = await stepTitle(prefill.title);
-  const genre     = await stepGenre(prefill.genre);
-  const slug      = await stepSlug(title, prefill.slug, deps.findBySlug);
-  const tone      = await stepTone(prefill.tone);
-  const audience  = await stepAudience(prefill.audience);
-  const budget    = await stepBudget(prefill.budget);
-  const outcome   = await stepOutcome(prefill.outcome);
+  const title           = await stepTitle(prefill.title);
+  const genre           = await stepGenre(prefill.genre);
+  const slug            = await stepSlug(title, prefill.slug, deps.findBySlug);
+  const tone            = await stepTone(prefill.tone);
+  const audience        = await stepAudience(prefill.audience);
+  const budget          = await stepBudget(prefill.budget);
+  const outcome         = await stepOutcome(prefill.outcome);
+  const narrativeLength = await stepNarrativeLength(prefill.narrativeLength);
   // Output directory is auto-derived from slug — no user prompt needed.
-  const outputDir = path.join(process.cwd(), 'output', slug);
-  const format    = await stepFormat(prefill.format);
-  const detail    = await stepDetail(prefill.detail);
-  const styles    = await stepStyles(prefill.styles);
-  return { title, genre, slug, tone, audience, budget, outcome, outputDir, format, detail, styles };
+  const outputDir       = path.join(process.cwd(), 'output', slug);
+  const format          = await stepFormat(prefill.format);
+  const detail          = await stepDetail(prefill.detail);
+  const styles          = await stepStyles(prefill.styles);
+  return { title, genre, slug, tone, audience, budget, outcome, narrativeLength, outputDir, format, detail, styles };
 }
 
 async function runAllSteps(
@@ -597,6 +646,7 @@ function renderSummaryTable(state: WizardState): void {
   console.log(row('Audience:',   state.audience));
   console.log(row('Budget:',     state.budget));
   console.log(row('Outcome:',    state.outcome));
+  console.log(row('Length:',     state.narrativeLength));
   console.log(row('Output dir:', state.outputDir));
   console.log(row('Format:',     state.format.length > 1
     ? state.format.map((f, i) => `${i + 1}. ${f}`).join('  ')
@@ -657,19 +707,20 @@ async function promptEditOrQuit(): Promise<PostDeclineAction> {
  */
 export function stateToStartOptions(state: WizardState): StartOptions {
   return {
-    title:     state.title,
-    genre:     state.genre,
-    slug:      state.slug,
-    tone:      state.tone,
-    audience:  state.audience,
-    budget:    state.budget,
-    outcome:   state.outcome,
-    outputDir: state.outputDir,
-    format:    state.format[0],   // primary format stored in DB; full list preserved in wizard state
-    detail:    state.detail,
-    styles:    [...state.styles],
-    provider:  state.provider,
-    profile:   state.profile,
+    title:           state.title,
+    genre:           state.genre,
+    slug:            state.slug,
+    tone:            state.tone,
+    audience:        state.audience,
+    budget:          state.budget,
+    outcome:         state.outcome,
+    narrativeLength: state.narrativeLength,
+    outputDir:       state.outputDir,
+    format:          state.format[0],   // primary format stored in DB; full list preserved in wizard state
+    detail:          state.detail,
+    styles:          [...state.styles],
+    provider:        state.provider,
+    profile:         state.profile,
   };
 }
 

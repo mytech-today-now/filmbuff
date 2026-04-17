@@ -37,11 +37,13 @@ const INSERT_PROJECT = `
   INSERT INTO projects
     (id, slug, display_title, genre, tone, target_audience, budget_tier, outcome,
      output_dir, format_override, detail_level, style_modules,
-     active_provider_id, active_profile_name, status, created_at, updated_at)
+     active_provider_id, active_profile_name, narrative_format_id,
+     status, created_at, updated_at)
   VALUES
     (@id, @slug, @display_title, @genre, @tone, @target_audience, @budget_tier, @outcome,
      @output_dir, @format_override, @detail_level, @style_modules,
-     @active_provider_id, @active_profile_name, 'active', @now, @now)
+     @active_provider_id, @active_profile_name, @narrative_format_id,
+     'active', @now, @now)
 `;
 
 const INSERT_PROJECT_STEP = `
@@ -138,6 +140,7 @@ export class ProjectRepository {
                                  : null,
           active_provider_id:  input.active_provider_id  ?? null,
           active_profile_name: input.active_profile_name ?? null,
+          narrative_format_id: input.narrative_format_id ?? null,
           now,
         });
 

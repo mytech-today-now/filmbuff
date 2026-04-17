@@ -32,9 +32,11 @@ export interface WizardState {
   /** Ordered list of output formats; first entry is the primary format stored in the DB. */
   format:    DocumentFormat[];
   detail:    DetailLevel;
-  styles:    string[];
-  provider?: string;
-  profile?:  string;
+  styles:           string[];
+  /** Industry-standard narrative format identifier (e.g. 'feature-std', 'tv-half-hour'). */
+  narrativeLength?: string;
+  provider?:        string;
+  profile?:         string;
 }
 
 // ---------------------------------------------------------------------------
@@ -135,7 +137,8 @@ export function buildEquivalentCommand(state: WizardState): string {
   if (state.tone)     flags.push(`  --tone ${q(state.tone)}`);
   if (state.audience) flags.push(`  --audience ${q(state.audience)}`);
   if (state.budget)   flags.push(`  --budget ${state.budget}`);
-  if (state.outcome)  flags.push(`  --outcome ${q(state.outcome)}`);
+  if (state.outcome)         flags.push(`  --outcome ${q(state.outcome)}`);
+  if (state.narrativeLength) flags.push(`  --narrative-length ${state.narrativeLength}`);
 
   // output-dir is auto-derived from slug — omit it from the equivalent command
   for (const fmt of state.format) {

@@ -42,9 +42,11 @@ export interface StartOptions {
   outputDir?:   string;
   format?:      DocumentFormat;
   detail?:      DetailLevel;
-  styles?:      string[];
-  provider?:    string;
-  profile?:     string;
+  styles?:          string[];
+  /** Industry-standard narrative format identifier (e.g. 'feature-std', 'tv-half-hour'). */
+  narrativeLength?: string;
+  provider?:        string;
+  profile?:         string;
   // -------------------------------------------------------------------------
   // bd-jnbf (Phase 6.4): AIPoweredClientOptions override flags.
   // Stored here for forwarding to resolveAIClient() when any AI call is made
@@ -163,6 +165,7 @@ export async function startCommand(options: StartOptions): Promise<void> {
       style_modules:       options.styles,
       active_provider_id:  options.provider,
       active_profile_name: options.profile,
+      narrative_format_id: options.narrativeLength,
     });
 
     sessionRepo.completeSession(sessionId, 0, undefined, project.id);

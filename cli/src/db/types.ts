@@ -59,6 +59,8 @@ export interface Project {
   style_modules:       string | null;
   active_provider_id:  string | null;
   active_profile_name: string | null;
+  /** Industry-standard narrative format identifier (e.g. 'feature-std', 'tv-half-hour'). */
+  narrative_format_id: string | null;
   status:              ProjectStatus;
   created_at:          string;
   updated_at:          string;
@@ -213,8 +215,10 @@ export interface CreateProjectInput {
   format_override?:    DocumentFormat;
   detail_level?:       DetailLevel;
   style_modules?:      string[];
-  active_provider_id?: string;
-  active_profile_name?:string;
+  active_provider_id?:  string;
+  active_profile_name?: string;
+  /** Industry-standard narrative format identifier selected in the wizard. */
+  narrative_format_id?: string;
 }
 
 export interface RecordAttemptInput {
