@@ -60,9 +60,10 @@ export class AIEntityExtractor {
     try {
       console.log('Using AI-powered entity extraction...');
       const client = await this.ensureClient();
-      const content = await (client as any).generateText(prompt, { maxTokens: 2048 }) as string;
+      const textResult = await (client as any).generateText(prompt, { maxTokens: 2048 });
 
-      // content is the generated text string
+      // generateText() returns a TextResult object; extract the string content.
+      const content: string = typeof textResult === 'string' ? textResult : textResult.content;
       const result = this.parseAIResponse(content);
       console.log(`AI extracted ${result.characters.length} characters and ${result.objects.length} objects`);
       return result;

@@ -5,8 +5,13 @@
  *
  *   P1 — Shooting-script M:SS annotation  (explicit; highest fidelity)
  *   P2 — Beat-sheet timing cue            (scene-level; rounded to nearest second)
- *   P3 — Action-density estimate           (5 + (n-1)*2 s, capped at 30 s)
- *   P4 — Clamp result to [3, 60] seconds  (always applied as a final guard)
+ *   P3 — Segmenter estimate (preferred) or action-density formula (fallback)
+ *          The SceneSegmenter pre-computes duration from raw scene elements
+ *          (action lines at 3 s each + dialogue words at 0.4 s/word).  When
+ *          `segmenterEstimateS` is supplied it is used directly; otherwise the
+ *          coarse action-density formula runs over `actionLines`.
+ *   P4 — Hard fallback 5 s when no signal is available at all.
+ *   All results are clamped to [MIN_DURATION_S, MAX_DURATION_S].
  *
  * Spec: openspec/archive/filmbuff-prompt/
  * Beads: bd-eu39 (Phase 4), bd-74fy (Phase 7 — tests)
@@ -25,7 +30,19 @@ export interface ShotData {
   shootingScriptDuration?: string | null;
   /** Raw timing cue from the beat sheet, if present (e.g. "0:45"). */
   beatSheetCue?: string | null;
-  /** Lines of action text for density estimation. */
+  /**
+   * Duration pre-computed by the SceneSegmenter from raw scene elements
+   * (action elements at 3 s each + dialogue word-count at 0.4 s/word).
+   * When provided this is used as the P3 signal in preference to the coarse
+   * `actionLines` formula, which operates on the post-processed `shot.actions`
+   * string (always a single joined line) and therefore always yields 5 s.
+   */
+  segmenterEstimateS?: number | null;
+  /**
+   * Lines of action text for density estimation.
+   * Used as P3 only when `segmenterEstimateS` is absent (e.g. in unit tests
+   * that supply raw action lines directly).
+   */
   actionLines?: string[];
 }
 
@@ -94,7 +111,24 @@ export function deriveDuration(shot: ShotData): DurationResult {
     }
   }
 
-  // P3 — Action-density estimate
+  // P3a — Segmenter estimate (preferred).
+  // The SceneSegmenter iterates raw SceneElements and totals:
+  //   action elements × 3 s  +  dialogue words × 0.4 s/word
+  // This is far more accurate than the coarse formula below, which receives a
+  // post-processed single-line `shot.actions` string and always returns 5 s.
+  if (shot.segmenterEstimateS != null && shot.segmenterEstimateS > 0) {
+    const seconds = clamp(shot.segmenterEstimateS, MIN_DURATION_S, MAX_DURATION_S);
+    return {
+      seconds,
+      source: 'action-density',
+      // AC-4: Notes column reads "Estimated from action density"
+      notes: 'Estimated from action density'
+    };
+  }
+
+  // P3b — Action-density formula.
+  // Used when segmenterEstimateS is absent (e.g. direct unit tests that pass
+  // raw action lines).  If the caller provides both, P3a wins above.
   const lines = shot.actionLines ?? [];
   if (lines.length > 0) {
     const rawEstimate = estimateFromActionDensity(lines);

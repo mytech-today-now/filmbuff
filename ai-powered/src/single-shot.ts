@@ -15,7 +15,7 @@
  */
 
 import { buildShotPrompt } from './prompt-builder.js';
-import { pollShotJob, fetchJobStatus } from './poll-job.js';
+import { pollShotJob, fetchJobStatus, downloadClip } from './poll-job.js';
 import type { SingleShotOptions, SingleShotResult } from './types.js';
 import { DEFAULT_WATCHDOG_TIMEOUT_MS } from './types.js';
 
@@ -92,13 +92,17 @@ export async function submitSingleShot(
  *
  * Equivalent to: submitSingleShot() → pollShotJob()
  *
- * @param opts  Full SingleShotOptions including outputPath and optional timeoutMs.
- * @returns     SingleShotResult with status 'complete' | 'failed'.
+ * @param opts          Full SingleShotOptions including outputPath and optional timeoutMs.
+ * @param _submit       Dependency-injectable submit function (for unit testing).
+ * @param _fetchStatus  Dependency-injectable status fetcher (for unit testing).
+ * @param _downloadClip Dependency-injectable clip downloader (for unit testing).
+ * @returns             SingleShotResult with status 'complete' | 'failed'.
  */
 export async function generateSingleShot(
   opts: SingleShotOptions,
   _submit: typeof submitToProvider = submitToProvider,
   _fetchStatus: typeof fetchJobStatus = fetchJobStatus,
+  _downloadClip: (url: string, path: string) => Promise<void> = downloadClip,
 ): Promise<SingleShotResult> {
   const prompt = buildShotPrompt(opts.shot, opts.extraNotes);
   const timeoutMs = opts.timeoutMs ?? DEFAULT_WATCHDOG_TIMEOUT_MS;
@@ -119,5 +123,6 @@ export async function generateSingleShot(
     timeoutMs,
     opts.agentToken,  // forwarded to fetchJobStatus; NEVER logged
     _fetchStatus,
+    _downloadClip,
   );
 }

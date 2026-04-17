@@ -10,6 +10,7 @@ import { createFormatter } from './generate-shot-list/formatter';
 import { createLogger } from './generate-shot-list/logger';
 import { createStyleSystem } from './generate-shot-list/style';
 import { ConfigManager } from '../utils/config-system';
+import { RunLogger, computeRunLogPath } from '../utils/run-logger';
 // Phase 6 (bd-cfa7): AI provider resolution now handled entirely by the
 // ai-powered library via getFilmbuffAiClient() inside the extractors.
 // normalizeAIProvider / normalizeAIModel retained only for flag-validation
@@ -178,6 +179,61 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
       exitWithCode(ExitCode.INPUT_FILE_ERROR);
     }
 
+    // -------------------------------------------------------------------------
+    // Run Logger — tees all stdout/stderr to a per-run plain-text log file.
+    // Starts here (after input validation) so every subsequent line of output,
+    // including ai-powered library logs and AI cost/token info, is captured.
+    // The log file sits next to the output file (or input file when no --output
+    // is given) and is named: <basename>-<ISO-timestamp>.log
+    // -------------------------------------------------------------------------
+    const runLogPath = computeRunLogPath(inputPath, options.output);
+    const runLogger  = new RunLogger(runLogPath);
+
+    const sep = '='.repeat(80);
+    const runHeader = [
+      sep,
+      'filmbuff generate-shot-list — Run Log',
+      `Started:  ${new Date().toISOString()}`,
+      `Input:    ${path.resolve(inputPath)}`,
+      `Output:   ${options.output ? path.resolve(options.output) : '(default — next to input)'}`,
+      `Format:   ${format}`,
+      `Log:      ${runLogPath}`,
+      sep,
+    ].join('\n');
+
+    runLogger.start(runHeader);
+
+    // ── Register cleanup handlers ─────────────────────────────────────────
+    // 'exit' fires on process.exit() and natural loop-drain.
+    process.once('exit', (code: number) => {
+      runLogger.writeDirectly(
+        `\n${sep}\nCompleted: ${new Date().toISOString()}  Exit code: ${code}\n${sep}\n`,
+      );
+      runLogger.stop();
+    });
+
+    // 'uncaughtException' fires on unhandled throws (Node 15+ exits with 1
+    // without calling 'exit').  Write footer + re-throw so Node still exits.
+    process.once('uncaughtException', (err: Error) => {
+      runLogger.writeDirectly(
+        `\n${sep}\nCRASH (uncaughtException): ${err.message}\n${sep}\n`,
+      );
+      runLogger.stop();
+      throw err; // re-throw so Node.js default handler still terminates
+    });
+
+    // 'unhandledRejection' fires on unhandled promise rejections.
+    process.once('unhandledRejection', (reason: unknown) => {
+      const msg = reason instanceof Error ? reason.message : String(reason);
+      runLogger.writeDirectly(
+        `\n${sep}\nCRASH (unhandledRejection): ${msg}\n${sep}\n`,
+      );
+      runLogger.stop();
+    });
+
+    // Print path so the user can see it (and so it's captured in the log too).
+    console.log(chalk.gray(`📋 Run log: ${runLogPath}`));
+
     console.log(chalk.blue(`\n🎬 Generating AI Shot List...\n`));
     console.log(chalk.gray(`Processing: ${inputPath}`));
     console.log(chalk.gray(`Format: ${format}`));
@@ -282,7 +338,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
 
       // Phase 4 (bd-eu39) + Phase 5 (bd-kt6j): Derive duration and resolve video controls
       // for every shot using the 4-priority chain (shooting-script → beat-sheet →
-      // action-density → clamp fallback).  Also attaches VideoControls for the
+      // segmenter-estimate → fallback).  Also attaches VideoControls for the
       // markdown formatter's "Video Controls:" block.
       let derivedTotalDuration = 0;
       for (const shot of shotList.shots) {
@@ -290,7 +346,13 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
           id: String(shot.number),
           shootingScriptDuration: pipelineInputs.shootingScript.get(String(shot.number)) ?? null,
           beatSheetCue:           pipelineInputs.beatSheet.get(String(shot.sceneNumber)) ?? null,
-          // Split the actions string into individual lines for density estimation
+          // Pass the SceneSegmenter's element-level estimate as the P3 signal.
+          // The segmenter totals raw SceneElements (action lines × 3 s +
+          // dialogue words × 0.4 s/word) so it correctly varies by scene content.
+          // The former approach — splitting shot.actions by '\n' — always
+          // produced a single line (actions are joined with '. ') and therefore
+          // always returned 5 s regardless of scene length or dialogue content.
+          segmenterEstimateS: shot.duration,
           actionLines: shot.actions ? shot.actions.split('\n') : [],
         };
         const durationResult = deriveDuration(shotData);

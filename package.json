@@ -1,6 +1,6 @@
 {
     "name": "@mytechtoday/filmbuff",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "description": "CLI tool for managing writing, prose, and screenplay extension modules",
     "main": "cli/dist/index.js",
     "bin": {

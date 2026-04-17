@@ -107,12 +107,13 @@ export async function fetchJobStatus(
 /**
  * Poll a previously submitted provider job until it completes or times out.
  *
- * @param jobId       Provider-assigned job identifier from submitSingleShot().
- * @param provider    Provider string: 'runway-gen3' | 'pika-2' | 'kling-1.6'
- * @param outputPath  Absolute path to write the downloaded MP4 when complete.
- * @param timeoutMs   Max polling duration in ms. Default: DEFAULT_WATCHDOG_TIMEOUT_MS.
- * @param agentToken  Bearer token forwarded to provider API. NEVER logged.
- * @param _fetchStatus Dependency-injectable status fetcher (for unit testing).
+ * @param jobId         Provider-assigned job identifier from submitSingleShot().
+ * @param provider      Provider string: 'runway-gen3' | 'pika-2' | 'kling-1.6'
+ * @param outputPath    Absolute path to write the downloaded MP4 when complete.
+ * @param timeoutMs     Max polling duration in ms. Default: DEFAULT_WATCHDOG_TIMEOUT_MS.
+ * @param agentToken    Bearer token forwarded to provider API. NEVER logged.
+ * @param _fetchStatus  Dependency-injectable status fetcher (for unit testing).
+ * @param _downloadClip Dependency-injectable clip downloader (for unit testing).
  */
 export async function pollShotJob(
   jobId: string,
@@ -121,6 +122,7 @@ export async function pollShotJob(
   timeoutMs: number = DEFAULT_WATCHDOG_TIMEOUT_MS,
   agentToken?: string,
   _fetchStatus: typeof fetchJobStatus = fetchJobStatus,
+  _downloadClip: (url: string, path: string) => Promise<void> = downloadClip,
 ): Promise<SingleShotResult> {
   const intervalMs = PROVIDER_POLL_INTERVAL_MS[provider] ?? 5_000;
   const deadline = Date.now() + timeoutMs;
@@ -131,7 +133,7 @@ export async function pollShotJob(
     if (status.done) {
       if (status.success && status.clipUrl) {
         // Download the clip to outputPath
-        await downloadClip(status.clipUrl, outputPath);
+        await _downloadClip(status.clipUrl, outputPath);
         return {
           jobId,
           status: 'complete',
@@ -172,8 +174,9 @@ export async function pollShotJob(
 /**
  * Download a video clip from a URL and write it to outputPath.
  * Abstracted for testability; real implementation uses streaming HTTP GET.
+ * Exported so it can be used as a default argument in generateSingleShot tests.
  */
-async function downloadClip(url: string, outputPath: string): Promise<void> {
+export async function downloadClip(url: string, outputPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const file = require('fs').createWriteStream(outputPath);
     https.get(url, response => {

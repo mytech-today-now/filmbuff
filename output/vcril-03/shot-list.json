@@ -1,0 +1,266 @@
+```json
+{
+  "shot_list": [
+    {
+      "scene_number": 1,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Wide Shot",
+          "description": "The industrial district under dark clouds with rain starting to fall."
+        },
+        {
+          "shot_number": 2,
+          "type": "Close-Up",
+          "description": "Lightning streaks across the sky, illuminating the dark clouds."
+        },
+        {
+          "shot_number": 3,
+          "type": "Medium Shot",
+          "description": "Raindrops hitting the ground, creating splashes."
+        }
+      ]
+    },
+    {
+      "scene_number": 2,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Medium Shot",
+          "description": "Water drips from the ceiling, forming puddles near machinery."
+        },
+        {
+          "shot_number": 2,
+          "type": "Close-Up",
+          "description": "Employees quickly cover machinery and goods with tarps."
+        },
+        {
+          "shot_number": 3,
+          "type": "Close-Up",
+          "description": "Alex looks up at the leaking ceiling with worry."
+        }
+      ]
+    },
+    {
+      "scene_number": 3,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Wide Shot",
+          "description": "Modern office with team members working, screens displaying weather data."
+        },
+        {
+          "shot_number": 2,
+          "type": "Close-Up",
+          "description": "Screen showing severe weather alert and diagnostic tools."
+        },
+        {
+          "shot_number": 3,
+          "type": "Medium Shot",
+          "description": "Team members discussing strategy, pointing at screen."
+        }
+      ]
+    },
+    {
+      "scene_number": 4,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Wide Shot",
+          "description": "Meeting room with Emma addressing her team."
+        },
+        {
+          "shot_number": 2,
+          "type": "Close-Up",
+          "description": "Emma with a determined expression, gesturing confidently."
+        },
+        {
+          "shot_number": 3,
+          "type": "Medium Shot",
+          "description": "Team members nodding, taking notes."
+        }
+      ]
+    },
+    {
+      "scene_number": 5,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Medium Shot",
+          "description": "Alex pacing nervously, phone in hand."
+        },
+        {
+          "shot_number": 2,
+          "type": "Close-Up",
+          "description": "Alex dialing the phone, looking desperate."
+        },
+        {
+          "shot_number": 3,
+          "type": "Close-Up",
+          "description": "Water dripping intensely, increasing urgency."
+        }
+      ]
+    },
+    {
+      "scene_number": 6,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Medium Shot",
+          "description": "Emma receives the call, focused and attentive."
+        },
+        {
+          "shot_number": 2,
+          "type": "Close-Up",
+          "description": "Emma relaying instructions to her team."
+        },
+        {
+          "shot_number": 3,
+          "type": "Medium Shot",
+          "description": "Team members springing into action, grabbing equipment."
+        }
+      ]
+    },
+    {
+      "scene_number": 7,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Wide Shot",
+          "description": "VCRIL team arrives at the warehouse, van doors swinging open."
+        },
+        {
+          "shot_number": 2,
+          "type": "Close-Up",
+          "description": "Advanced diagnostic tools being set up, displaying data."
+        },
+        {
+          "shot_number": 3,
+          "type": "Medium Shot",
+          "description": "Team members pointing at weak points on the roof."
+        }
+      ]
+    },
+    {
+      "scene_number": 8,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Medium Shot",
+          "description": "Team members on the roof, applying repair materials."
+        },
+        {
+          "shot_number": 2,
+          "type": "Close-Up",
+          "description": "Emma showing Alex the customized repair plan on a tablet."
+        },
+        {
+          "shot_number": 3,
+          "type": "Medium Shot",
+          "description": "Alex nodding, looking reassured."
+        }
+      ]
+    },
+    {
+      "scene_number": 9,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Close-Up",
+          "description": "Cutting-edge materials being applied to the roof."
+        },
+        {
+          "shot_number": 2,
+          "type": "Medium Shot",
+          "description": "Team working seamlessly, reinforcing the roof."
+        },
+        {
+          "shot_number": 3,
+          "type": "Close-Up",
+          "description": "Materials bonding securely, emphasizing durability."
+        }
+      ]
+    },
+    {
+      "scene_number": 10,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Medium Shot",
+          "description": "Team members using eco-friendly materials."
+        },
+        {
+          "shot_number": 2,
+          "type": "Close-Up",
+          "description": "Energy-efficient tools in use."
+        },
+        {
+          "shot_number": 3,
+          "type": "Medium Shot",
+          "description": "Team member reviewing environmental impact report."
+        }
+      ]
+    },
+    {
+      "scene_number": 11,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Medium Shot",
+          "description": "Alex inspecting the completed repair work."
+        },
+        {
+          "shot_number": 2,
+          "type": "Close-Up",
+          "description": "Emma pointing out maintenance features on the roof."
+        },
+        {
+          "shot_number": 3,
+          "type": "Medium Shot",
+          "description": "Alex and Emma shaking hands, smiling."
+        }
+      ]
+    },
+    {
+      "scene_number": 12,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Wide Shot",
+          "description": "Warehouse standing strong under clear skies."
+        },
+        {
+          "shot_number": 2,
+          "type": "Medium Shot",
+          "description": "Employees resuming work, reflecting efficiency."
+        },
+        {
+          "shot_number": 3,
+          "type": "Close-Up",
+          "description": "Alex looking content, surveying the warehouse."
+        }
+      ]
+    },
+    {
+      "scene_number": 13,
+      "shots": [
+        {
+          "shot_number": 1,
+          "type": "Wide Shot",
+          "description": "VCRIL office with sunlight streaming through windows."
+        },
+        {
+          "shot_number": 2,
+          "type": "Medium Shot",
+          "description": "VCRIL team back at their desks, ready for next challenge."
+        },
+        {
+          "shot_number": 3,
+          "type": "Close-Up",
+          "description": "Calendar on the wall marked with future projects."
+        }
+      ]
+    }
+  ]
+}
+```

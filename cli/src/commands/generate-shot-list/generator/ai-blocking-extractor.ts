@@ -89,6 +89,12 @@ export class AIBlockingExtractor {
   ): Promise<BlockingExtractionResult> {
     const actionText = actionLines.join('\n');
 
+    // Skip AI call when there is no action content — the model cannot extract
+    // blocking from an empty prompt and will return a plain-text refusal.
+    if (actionText.trim().length === 0) {
+      return this.fallbackExtraction(actionLines, characterNames);
+    }
+
     // Identify which characters need descriptions (not in cache)
     const charactersNeedingDescriptions = characterNames.filter(
       name => !this.characterDescriptionCache.has(name)
@@ -103,12 +109,13 @@ export class AIBlockingExtractor {
 
     try {
       const client = await this.ensureClient();
-      const content = await (client as any).generateText(prompt, {
+      const textResult = await (client as any).generateText(prompt, {
         maxTokens: 4096,   // Increased for verbose descriptions
         temperature: 0.0,  // Deterministic for consistency
-      }) as string;
+      });
 
-      // content is the generated text string
+      // generateText() returns a TextResult object; extract the string content.
+      const content: string = typeof textResult === 'string' ? textResult : textResult.content;
       const result = this.parseBlockingResponse(content, characterNames);
 
       // Cache new character descriptions
@@ -298,15 +305,51 @@ Respond with ONLY the JSON object, no additional text.`;
   }
 
   /**
+   * Attempt lightweight repairs on AI-generated JSON before parsing.
+   * Handles the most common model mistakes:
+   *   - Stray standalone `],` lines between object properties
+   *     (e.g. a `],` orphaned after a string value)
+   *   - Trailing commas before `}` or `]`
+   */
+  private sanitizeJSON(text: string): string {
+    // Remove a lone `],` that sits between two object properties.
+    // Pattern: comma at end of previous line, then `],` on its own line.
+    let s = text.replace(/,(\s*\n\s*)\],(\s*\n\s*")/g, ',$1$2');
+    // Remove trailing commas before closing brackets/braces.
+    s = s.replace(/,(\s*[\]}])/g, '$1');
+    return s;
+  }
+
+  /**
    * Parse AI response into structured blocking data
    */
   private parseBlockingResponse(responseText: string, characterNames: string[]): BlockingExtractionResult {
     try {
       // Extract JSON from response (may be wrapped in ```json```)
       const jsonMatch = responseText.match(/```json\s*([\s\S]*?)\s*```/) || responseText.match(/({[\s\S]*})/);
-      const jsonText = jsonMatch ? jsonMatch[1] : responseText;
 
-      const parsed = JSON.parse(jsonText);
+      // No JSON found — model likely returned a plain-text refusal or explanation.
+      // Return an empty result silently rather than attempting JSON.parse on prose.
+      if (!jsonMatch) {
+        return {
+          characterPositions: [],
+          characterDescriptions: [],
+          setDescription: '',
+          characterActions: [],
+          soundEffects: []
+        };
+      }
+
+      const rawJson = jsonMatch[1] ?? jsonMatch[0];
+
+      // First attempt: parse as-is.  Second attempt: apply lightweight repair.
+      let parsed: ReturnType<typeof JSON.parse> | undefined;
+      try {
+        parsed = JSON.parse(rawJson);
+      } catch {
+        const sanitized = this.sanitizeJSON(rawJson);
+        parsed = JSON.parse(sanitized); // throws again if still malformed → outer catch
+      }
 
       return {
         characterPositions: parsed.characterPositions || [],

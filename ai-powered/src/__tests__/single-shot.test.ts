@@ -127,14 +127,13 @@ describe('pollShotJob()', () => {
       durationSeconds: 8, resolution: '1920x1080',
       rawResponse: { credits_charged: 5 },
     });
-    // Skip actual file download — patch downloadClip via URL-less mock
-    vi.stubGlobal('require', (mod: string) => {
-      if (mod === 'fs') return { createWriteStream: () => ({ pipe: vi.fn(), on: (e: string, cb: () => void) => { if (e === 'finish') cb(); }, close: vi.fn() }) };
-    });
-    const result = await pollShotJob('job-001', 'runway-gen3', '/tmp/s001.mp4', 30_000, undefined, mockFetch);
+    // Inject a no-op downloader so no real HTTP request is made
+    const mockDownload = vi.fn().mockResolvedValue(undefined);
+    const result = await pollShotJob('job-001', 'runway-gen3', '/tmp/s001.mp4', 30_000, undefined, mockFetch, mockDownload);
     expect(result.status).toBe('complete');
     expect(result.jobId).toBe('job-001');
     expect(result.creditsCharged).toBe(5);
+    expect(mockDownload).toHaveBeenCalledWith('https://cdn.example.com/clip.mp4', '/tmp/s001.mp4');
   });
 
   it('[UT-API-02] returns failed with api_timeout when deadline exceeded', async () => {
@@ -206,17 +205,17 @@ describe('generateSingleShot()', () => {
       clipUrl: 'https://cdn.example.com/009.mp4',
       rawResponse: { credits_charged: 4 },
     });
+    // Inject a no-op downloader so no real HTTP request is made
+    const mockDownload = vi.fn().mockResolvedValue(undefined);
     const opts: SingleShotOptions = {
       shot: FULL_SHOT, provider: 'pika-2',
       outputPath: '/tmp/s001.mp4', timeoutMs: 30_000,
     };
-    vi.stubGlobal('require', (mod: string) => {
-      if (mod === 'fs') return { createWriteStream: () => ({ pipe: vi.fn(), on: (e: string, cb: () => void) => { if (e === 'finish') cb(); }, close: vi.fn() }) };
-    });
-    const result = await generateSingleShot(opts, mockSubmit, mockFetch);
+    const result = await generateSingleShot(opts, mockSubmit, mockFetch, mockDownload);
     expect(result.status).toBe('complete');
     expect(result.jobId).toBe('job-009');
     expect(result.creditsCharged).toBe(4);
+    expect(mockDownload).toHaveBeenCalledOnce();
   });
 
   it('[UT-API-10] agentToken NOT included in SingleShotResult', async () => {
