@@ -101,7 +101,9 @@ export type WarningType =
   | 'ambiguous-action'
   | 'description-action-conflict'
   | 'description-character-inconsistency'
-  | 'field-duplication';
+  | 'field-duplication'
+  /** Emitted when post-normalization total exceeds totalBudgetSeconds (AC-9). */
+  | 'duration-budget-exceeded';
 
 /**
  * Warning for shot list validation
@@ -182,6 +184,13 @@ export interface GeneratorConfig {
   includeMetadata: boolean;
   cinematicStyle?: string;  // Formatted cinematic style name(s) for display
   muteSfx?: boolean;  // Remove all MUSIC and SOUND EFFECT content from output
+  /**
+   * Resolved total budget in seconds (AC-1..AC-4 / refactor-slg-01).
+   * When set, the normalization pass scales shot durations to meet this target.
+   * Priority chain: --target-duration → DB target_duration_seconds → page count × 60.
+   * undefined → normalization pass skipped.
+   */
+  totalBudgetSeconds?: number;
 }
 
 /**

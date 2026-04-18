@@ -597,6 +597,20 @@ program
   .option('--output <filename>', 'Custom output filename')
   .option('--max-characters <number>', 'Maximum characters per shot description', '4000')
   .option('--max-shot-length <seconds>', 'Maximum shot duration in seconds', '12')
+  .option('--script-pages <n>', 'Override screenplay page count for budget derivation (positive integer; AC-13)', (v: string) => {
+    const n = parseInt(v, 10);
+    if (isNaN(n) || n <= 0) {
+      throw new Error(`--script-pages must be a positive integer (received: ${v}). Example: --script-pages 95`);
+    }
+    return n;
+  })
+  .option('--target-duration <seconds>', 'Target total runtime in seconds — Level-1 budget priority overrides DB and page count (AC-3)', (v: string) => {
+    const n = parseInt(v, 10);
+    if (isNaN(n) || n <= 0) {
+      throw new Error(`--target-duration must be a positive integer number of seconds (received: ${v}). Example: --target-duration 6600`);
+    }
+    return n;
+  })
   .option(
     '--style <module-path>',
     'Apply cinematic style guidelines (can be specified multiple times)',
@@ -628,6 +642,9 @@ program
       output:          options.output,
       maxCharacters:   parseInt(options.maxCharacters, 10),
       maxShotLength:   parseInt(options.maxShotLength, 10),
+      // refactor-slg-01: budget-resolution flags (already validated at parse time)
+      scriptPages:     options.scriptPages as number | undefined,
+      targetDuration:  options.targetDuration as number | undefined,
       logging:         options.logging,
       style:           options.style,
       muteSfx:         options.muteSfx,

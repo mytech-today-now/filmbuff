@@ -4,7 +4,13 @@ import * as path from 'path';
 import { displayHelp } from './generate-shot-list/help-text';
 import { ExitCode, exitWithCode } from './generate-shot-list/exit-codes';
 import { createParserAuto } from './generate-shot-list/parser';
-import { createGenerator } from './generate-shot-list/generator';
+import type { Screenplay } from './generate-shot-list/parser/types';
+import {
+  createGenerator,
+  applyNormalizationPass,
+  applyBudgetWarning,
+  formatRuntime,
+} from './generate-shot-list/generator';
 import { FilmbuffVideoGenerator, type VideoGenerationOptions } from '../lib/video-generator';
 import { createFormatter } from './generate-shot-list/formatter';
 import { createLogger } from './generate-shot-list/logger';
@@ -28,6 +34,57 @@ import type { ResolvedShot } from '../lib/batch-serializer';
 import type { OutputFormat } from './generate-shot-list/formatter/types';
 import type { MergedStyleGuidelines } from './generate-shot-list/style/types';
 
+// ---------------------------------------------------------------------------
+// Constants (refactor-slg-01 — Script-Length-Aware Shot Duration Normalization)
+// ---------------------------------------------------------------------------
+
+/** Industry standard: 1 screenplay page ≈ 1 minute of screen time. */
+const SECONDS_PER_PAGE = 60;
+
+/** US Letter, Courier 12pt, 1-inch margins → ~55 typed lines per page. */
+const LINES_PER_PAGE = 55;
+
+/** Average screenplay pages per scene (proxy when no line count available). */
+const PAGES_PER_SCENE_ESTIMATE = 1.5;
+
+// ---------------------------------------------------------------------------
+// deriveScriptPageCount — pure helper (no side effects, no I/O)
+// ---------------------------------------------------------------------------
+
+/**
+ * Derive the screenplay's page count from already-parsed metadata.
+ *
+ * Priority chain:
+ *   P1 → screenplay.metadata.pdfPages         (exact; set by PDF parser)
+ *   P2 → Math.round(totalLines / 55)          (US Letter, Courier 12pt standard)
+ *   P3 → Math.round(scenes.length × 1.5)      (proxy; last resort for DOCX/RTF)
+ *   →  undefined                               (no signal; normalization disabled)
+ *
+ * All three priorities clamp to a minimum of 1.
+ * Exported for unit testing.
+ */
+export function deriveScriptPageCount(screenplay: Screenplay): number | undefined {
+  const { metadata, scenes } = screenplay;
+
+  // P1: pdfPages — set by the PDF parser; authoritative when positive.
+  if (typeof metadata.pdfPages === 'number' && metadata.pdfPages > 0) {
+    return metadata.pdfPages;
+  }
+
+  // P2: totalLines / LINES_PER_PAGE approximation.
+  if (typeof metadata.totalLines === 'number' && metadata.totalLines > 0) {
+    return Math.max(1, Math.round(metadata.totalLines / LINES_PER_PAGE));
+  }
+
+  // P3: scene count × PAGES_PER_SCENE_ESTIMATE proxy.
+  if (scenes.length > 0) {
+    return Math.max(1, Math.round(scenes.length * PAGES_PER_SCENE_ESTIMATE));
+  }
+
+  // Fallback: no signal available; normalization disabled (AC-11).
+  return undefined;
+}
+
 interface GenerateShotListOptions {
   input?: string;
   format?: string;
@@ -37,6 +94,17 @@ interface GenerateShotListOptions {
   logging?: boolean;
   style?: string | string[];  // Can be single string or array of strings
   muteSfx?: boolean;  // Remove all MUSIC and SOUND EFFECT content from output
+  /**
+   * Manual screenplay page count override (--script-pages).
+   * When set, bypasses automatic pdfPages / totalLines / scene-count detection.
+   * Validated as a positive integer at CLI parse time (AC-13).
+   */
+  scriptPages?: number;
+  /**
+   * Explicit target runtime in seconds (--target-duration).
+   * Level-1 budget priority — overrides DB and page-count derivation (AC-3).
+   */
+  targetDuration?: number;
   aiProvider?: string;
   aiProfile?: string;
   aiModel?: string;
@@ -321,19 +389,55 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
         });
       }
 
+      // ---------------------------------------------------------------
+      // Budget resolution chain (refactor-slg-01 — Task 2C, AC-1..AC-4, AC-11)
+      // ---------------------------------------------------------------
+
+      // Resolve the screenplay page count (--script-pages overrides auto-detect, AC-2).
+      const scriptPageCount: number | undefined =
+        options.scriptPages ?? deriveScriptPageCount(screenplay as Screenplay);
+
+      // NOTE: Level-2 (DB project target_duration_seconds) is implemented by FB-NAR-1.
+      // Until that epic is complete, loadedProject is undefined and budget resolution
+      // falls through to level 3 (page count × SECONDS_PER_PAGE).
+      // Type assertion prevents const-narrowing to `undefined` literal (TS strict).
+      const loadedProject = undefined as ({ target_duration_seconds?: number | null } | undefined);
+
+      // 4-level priority chain:
+      //   Level 1: --target-duration (CLI flag — highest priority, AC-3)
+      //   Level 2: DB target_duration_seconds             (AC-4)
+      //   Level 3: scriptPageCount × 60                  (AC-1 / AC-2)
+      //   Level 4: undefined                             (AC-11 — skip normalization)
+      const totalBudgetSeconds: number | undefined =
+        options.targetDuration                                              // Level 1
+        ?? (loadedProject?.target_duration_seconds ?? undefined)           // Level 2
+        ?? (scriptPageCount !== undefined
+              ? scriptPageCount * SECONDS_PER_PAGE                        // Level 3
+              : undefined);                                                // Level 4
+
+      if (scriptPageCount !== undefined && options.targetDuration === undefined &&
+          (loadedProject?.target_duration_seconds ?? undefined) === undefined) {
+        // AC-1 / AC-6: emit auto-derived page count so the user can see what drove the budget.
+        console.log(chalk.gray(
+          `📄 Auto-derived page count: ${scriptPageCount} pages → budget ${formatRuntime(scriptPageCount * SECONDS_PER_PAGE)}`
+        ));
+      }
+
       // Step 3: Generate shot list
       const generationStartMs = Date.now();
       console.log(chalk.gray('🎬 Generating shots...'));
 
-      const generator = createGenerator(styleGuidelines);
-      const shotList = await generator.generate(screenplay.scenes, {
+      const generatorConfig = {
         maxCharacters,
         maxShotLength,
         warningThreshold: 90, // 90% threshold for warnings
         includeContext: true,
         includeMetadata: true,
         muteSfx: options.muteSfx || false,
-      });
+        totalBudgetSeconds,  // propagate resolved budget (refactor-slg-01 Task 2C)
+      };
+      const generator = createGenerator(styleGuidelines);
+      const shotList = await generator.generate(screenplay.scenes, generatorConfig);
       console.log(chalk.green(`✓ Generated ${shotList.totalShots} shots`));
 
       // Phase 4 (bd-eu39) + Phase 5 (bd-kt6j): Derive duration and resolve video controls
@@ -367,8 +471,27 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
         shot.videoControls = resolveVideoControls(hints, durationResult);
         derivedTotalDuration += durationResult.seconds;
       }
-      // Recalculate aggregate after per-shot duration update
+      // ---------------------------------------------------------------
+      // Normalization pass (refactor-slg-01 — Task 3A, AC-5..AC-9)
+      // Runs AFTER deriveDuration() sets shot.duration and shot.durationNotes,
+      // so P1-shot detection ("Derived from shot duration" prefix) is correct.
+      // ---------------------------------------------------------------
+      if (totalBudgetSeconds !== undefined && derivedTotalDuration > 0) {
+        derivedTotalDuration = applyNormalizationPass(
+          shotList.shots,
+          derivedTotalDuration,
+          totalBudgetSeconds
+        );
+      }
+
+      // Recalculate aggregate after per-shot duration update (and post-normalization).
       shotList.totalDuration = derivedTotalDuration;
+
+      // ---------------------------------------------------------------
+      // Budget warning block (refactor-slg-01 — Task 3B, AC-9 / AC-10)
+      // Reads post-normalization total; runs AFTER normalization pass.
+      // ---------------------------------------------------------------
+      applyBudgetWarning(shotList, derivedTotalDuration, generatorConfig);
 
       console.log(chalk.gray(`   Total duration: ${Math.floor(shotList.totalDuration / 60)}m ${Math.floor(shotList.totalDuration % 60)}s`));
       console.log(chalk.gray(`   Total characters: ${shotList.totalCharacters}`));

@@ -4,6 +4,7 @@
  * Main orchestration for generating AI-optimized shot lists from parsed screenplays
  */
 
+import chalk from 'chalk';
 import { Scene } from '../parser/types';
 import {
   ShotList,
@@ -21,6 +22,163 @@ import { ContextBuilder, ContextBuilderConfig } from './context-builder';
 import { MetadataExtractor, MetadataExtractorConfig } from './metadata-extractor';
 import { MergedStyleGuidelines } from '../style/types';
 import { AIBlockingExtractor, CharacterBlockingPosition, BlockingExtractionResult } from './ai-blocking-extractor';
+import { MIN_DURATION_S, MAX_DURATION_S } from '../../../lib/duration-derivation';
+
+// ---------------------------------------------------------------------------
+// Constants (refactor-slg-01 — Script-Length-Aware Shot Duration Normalization)
+// ---------------------------------------------------------------------------
+
+/**
+ * Acceptable deviation from totalBudgetSeconds before normalization is triggered.
+ * 5% tolerance avoids unnecessary scaling for minor heuristic imprecision.
+ * Example: budget = 5,700 s → normalization triggers only if total < 5,415 s or > 5,985 s.
+ */
+export const BUDGET_TOLERANCE = 0.05;
+
+// ---------------------------------------------------------------------------
+// Normalization Utilities (refactor-slg-01)
+// ---------------------------------------------------------------------------
+
+/**
+ * Format total seconds as H:MM:SS (or M:SS when under one hour).
+ * Used in the normalization and budget-warning console logs.
+ *
+ * Examples: 567 → "9:27"   5700 → "1:35:00"
+ */
+export function formatRuntime(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/**
+ * Apply the proportional normalization pass to shot durations (AC-1..AC-9).
+ *
+ * Modifies shots **in place**.  Returns the post-normalization derivedTotalDuration.
+ *
+ * Algorithm:
+ *   1. Guard: skip when deviation ≤ BUDGET_TOLERANCE (5%) — AC-7.
+ *   2. Identify fixed (P1) shots: durationNotes starts with "Derived from shot duration" — AC-5.
+ *   3. Compute scaleFactor = (budget - fixedDuration) / (total - fixedDuration).
+ *   4. Apply scaleFactor to scalable shots; clamp each to [MIN_DURATION_S, MAX_DURATION_S] — AC-8.
+ *   5. Recompute derivedTotalDuration from shots.reduce() — accurate downstream use.
+ *   6. Emit chalk.gray console block — AC-6.
+ *
+ * @param shots                Mutable shot array from the shot list.
+ * @param derivedTotalDuration Pre-normalization sum of all shot durations.
+ * @param totalBudgetSeconds   Target runtime in seconds.
+ * @returns                    Post-normalization sum of shot durations.
+ */
+export function applyNormalizationPass(
+  shots: Shot[],
+  derivedTotalDuration: number,
+  totalBudgetSeconds: number
+): number {
+  if (derivedTotalDuration === 0) return derivedTotalDuration;
+
+  const budget    = totalBudgetSeconds;
+  const deviation = Math.abs(derivedTotalDuration - budget) / budget;
+
+  // AC-7: within tolerance — skip
+  if (deviation <= BUDGET_TOLERANCE) return derivedTotalDuration;
+
+  // P1 shots carry explicit M:SS annotations from the shooting script — INVIOLABLE (AC-5).
+  const isFixed = (s: Shot): boolean =>
+    (s.durationNotes ?? '').startsWith('Derived from shot duration');
+
+  const fixedShots       = shots.filter(isFixed);
+  const scalableShots    = shots.filter(s => !isFixed(s));
+  const fixedDuration    = fixedShots.reduce((sum, s) => sum + s.duration, 0);
+  const scalableDuration = derivedTotalDuration - fixedDuration;
+  const scalableTarget   = budget - fixedDuration;
+
+  // Guard: nothing to scale, or fixed shots already consume the entire budget.
+  if (scalableShots.length === 0 || scalableDuration === 0 || scalableTarget <= 0) {
+    return derivedTotalDuration;
+  }
+
+  const scaleFactor = scalableTarget / scalableDuration;
+
+  for (const shot of scalableShots) {
+    const rawScaled = shot.duration * scaleFactor;
+    shot.duration = Math.round(
+      Math.max(MIN_DURATION_S, Math.min(MAX_DURATION_S, rawScaled))
+    );
+  }
+
+  // Recompute total for accurate downstream budget-warning evaluation (AC-9 / AC-10).
+  const newTotal = shots.reduce((sum, s) => sum + s.duration, 0);
+
+  // AC-6: emit chalk.gray block showing raw/adjusted totals and scale factor.
+  console.log(
+    chalk.gray(
+      `⏱  Shot durations normalized:\n` +
+      `     Raw total  : ${formatRuntime(Math.round(derivedTotalDuration))}\n` +
+      `     Adjusted to: ${formatRuntime(newTotal)}\n` +
+      `     Scale factor: ${scaleFactor.toFixed(4)}\n` +
+      `     Fixed shots : ${fixedShots.length} (shooting-script annotations preserved)\n` +
+      `     Scaled shots: ${scalableShots.length}`
+    )
+  );
+
+  return newTotal;
+}
+
+/**
+ * Apply the budget warning block after normalization (AC-9 / AC-10).
+ *
+ * Over-budget  (total > budget):      yellow console.warn + push 'duration-budget-exceeded'
+ *                                      to shotList.warnings.
+ * Under-budget (total < 80% budget):  yellow console.warn only — no shotList.warnings entry.
+ * On-budget    ([80%, 100%] of budget): no warning emitted.
+ *
+ * @param shotList             Mutable shot list — warnings may be appended.
+ * @param derivedTotalDuration Post-normalization total (seconds).
+ * @param config               Generator config; reads config.totalBudgetSeconds.
+ */
+export function applyBudgetWarning(
+  shotList: ShotList,
+  derivedTotalDuration: number,
+  config: GeneratorConfig
+): void {
+  if (config.totalBudgetSeconds === undefined) return;
+
+  const budget      = config.totalBudgetSeconds;
+  const total       = derivedTotalDuration;
+  const targetPages = Math.round(budget / 60);
+
+  if (total > budget) {
+    // AC-9: over-budget → warn + push to shotList.warnings.
+    const overage = Math.round(total - budget);
+    const message =
+      `Shot list duration (${formatRuntime(Math.round(total))}) exceeds target runtime ` +
+      `(${formatRuntime(Math.round(budget))} / ~${targetPages} pages) ` +
+      `by ${overage} s. ` +
+      `Some shots were clamped to MAX_DURATION_S (${MAX_DURATION_S} s) — ` +
+      `consider splitting long scenes or reducing --max-shot-length.`;
+    console.warn(chalk.yellow(`⚠️  ${message}`));
+    shotList.warnings.push({
+      type:       'duration-budget-exceeded',
+      message,
+      shotNumber: 0,
+      severity:   'warning',
+    });
+  } else if (total < budget * 0.80) {
+    // AC-10: under-budget → console.warn only (no shotList.warnings entry per spec DR-6).
+    const shortage = Math.round(budget - total);
+    const message =
+      `Shot list is significantly under target runtime: ` +
+      `${formatRuntime(Math.round(total))} vs ${formatRuntime(Math.round(budget))} ` +
+      `(~${targetPages} pages). Short by ${shortage} s. ` +
+      `Try --script-pages to override page count detection.`;
+    console.warn(chalk.yellow(`⚠️  ${message}`));
+  }
+  // On-budget ([80%, 100%]): no warning emitted whatsoever.
+}
 
 /**
  * Default generator implementation
@@ -84,8 +242,7 @@ export class ShotListGenerator implements Generator {
 
     // Process each scene
     for (const scene of scenes) {
-      // TODO: Implement scene segmentation (bd-shot-list-3.2)
-      // For now, create one shot per scene as placeholder
+      // Scene segmentation is implemented in segmentScene() (bd-shot-list-3.2).
       const sceneShots = await this.segmentScene(scene, shotNumber, config);
       shots.push(...sceneShots);
       shotNumber += sceneShots.length;
