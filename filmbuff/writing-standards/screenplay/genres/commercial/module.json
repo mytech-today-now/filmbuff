@@ -40,7 +40,8 @@
   },
   "contents": {
     "rules": [
-      "commercial.md"
+      "commercial.md",
+      "commercials-deep-dive.md"
     ]
   }
 }

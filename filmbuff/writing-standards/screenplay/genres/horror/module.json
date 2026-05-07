@@ -40,7 +40,8 @@
   },
   "contents": {
     "rules": [
-      "horror.md"
+      "horror.md",
+      "horror-deep-dive.md"
     ]
   }
 }

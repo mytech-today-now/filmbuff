@@ -40,7 +40,8 @@
   },
   "contents": {
     "rules": [
-      "sci-fi.md"
+      "sci-fi.md",
+      "sci-fi-deep-dive.md"
     ]
   }
 }

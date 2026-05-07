@@ -40,7 +40,8 @@
   },
   "contents": {
     "rules": [
-      "romance.md"
+      "romance.md",
+      "romance-deep-dive.md"
     ]
   }
 }

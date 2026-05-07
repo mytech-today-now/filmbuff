@@ -1,235 +1,475 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WIZARD IN THE ENGINE ROOM - Screenplay</title>
-    <link rel="stylesheet" href="../shared/screenplay.css">
-    <link rel="stylesheet" href="../shared/navigation.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Document Viewer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.6;color:#1f2937;background:#f8fafc;min-height:100vh}
+.viewer-header{position:sticky;top:0;z-index:100;background:#0f172a;color:#f1f5f9;padding:.75rem 1rem;box-shadow:0 2px 8px rgba(0,0,0,.15);border-bottom:1px solid rgba(255,255,255,.1)}
+.header-row{display:flex;flex-wrap:wrap;align-items:center;gap:.75rem;max-width:1400px;margin:0 auto}
+.brand{font-weight:700;color:#60a5fa;text-decoration:none;font-size:1rem;white-space:nowrap}
+.brand:hover{color:#93c5fd}
+.dir-title{font-size:.85rem;color:#cbd5e1;flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;flex:2 1 400px}
+.controls select,.controls input{background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:6px;padding:.5rem .75rem;font-size:.9rem;min-width:0;font-family:inherit}
+.controls select{flex:2 1 220px;min-width:200px}
+.controls input{flex:1 1 140px;min-width:140px}
+.controls select:focus,.controls input:focus{outline:none;border-color:#60a5fa;box-shadow:0 0 0 2px rgba(96,165,250,.3)}
+.btn{background:#2563eb;color:#fff;border:none;border-radius:6px;padding:.5rem 1rem;font-size:.9rem;cursor:pointer;text-decoration:none;white-space:nowrap;display:inline-flex;align-items:center;gap:.35rem;font-family:inherit}
+.btn:hover{background:#1d4ed8}
+.btn[hidden]{display:none}
+main{max-width:1200px;margin:0 auto;padding:1.5rem 1rem 4rem}
+.status{padding:1rem;border-radius:8px;background:#fff;border:1px solid #e2e8f0;color:#475569;text-align:center}
+.status.error{background:#fef2f2;border-color:#fca5a5;color:#991b1b}
+.file-info{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem;background:#fff;border:1px solid #e2e8f0;border-radius:8px 8px 0 0;padding:.5rem 1rem;font-size:.85rem;color:#475569}
+.file-info .filename{font-weight:600;color:#0f172a}
+.file-info a{color:#2563eb;text-decoration:none}
+.file-info a:hover{text-decoration:underline}
+.doc-container{background:#fff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 8px 8px;padding:2rem;min-height:60vh;overflow-x:auto}
+.doc-container[hidden]{display:none}
+.doc-markdown h1,.doc-markdown h2,.doc-markdown h3,.doc-markdown h4,.doc-markdown h5,.doc-markdown h6{margin:1.5em 0 .5em;line-height:1.3;color:#0f172a}
+.doc-markdown h1{font-size:2rem;border-bottom:2px solid #e2e8f0;padding-bottom:.3em}
+.doc-markdown h2{font-size:1.5rem;border-bottom:1px solid #e2e8f0;padding-bottom:.3em}
+.doc-markdown h3{font-size:1.25rem}
+.doc-markdown p{margin:.75em 0}
+.doc-markdown a{color:#2563eb}
+.doc-markdown ul,.doc-markdown ol{padding-left:1.75em}
+.doc-markdown code{background:#f1f5f9;padding:.15em .4em;border-radius:4px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.9em}
+.doc-markdown pre{background:#0f172a;color:#f1f5f9;padding:1rem;border-radius:8px;overflow-x:auto}
+.doc-markdown pre code{background:transparent;color:inherit;padding:0}
+.doc-markdown blockquote{border-left:4px solid #93c5fd;margin:1em 0;padding:.5em 1em;color:#475569;background:#f1f5f9}
+.doc-markdown table{border-collapse:collapse;margin:1em 0;width:100%}
+.doc-markdown th,.doc-markdown td{border:1px solid #e2e8f0;padding:.5em .75em;text-align:left}
+.doc-markdown th{background:#f8fafc}
+.doc-markdown img{max-width:100%;height:auto}
+.doc-plain{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;white-space:pre-wrap;word-wrap:break-word;font-size:.9rem;color:#1f2937;margin:0}
+.doc-fountain{font-family:"Courier New",Courier,monospace;font-size:12pt;line-height:1.4;max-width:6.5in;margin:0 auto;color:#111}
+.doc-fountain .title-page{text-align:center;padding:2em 0 3em;border-bottom:1px solid #e2e8f0;margin-bottom:2em}
+.doc-fountain .title-page .title{font-weight:bold;font-size:1.1em;text-transform:uppercase}
+.doc-fountain .scene-heading{text-transform:uppercase;font-weight:bold;margin:1.5em 0 .5em}
+.doc-fountain .action{margin:.5em 0}
+.doc-fountain .character{text-transform:uppercase;margin:1em 0 0;padding-left:2in}
+.doc-fountain .parenthetical{padding-left:1.5in;font-style:italic}
+.doc-fountain .dialogue{padding-left:1in;padding-right:1.5in;margin-bottom:.25em}
+.doc-fountain .transition{text-transform:uppercase;text-align:right;font-weight:bold;margin:1em 0}
+.doc-fountain .centered{text-align:center}
+.doc-json{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;background:#0f172a;color:#e2e8f0;padding:1.25rem;border-radius:8px;overflow-x:auto;white-space:pre;margin:0}
+.doc-json .tok-key{color:#93c5fd}
+.doc-json .tok-str{color:#86efac}
+.doc-json .tok-num{color:#fbbf24}
+.doc-json .tok-bool{color:#f472b6}
+.doc-json .tok-null{color:#94a3b8}
+.doc-json .tok-record{display:block;border-top:1px solid #334155;padding-top:.5em;margin-top:.75em}
+.doc-json .tok-record:first-child{border-top:none;padding-top:0;margin-top:0}
+.doc-json .tok-rlabel{color:#64748b;display:block;margin-bottom:.25em}
+.doc-iframe{width:100%;height:75vh;border:1px solid #e2e8f0;border-radius:6px;background:#fff;display:block}
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #cbd5e1;border-top-color:#2563eb;border-radius:50%;animation:spin .8s linear infinite;vertical-align:-3px;margin-right:.35em}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (max-width:640px){
+.viewer-header{padding:.5rem}
+.dir-title{order:10;width:100%;font-size:.75rem}
+.controls{flex:1 1 100%}
+.controls select,.controls input,.btn{flex:1 1 100%;min-width:0}
+main{padding:1rem .5rem 3rem}
+.doc-container{padding:1rem}
+.doc-fountain{font-size:11pt}
+.doc-fountain .character,.doc-fountain .parenthetical,.doc-fountain .dialogue{padding-left:0;padding-right:0}
+}
+</style>
 </head>
 <body>
-    <nav id="screenplay-nav">
-        <a href="https://mytech.today" class="nav-brand">myTech.Today</a>
-        <div class="nav-links">
-            <a href="https://mytech.today/tools/screenplays/" class="nav-link">← All Screenplays</a>
-            <a href="wizard-in-the-engine-room-final.fountain" download class="nav-link download-link">Download .fountain</a>
-        </div>
-    </nav>
+<header class="viewer-header" role="banner">
+  <div class="header-row">
+    <a href="https://mytech.today" class="brand">myTech.Today</a>
+    <span class="dir-title" id="dir-title">Loading directory&hellip;</span>
+    <div class="controls" role="toolbar" aria-label="Document controls">
+      <input type="search" id="filter-input" placeholder="Filter files&hellip;" aria-label="Filter files">
+      <select id="file-select" aria-label="Select document">
+        <option value="">-- Select a document --</option>
+      </select>
+      <a id="download-link" class="btn" href="#" download hidden>Download</a>
+    </div>
+  </div>
+</header>
+<main>
+  <div id="status" class="status">Loading file list&hellip;</div>
+  <div id="file-info" class="file-info" hidden>
+    <span><span class="filename" id="info-filename"></span> <span id="info-size"></span></span>
+    <a id="info-raw" href="#" target="_blank" rel="noopener">View raw &rarr;</a>
+  </div>
+  <div id="doc-container" class="doc-container" hidden></div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script>
+(function(){
+'use strict';
 
-    <div id="page-container"></div>
-    <div id="page-indicator">Page <span id="current-page">1</span> of <span id="total-pages">0</span></div>
+/* ===== CONFIG ===== */
+var SUPPORTED = ['md','txt','fountain','json','jsonl','html','htm'];
+var params = new URLSearchParams(location.search);
+var DIR_URL = resolveDir(params.get('dir'));
+var SELF_NAME = decodeURIComponent((location.pathname.split('/').pop() || ''));
 
-    <script>
-        const fountainContent = `Title: WIZARD IN THE ENGINE ROOM
-Credit: Final Draft Screenplay (Draft 2)
-Author: SNL Writers Room
-Draft date: 2026-02-03
-Contact:
-    SNL Sketch
-    Runtime: 3.5 minutes
+function resolveDir(d){
+  if(!d) return location.pathname.replace(/[^/]*$/,'');
+  try {
+    var u = new URL(d, location.href);
+    if(!u.pathname.endsWith('/')) u.pathname += '/';
+    return (u.origin === location.origin) ? u.pathname : u.href;
+  } catch(e){ return d.endsWith('/') ? d : d + '/'; }
+}
 
-===
+/* ===== DOM ===== */
+var $status=byId('status'),$dirTitle=byId('dir-title'),$select=byId('file-select'),
+    $filter=byId('filter-input'),$download=byId('download-link'),$info=byId('file-info'),
+    $infoName=byId('info-filename'),$infoSize=byId('info-size'),$infoRaw=byId('info-raw'),
+    $doc=byId('doc-container');
+function byId(id){return document.getElementById(id);}
 
-FADE IN:
+$dirTitle.textContent = DIR_URL;
+document.title = 'Viewer - ' + DIR_URL;
 
-INT. USS ENTERPRISE - ENGINE ROOM - DAY
+var allFiles = [];
 
-The engine room looks like a typical Star Trek set, but with mystical additions: floating candles, a cauldron bubbling in the corner, and constellation charts mixed with star maps. WIZARD CLIF HIGH (mid-70s, magnificent long white beard, slightly stooped but spry, Starfleet robes with wizard hat, carrying an ornate staff) stands at the center, waving his staff dramatically.
+/* ===== DIRECTORY LISTING ===== */
+async function loadFileList(){
+  try {
+    setStatus('<span class="spinner"></span>Loading file list&hellip;');
+    var res = await fetch(DIR_URL, {credentials:'same-origin'});
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var html = await res.text();
+    var files = parseDirectoryListing(html);
+    allFiles = files.filter(function(f){
+      var ext = extOf(f).toLowerCase();
+      return SUPPORTED.indexOf(ext) !== -1 && f !== SELF_NAME;
+    });
+    if(!allFiles.length){ setStatus('No supported files found in this directory.','error'); return; }
+    populateSelect(allFiles);
+    setStatus('Found ' + allFiles.length + ' document(s). Select one to view.');
+    var pre = params.get('file');
+    if(pre && allFiles.indexOf(pre) !== -1){ $select.value = pre; loadFile(pre); }
+  } catch(err){
+    setStatus('Could not load file list from <code>' + escapeHtml(DIR_URL) + '</code>: ' + escapeHtml(err.message),'error');
+  }
+}
 
-CAPTAIN (V.O.)
-(over intercom)
-Clif, we need warp 9 to Rigel VII. Make it so.
+function parseDirectoryListing(html){
+  var doc = new DOMParser().parseFromString(html,'text/html');
+  var anchors = doc.querySelectorAll('a[href]');
+  var names = new Set();
+  for(var i=0;i<anchors.length;i++){
+    var href = anchors[i].getAttribute('href');
+    if(!href) continue;
+    if(href.charAt(0)==='?' || href.charAt(0)==='#' || href.charAt(0)==='/') continue;
+    if(href.indexOf('://') !== -1) continue;
+    if(href === '../' || href === './' || href.indexOf('../') === 0) continue;
+    if(href.charAt(href.length-1) === '/') continue;
+    var name = decodeURIComponent(href.split('?')[0].split('#')[0]);
+    if(name && name.indexOf('/') === -1) names.add(name);
+  }
+  return Array.from(names).sort(function(a,b){ return a.toLowerCase().localeCompare(b.toLowerCase()); });
+}
 
-Clif pauses, sighs deeply.
+function populateSelect(files){
+  var current = $select.value;
+  $select.innerHTML = '<option value="">-- Select a document --</option>';
+  for(var i=0;i<files.length;i++){
+    var opt = document.createElement('option');
+    opt.value = files[i]; opt.textContent = files[i];
+    $select.appendChild(opt);
+  }
+  if(current && files.indexOf(current) !== -1) $select.value = current;
+}
 
-CLIF
-(muttering, rolling his eyes)
-"Make it so." Like I'm some kind of vending machine. You'd think after 200 years they'd figure out warp drive on their own, but nooo... physics says it's impossible, so they need wizards.
-(raises staff, speaks clearly)
-Velocitas Maxima Stellarum!
+function applyFilter(){
+  var q = $filter.value.trim().toLowerCase();
+  var filtered = q ? allFiles.filter(function(f){ return f.toLowerCase().indexOf(q) !== -1; }) : allFiles;
+  populateSelect(filtered);
+}
 
-The ship LURCHES forward. Magical sparkles swirl around the warp core.
+/* ===== FILE LOADING ===== */
+async function loadFile(name){
+  var url = DIR_URL + encodeURIComponent(name);
+  setStatus('<span class="spinner"></span>Loading ' + escapeHtml(name) + '&hellip;');
+  $doc.hidden = true; $info.hidden = true;
+  try {
+    var ext = extOf(name).toLowerCase();
+    if(ext === 'html' || ext === 'htm'){
+      showFileInfo(name, url, '');
+      renderIframe(url);
+      hideStatus(); updateHistory(name); return;
+    }
+    var res = await fetch(url);
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    var text = await res.text();
+    showFileInfo(name, url, formatBytes(text.length));
+    renderByExt(ext, text);
+    hideStatus(); updateHistory(name);
+    window.scrollTo({top:0, behavior:'smooth'});
+  } catch(err){
+    setStatus('Failed to load file: ' + escapeHtml(err.message),'error');
+  }
+}
 
-HEIDI (mid-20s, young and attractive, fresh-faced, wearing Starfleet engineering uniform with a wand holster on her belt) enters, carrying a PADD and looking concerned.
+function renderByExt(ext, text){
+  $doc.className = 'doc-container';
+  $doc.innerHTML = '';
+  switch(ext){
+    case 'md':       renderMarkdown(text); break;
+    case 'fountain': renderFountain(text); break;
+    case 'json':     renderJson(text); break;
+    case 'jsonl':    renderJsonl(text); break;
+    case 'txt':
+    default:         renderText(text);
+  }
+  $doc.hidden = false;
+}
 
-HEIDI
-Clif, the transporter's acting up again. Someone tried to beam down and ended up with their molecules scattered across three decks. One guy's head is in the mess hall asking for coffee.
+/* ===== RENDERERS ===== */
+function renderMarkdown(text){
+  if(typeof marked === 'undefined'){ renderText(text); return; }
+  marked.setOptions({gfm:true, breaks:false});
+  $doc.classList.add('doc-markdown');
+  $doc.innerHTML = marked.parse(text);
+  var anchors = $doc.querySelectorAll('a[href^="http"]');
+  for(var i=0;i<anchors.length;i++){
+    anchors[i].target = '_blank';
+    anchors[i].rel = 'noopener noreferrer';
+  }
+}
 
-CLIF
-Did you try Appareo Correctus?
+function renderText(text){
+  var pre = document.createElement('pre');
+  pre.className = 'doc-plain';
+  pre.textContent = text;
+  $doc.appendChild(pre);
+}
 
-HEIDI
-I tried Appareo, but I forgot the Correctus part.
+function renderIframe(url){
+  var iframe = document.createElement('iframe');
+  iframe.className = 'doc-iframe';
+  iframe.src = url;
+  iframe.setAttribute('sandbox','allow-scripts allow-popups');
+  iframe.setAttribute('title','HTML preview');
+  iframe.setAttribute('loading','lazy');
+  $doc.className = 'doc-container';
+  $doc.innerHTML = '';
+  $doc.appendChild(iframe);
+  $doc.hidden = false;
+}
 
-CLIF
-(chuckling, moving closer)
-That's why you're still in training, love.
-(he touches her hand)
-Here, let me show you again...
+function renderJson(text){
+  var pre = document.createElement('pre');
+  pre.className = 'doc-json';
+  try {
+    var obj = JSON.parse(text);
+    pre.innerHTML = highlightJson(JSON.stringify(obj, null, 2));
+  } catch(e){
+    pre.textContent = text;
+  }
+  $doc.appendChild(pre);
+}
 
-They stand close together, his hand over hers on her wand. Romantic tension.
+function renderJsonl(text){
+  var pre = document.createElement('pre');
+  pre.className = 'doc-json';
+  var lines = text.split(/\r?\n/);
+  var recordIdx = 0;
+  var out = '';
+  for(var i=0;i<lines.length;i++){
+    var line = lines[i].trim();
+    if(!line) continue;
+    recordIdx++;
+    var body;
+    try {
+      body = highlightJson(JSON.stringify(JSON.parse(line), null, 2));
+    } catch(e){
+      body = escapeHtml(line);
+    }
+    out += '<span class="tok-record"><span class="tok-rlabel">// Record ' + recordIdx + '</span>' + body + '</span>';
+  }
+  pre.innerHTML = out || escapeHtml(text);
+  $doc.appendChild(pre);
+}
 
-HEIDI
-You know we're not supposed to—
+/* Char-by-char JSON highlighter that is HTML-escape-safe. */
+function highlightJson(str){
+  var out = '';
+  var i = 0, len = str.length;
+  while(i < len){
+    var ch = str.charAt(i);
+    if(ch === '"'){
+      var j = i + 1;
+      while(j < len){
+        if(str.charAt(j) === '\\'){ j += 2; continue; }
+        if(str.charAt(j) === '"') break;
+        j++;
+      }
+      var tok = str.substring(i, j+1);
+      var k = j + 1;
+      while(k < len && /\s/.test(str.charAt(k))) k++;
+      var cls = (str.charAt(k) === ':') ? 'tok-key' : 'tok-str';
+      out += '<span class="' + cls + '">' + escapeHtml(tok) + '</span>';
+      i = j + 1;
+    } else if(ch === '-' || (ch >= '0' && ch <= '9')){
+      var m = str.substring(i).match(/^-?[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?/);
+      if(m){ out += '<span class="tok-num">' + m[0] + '</span>'; i += m[0].length; }
+      else { out += escapeHtml(ch); i++; }
+    } else if(str.substr(i,4) === 'true'){ out += '<span class="tok-bool">true</span>'; i += 4; }
+    else if(str.substr(i,5) === 'false'){ out += '<span class="tok-bool">false</span>'; i += 5; }
+    else if(str.substr(i,4) === 'null'){ out += '<span class="tok-null">null</span>'; i += 4; }
+    else { out += escapeHtml(ch); i++; }
+  }
+  return out;
+}
 
-CLIF
-I know. But some spells are worth the risk.
+/* ===== FOUNTAIN RENDERER =====
+ * Minimal Fountain -> HTML. Supports: title page (key: value),
+ * scene headings, action, character, parenthetical, dialogue,
+ * transitions (> X or X TO:), centered (> X <), section dividers (===).
+ */
+function renderFountain(text){
+  $doc.classList.add('doc-fountain');
+  $doc.innerHTML = fountainToHtml(text);
+}
 
-They're about to kiss when the door WHOOSHES open. CAPTAIN (50s, stern, classic Starfleet) enters with FIRST OFFICER SPOCK-TYPE (pointy ears, raised eyebrow).
+function fountainToHtml(text){
+  var lines = text.replace(/\r\n?/g,'\n').split('\n');
+  var i = 0, out = [];
 
-CAPTAIN
-(clearing throat loudly)
-Am I... interrupting something?
+  /* Title page */
+  var tp = {}, hadTitle = false;
+  while(i < lines.length){
+    var line = lines[i];
+    var m = line.match(/^([A-Za-z][A-Za-z \-]*?)\s*:\s*(.*)$/);
+    if(!m) break;
+    hadTitle = true;
+    var key = m[1].trim().toLowerCase();
+    var val = m[2];
+    i++;
+    while(i < lines.length && /^\s+\S/.test(lines[i])){ val += '\n' + lines[i].trim(); i++; }
+    tp[key] = val.trim();
+    if(i < lines.length && lines[i].trim() === ''){ i++; break; }
+  }
+  if(hadTitle){
+    out.push('<div class="title-page">');
+    if(tp.title)  out.push('<div class="title">' + escapeHtml(tp.title) + '</div>');
+    if(tp.credit) out.push('<div>' + escapeHtml(tp.credit) + '</div>');
+    if(tp.author) out.push('<div>by<br>' + escapeHtml(tp.author) + '</div>');
+    if(tp['draft date']) out.push('<div>' + escapeHtml(tp['draft date']) + '</div>');
+    if(tp.contact) out.push('<div style="margin-top:1em;white-space:pre-line">' + escapeHtml(tp.contact) + '</div>');
+    out.push('</div>');
+    while(i < lines.length && (lines[i].trim() === '' || /^={3,}\s*$/.test(lines[i]))) i++;
+  }
 
-Clif and Heidi jump apart.
+  /* Body */
+  var prevBlank = true;
+  while(i < lines.length){
+    var raw = lines[i];
+    var t = raw.trim();
+    var m2;
+    if(t === ''){ prevBlank = true; i++; continue; }
+    if(/^={3,}\s*$/.test(t)){ i++; continue; }
+    if((m2 = t.match(/^>\s*(.+?)\s*<$/))){
+      out.push('<div class="action centered">' + escapeHtml(m2[1]) + '</div>');
+      i++; prevBlank = false; continue;
+    }
+    if((m2 = t.match(/^>\s*(.+)$/))){
+      out.push('<div class="transition">' + escapeHtml(m2[1]) + '</div>');
+      i++; prevBlank = false; continue;
+    }
+    if(prevBlank && /^[A-Z0-9 .'\-]+TO:$/.test(t) && (i+1 >= lines.length || lines[i+1].trim() === '')){
+      out.push('<div class="transition">' + escapeHtml(t) + '</div>');
+      i++; prevBlank = false; continue;
+    }
+    if(prevBlank && /^(INT|EXT|EST|INT\.\/EXT|I\/E)[\. ]/i.test(t)){
+      out.push('<div class="scene-heading">' + escapeHtml(t) + '</div>');
+      i++; prevBlank = false; continue;
+    }
+    if(prevBlank && t.charAt(0) === '.' && t.charAt(1) !== '.'){
+      out.push('<div class="scene-heading">' + escapeHtml(t.substring(1)) + '</div>');
+      i++; prevBlank = false; continue;
+    }
+    if(prevBlank && isCharacterLine(t) && i+1 < lines.length && lines[i+1].trim() !== ''){
+      out.push('<div class="character">' + escapeHtml(t) + '</div>');
+      i++;
+      while(i < lines.length && lines[i].trim() !== ''){
+        var dl = lines[i].trim();
+        if(/^\(.+\)$/.test(dl)){
+          out.push('<div class="parenthetical">' + escapeHtml(dl) + '</div>');
+        } else {
+          out.push('<div class="dialogue">' + escapeHtml(dl) + '</div>');
+        }
+        i++;
+      }
+      prevBlank = false;
+      continue;
+    }
+    out.push('<div class="action">' + escapeHtml(t) + '</div>');
+    i++; prevBlank = false;
+  }
+  return out.join('\n');
+}
 
-CLIF
-Just teaching her the finer points of molecular reconstitution, Captain. Very... hands-on training.
+function isCharacterLine(s){
+  if(!s || s.length > 60) return false;
+  var core = s.replace(/\(.*?\)/g,'').trim();
+  if(!core) return false;
+  if(/[a-z]/.test(core)) return false;
+  return /[A-Z]/.test(core);
+}
 
-CAPTAIN
-Right. And I'm teaching my yeoman the finer points of...
-(pause)
-Never mind. Clif, Heidi, we need to talk. Conference room. Now.
+/* ===== UTILS ===== */
+function extOf(n){ var m = n.match(/\.([^.]+)$/); return m ? m[1] : ''; }
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+  });
+}
+function formatBytes(n){
+  if(n < 1024) return n + ' B';
+  if(n < 1048576) return (n/1024).toFixed(1) + ' KB';
+  return (n/1048576).toFixed(1) + ' MB';
+}
+function setStatus(html, kind){
+  $status.className = 'status' + (kind ? ' ' + kind : '');
+  $status.innerHTML = html;
+  $status.hidden = false;
+}
+function hideStatus(){ $status.hidden = true; }
+function showFileInfo(name, url, size){
+  $infoName.textContent = name;
+  $infoSize.textContent = size ? '\u00b7 ' + size : '';
+  $infoRaw.href = url;
+  $download.href = url;
+  $download.setAttribute('download', name);
+  $download.hidden = false;
+  $info.hidden = false;
+}
+function updateHistory(name){
+  try {
+    var u = new URL(location.href);
+    u.searchParams.set('file', name);
+    history.replaceState(null, '', u.toString());
+  } catch(e){}
+}
 
-INT. USS ENTERPRISE - CONFERENCE ROOM - CONTINUOUS
+/* ===== EVENTS ===== */
+$select.addEventListener('change', function(e){
+  if(e.target.value) loadFile(e.target.value);
+});
+$filter.addEventListener('input', applyFilter);
+window.addEventListener('popstate', function(){
+  var p = new URLSearchParams(location.search).get('file');
+  if(p && allFiles.indexOf(p) !== -1){ $select.value = p; loadFile(p); }
+});
 
-The Captain sits at the head of the table. Clif and Heidi sit across from each other, looking guilty. The First Officer stands.
-
-CAPTAIN
-Starfleet regulations are clear. Fraternization between senior officers and subordinates is prohibited.
-
-CLIF
-With all due respect, Captain, I'm not technically an officer. I'm a... consultant.
-
-FIRST OFFICER
-A consultant who controls every critical system on this vessel. The shields, the warp drive, the transporters, the structural integrity field...
-
-CAPTAIN
-Exactly. Which is why this relationship is a problem. And let's be honest here—
-(gestures at Clif)
-Clif, you're old enough to be my father.
-(gestures at Heidi)
-And Heidi, you could be my daughter. This is... inappropriate.
-
-CLIF
-(standing, angry)
-Inappropriate?! I'm the best damn wizard in the fleet! I've been keeping this ship together for 47 years! You want to talk about what's inappropriate? Starfleet pretending they have "advanced technology" when they know damn well the laws of physics make warp speed impossible! Every ship in this fleet runs on magic, and you know it!
-
-HEIDI
-(standing)
-This is ridiculous! We're both adults!
-
-FIRST OFFICER
-(calmly, raising one eyebrow)
-Captain, with respect, Lieutenant Commander Vaxor and Ensigns T'Pral and Martinez live together as a thruple on Deck 12. And there's the entire polygamist compound on Deck 27.
-
-CAPTAIN
-(waving dismissively)
-That's different. They filed the proper paperwork.
-
-FIRST OFFICER
-(pause)
-The needs of the many outweigh the needs of the few. Or the two.
-(another pause)
-Can Starfleet even afford to let you retire, Wizard High? Faster-than-light travel is scientifically impossible. We've known this for 200 years. Without wizards, we don't have warp drive. We don't have transporters. We don't have force fields. Without you, this ship is just an expensive metal tube floating in space.
-
-CAPTAIN
-(uncomfortable)
-Look, we all know the truth. Starfleet will never crack warp technology. It's impossible. We need wizards. But that doesn't mean we can ignore regulations.
-(decisive)
-Fine. Clif, you can stay, but the relationship ends. Heidi, you can transfer to another ship, or you can resign.
-
-HEIDI
-(looking at Clif, then back at Captain)
-I... I choose to resign.
-
-CAPTAIN
-Heidi, think about your career—
-
-HEIDI
-I have. And I choose him.
-
-CLIF
-(smiling)
-Well, if she's resigning... then so am I.
-
-CAPTAIN
-(panicking)
-Wait, what? No! Clif, you can't—
-
-CLIF
-(pulling out a small pouch)
-Oh, but I can, Captain. I've got 47 years of unused vacation time, and I'm taking it all. Right now.
-
-Clif throws FLU POWDER on the ground. Green flames erupt.
-
-HEIDI
-(grabbing Clif's hand)
-Where are we going?
-
-CLIF
-Risa. I hear the beaches are lovely this time of year.
-
-CAPTAIN
-WAIT! WHO'S GOING TO RUN THE SHIP?!
-
-CLIF
-(grinning, winking at camera)
-Not my problem anymore!
-(to Heidi)
-Ready, love?
-
-HEIDI
-Ready!
-
-They step into the flames together and DISAPPEAR in a swirl of green smoke and sparkles.
-
-FIRST OFFICER
-Captain... the warp field is collapsing.
-
-The ship SHUDDERS violently. Red alert klaxons blare.
-
-CAPTAIN
-(grabbing the table)
-Does ANYONE on this ship know magic?! Anyone take a weekend course? Read a book?!
-
-FIRST OFFICER
-I am a Vulcan, Captain. We do not believe in magic. We believe in science. Which is precisely why we have no warp drive.
-
-ENSIGN (O.S.)
-(over intercom)
-Captain! We're dropping out of warp! And the shields are down! And there's an asteroid field ahead!
-
-CAPTAIN
-(looking at camera, deadpan)
-I should have just let them date.
-
-Beat. One second pause.
-
-The ship LURCHES. Everyone falls. Sparks fly.
-
-FADE TO BLACK.
-
-> END CARD <
-
-White text on black background:
-
-"Starfleet Wizarding Academy is now accepting applications.
-Starting salary: 250,000 credits.
-Relationship status: Negotiable."
-
-FADE OUT.
-
-THE END`;
-
-    </script>
-    <script src="../shared/screenplay.js"></script>
-    <script>
-        // Initialize screenplay when page loads
-        window.addEventListener('load', () => {
-            initScreenplay(fountainContent);
-        });
-    </script>
+/* ===== INIT ===== */
+loadFileList();
+})();
+</script>
 </body>
 </html>
-
