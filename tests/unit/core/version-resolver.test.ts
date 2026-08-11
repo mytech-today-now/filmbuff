@@ -97,6 +97,14 @@ describe('VersionResolver', () => {
       expect(result).not.toBeNull();
       expect(result?.version).toBe('2.0.0');
     });
+
+    it('should resolve prerelease versions when the range allows them', () => {
+      fs.writeFileSync(path.join(testDir, 'VERSION'), '1.2.3-alpha.1\n');
+
+      const result = resolver.resolveRange(testDir, '^1.0.0');
+      expect(result).not.toBeNull();
+      expect(result?.version).toBe('1.2.3-alpha.1');
+    });
   });
 
   describe('resolve (automatic strategy)', () => {
@@ -163,6 +171,20 @@ describe('VersionResolver', () => {
       
       const result = resolver.resolveLatest(testDir);
       expect(result?.version).toBe('1.0.0-alpha.1');
+    });
+
+    it('should preserve build metadata in the resolved version', () => {
+      fs.writeFileSync(path.join(testDir, 'VERSION'), '1.0.0+build.9\n');
+
+      const result = resolver.resolveLatest(testDir);
+      expect(result?.version).toBe('1.0.0+build.9');
+    });
+
+    it('should return null for invalid range syntax', () => {
+      fs.writeFileSync(path.join(testDir, 'VERSION'), '1.0.0\n');
+
+      const result = resolver.resolveRange(testDir, 'not-a-range');
+      expect(result).toBeNull();
     });
   });
 });

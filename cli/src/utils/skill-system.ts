@@ -6,7 +6,8 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as yaml from 'js-yaml';
+import * as YAML from 'yaml';
+import { isValidSemanticVersion } from './module-system';
 
 export interface SkillMetadata {
   id: string;
@@ -71,7 +72,7 @@ export function parseSkill(filePath: string): Skill {
   const body = frontmatterMatch[2];
   
   // Parse YAML frontmatter
-  const metadata = yaml.load(frontmatter) as SkillMetadata;
+  const metadata = YAML.parse(frontmatter) as SkillMetadata;
   
   return {
     metadata,
@@ -99,7 +100,7 @@ export function validateSkillMetadata(metadata: SkillMetadata): { valid: boolean
   }
   
   // Validate version format (semantic versioning)
-  if (metadata.version && !/^\d+\.\d+\.\d+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?$/.test(metadata.version)) {
+  if (metadata.version && !isValidSemanticVersion(metadata.version)) {
     errors.push(`Invalid version format: ${metadata.version}. Must follow semantic versioning (MAJOR.MINOR.PATCH)`);
   }
   

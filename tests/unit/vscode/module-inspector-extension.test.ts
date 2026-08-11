@@ -87,7 +87,7 @@ describe('vscode module inspector extension', () => {
     );
     expect(JSON.stringify(manifest.contributes.menus)).toContain('resourceExtname =~');
     expect(JSON.stringify(manifest.contributes.menus)).toContain('editorLangId =~');
-    expect(manifest.contributes.keybindings).toHaveLength(2);
+    expect(manifest.contributes.keybindings).toHaveLength(3);
     expect(markdown).toContain('Optimization suggestions for coding-standards/demo-module');
     expect(markdown).toContain('```typescript');
   });

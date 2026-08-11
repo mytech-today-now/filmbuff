@@ -101,6 +101,33 @@ describe('skill-system legacy compatibility', () => {
 
       expect(() => parseSkill('/test/invalid.md')).toThrow(/Missing frontmatter/);
     });
+
+    it('preserves structured YAML values in frontmatter', () => {
+      mockReadFileSync.mockReturnValue(`---
+id: structured-skill
+name: Structured Skill
+version: 1.2.3+build.5
+category: analysis
+tags:
+  - alpha
+  - beta
+dependencies:
+  - dep-one
+  - dep-two
+tokenBudget: 2500
+priority: high
+---
+
+# Structured Skill
+`);
+
+      const result = parseSkill('/test/structured.md');
+
+      expect(result.metadata.id).toBe('structured-skill');
+      expect(result.metadata.tags).toEqual(['alpha', 'beta']);
+      expect(result.metadata.dependencies).toEqual(['dep-one', 'dep-two']);
+      expect(result.metadata.version).toBe('1.2.3+build.5');
+    });
   });
 
   describe('validateSkillMetadata', () => {
@@ -159,6 +186,21 @@ describe('skill-system legacy compatibility', () => {
 
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('Token budget too low: minimum 500 tokens');
+    });
+
+    it('rejects invalid semantic versions', () => {
+      const result = validateSkillMetadata({
+        id: 'test-skill',
+        name: 'Test Skill',
+        version: 'version-one',
+        category: 'retrieval',
+        tokenBudget: 1000
+      });
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain(
+        'Invalid version format: version-one. Must follow semantic versioning (MAJOR.MINOR.PATCH)'
+      );
     });
   });
 
@@ -401,6 +443,65 @@ describe('skill-system legacy compatibility', () => {
 
     it('getSkillCacheStats reports cache size and keys', () => {
       expect(getSkillCacheStats()).toEqual({ size: 0, skills: [] });
+    });
+  });
+
+  describe('edge cases', () => {
+    it('keeps dependency content depth-first when injecting skill content', () => {
+      const result = getSkillContentForInjection({
+        skill: {
+          metadata: {
+            id: 'main-skill',
+            name: 'Main Skill',
+            version: '1.0.0',
+            category: 'utility',
+            tokenBudget: 500
+          },
+          content: 'main body',
+          filePath: '/test/main.md'
+        },
+        dependencies: [
+          {
+            skill: {
+              metadata: {
+                id: 'dep-skill',
+                name: 'Dependency Skill',
+                version: '1.0.0',
+                category: 'utility',
+                tokenBudget: 500
+              },
+              content: 'dep body',
+              filePath: '/test/dep.md'
+            },
+            dependencies: [],
+            totalTokens: 500
+          }
+        ],
+        totalTokens: 1000
+      });
+
+      expect(result.indexOf('dep body')).toBeLessThan(result.indexOf('main body'));
+    });
+
+    it('handles empty skill content without throwing', () => {
+      const result = getSkillContentForInjection({
+        skill: {
+          metadata: {
+            id: 'empty-skill',
+            name: 'Empty Skill',
+            version: '1.0.0',
+            category: 'utility',
+            tokenBudget: 500
+          },
+          content: '',
+          filePath: '/test/empty.md'
+        },
+        dependencies: [],
+        totalTokens: 500
+      });
+
+      expect(result).toContain('# Skill: Empty Skill (empty-skill)');
+      expect(result).toContain('Token Budget: 500');
     });
   });
 });

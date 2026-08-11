@@ -7,7 +7,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import * as yaml from 'js-yaml';
+import * as YAML from 'yaml';
 
 interface SpecFrontmatter {
   id?: string;
@@ -44,7 +44,7 @@ export function extractFrontmatter(filePath: string): SpecFrontmatter | null {
   }
   
   try {
-    return yaml.load(match[1]) as SpecFrontmatter;
+    return YAML.parse(match[1]) as SpecFrontmatter;
   } catch (error) {
     console.error(`Failed to parse frontmatter in ${filePath}:`, error);
     return null;

@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as semver from 'semver';
 
 /**
  * Module metadata interface
@@ -172,9 +173,12 @@ export function validateModuleMetadata(metadata: any): ValidationResult {
  * Examples: 1.0.0, 1.0.0-alpha, 1.0.0-beta.1, 1.0.0+20130313144700, 1.0.0-beta+exp.sha.5114f85
  */
 export function isValidSemanticVersion(version: string): boolean {
-  // Full semver pattern with optional pre-release and build metadata
-  const semverPattern = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$/;
-  return semverPattern.test(version);
+  const normalized = version.trim();
+  if (/^v\d/.test(normalized)) {
+    return false;
+  }
+
+  return semver.valid(normalized) !== null;
 }
 
 /**
@@ -189,21 +193,17 @@ export interface SemanticVersion {
 }
 
 export function parseSemanticVersion(version: string): SemanticVersion | null {
-  if (!isValidSemanticVersion(version)) {
-    return null;
-  }
-
-  const match = version.match(/^(\d+)\.(\d+)\.(\d+)(?:-([0-9a-zA-Z-.]+))?(?:\+([0-9a-zA-Z-.]+))?$/);
-  if (!match) {
+  const parsed = semver.parse(version);
+  if (!parsed) {
     return null;
   }
 
   return {
-    major: parseInt(match[1], 10),
-    minor: parseInt(match[2], 10),
-    patch: parseInt(match[3], 10),
-    prerelease: match[4],
-    build: match[5]
+    major: parsed.major,
+    minor: parsed.minor,
+    patch: parsed.patch,
+    prerelease: parsed.prerelease.length > 0 ? parsed.prerelease.join('.') : undefined,
+    build: parsed.build.length > 0 ? parsed.build.join('.') : undefined
   };
 }
 
@@ -212,34 +212,11 @@ export function parseSemanticVersion(version: string): SemanticVersion | null {
  * Returns: -1 if v1 < v2, 0 if v1 === v2, 1 if v1 > v2
  */
 export function compareSemanticVersions(v1: string, v2: string): number {
-  const parsed1 = parseSemanticVersion(v1);
-  const parsed2 = parseSemanticVersion(v2);
-
-  if (!parsed1 || !parsed2) {
+  if (!isValidSemanticVersion(v1) || !isValidSemanticVersion(v2)) {
     throw new Error('Invalid semantic version format');
   }
 
-  // Compare major, minor, patch
-  if (parsed1.major !== parsed2.major) {
-    return parsed1.major > parsed2.major ? 1 : -1;
-  }
-  if (parsed1.minor !== parsed2.minor) {
-    return parsed1.minor > parsed2.minor ? 1 : -1;
-  }
-  if (parsed1.patch !== parsed2.patch) {
-    return parsed1.patch > parsed2.patch ? 1 : -1;
-  }
-
-  // Handle pre-release versions
-  // Version without pre-release > version with pre-release
-  if (!parsed1.prerelease && parsed2.prerelease) return 1;
-  if (parsed1.prerelease && !parsed2.prerelease) return -1;
-  if (parsed1.prerelease && parsed2.prerelease) {
-    return parsed1.prerelease.localeCompare(parsed2.prerelease);
-  }
-
-  // Build metadata is ignored in version precedence
-  return 0;
+  return semver.compare(v1, v2);
 }
 
 /**
@@ -247,55 +224,25 @@ export function compareSemanticVersions(v1: string, v2: string): number {
  * Supports: ^1.0.0 (compatible), ~1.0.0 (patch), >=1.0.0, >1.0.0, <=1.0.0, <1.0.0, 1.0.0 (exact)
  */
 export function satisfiesVersionRange(version: string, range: string): boolean {
-  const parsed = parseSemanticVersion(version);
-  if (!parsed) return false;
+  if (!isValidSemanticVersion(version)) return false;
+
+  const normalizedRange = range.trim();
+  if (!normalizedRange) return false;
 
   // Exact match
-  if (!range.match(/^[~^<>=]/)) {
-    return version === range;
-  }
-
-  // Caret (^) - compatible with version
-  if (range.startsWith('^')) {
-    const rangeVersion = range.slice(1);
-    const rangeParsed = parseSemanticVersion(rangeVersion);
-    if (!rangeParsed) return false;
-
-    if (parsed.major !== rangeParsed.major) return false;
-    if (parsed.major === 0) {
-      // For 0.x.y, minor version must match
-      if (parsed.minor !== rangeParsed.minor) return false;
-    }
-    return compareSemanticVersions(version, rangeVersion) >= 0;
-  }
-
-  // Tilde (~) - patch updates
-  if (range.startsWith('~')) {
-    const rangeVersion = range.slice(1);
-    const rangeParsed = parseSemanticVersion(rangeVersion);
-    if (!rangeParsed) return false;
-
-    if (parsed.major !== rangeParsed.major || parsed.minor !== rangeParsed.minor) {
+  if (!normalizedRange.match(/^[~^<>=]/)) {
+    try {
+      return semver.eq(version, normalizedRange);
+    } catch {
       return false;
     }
-    return compareSemanticVersions(version, rangeVersion) >= 0;
   }
 
-  // Comparison operators
-  if (range.startsWith('>=')) {
-    return compareSemanticVersions(version, range.slice(2)) >= 0;
+  try {
+    return semver.satisfies(version, normalizedRange, { includePrerelease: true });
+  } catch {
+    return false;
   }
-  if (range.startsWith('>')) {
-    return compareSemanticVersions(version, range.slice(1)) > 0;
-  }
-  if (range.startsWith('<=')) {
-    return compareSemanticVersions(version, range.slice(2)) <= 0;
-  }
-  if (range.startsWith('<')) {
-    return compareSemanticVersions(version, range.slice(1)) < 0;
-  }
-
-  return false;
 }
 
 /**

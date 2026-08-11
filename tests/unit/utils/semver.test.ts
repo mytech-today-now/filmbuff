@@ -125,6 +125,20 @@ describe('Semantic Versioning', () => {
       expect(satisfiesVersionRange('0.9.0', '<1.0.0')).toBe(true);
       expect(satisfiesVersionRange('1.0.0', '<=1.0.0')).toBe(true);
     });
+
+    it('should treat prerelease ranges as valid when explicitly allowed', () => {
+      expect(satisfiesVersionRange('1.2.3-alpha.1', '^1.0.0')).toBe(true);
+    });
+
+    it('should ignore build metadata for exact matches', () => {
+      expect(satisfiesVersionRange('1.0.0+build.7', '1.0.0')).toBe(true);
+      expect(compareSemanticVersions('1.0.0+build.7', '1.0.0')).toBe(0);
+    });
+
+    it('should return false for invalid ranges instead of throwing', () => {
+      expect(satisfiesVersionRange('1.0.0', 'not-a-range')).toBe(false);
+      expect(satisfiesVersionRange('1.0.0', '')).toBe(false);
+    });
   });
 });
 
