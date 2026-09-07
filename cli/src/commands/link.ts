@@ -7,6 +7,14 @@ interface LinkOptions {
   version?: string;
 }
 
+function getLinkedModuleId(module: any): string | undefined {
+  if (typeof module === 'string') {
+    return module;
+  }
+
+  return module?.name ?? module?.id;
+}
+
 export async function linkCommand(moduleName: string, options: LinkOptions): Promise<void> {
   try {
     console.log(chalk.blue(`Linking module: ${moduleName}`));
@@ -29,22 +37,27 @@ export async function linkCommand(moduleName: string, options: LinkOptions): Pro
       process.exit(1);
     }
 
+    const canonicalModuleId = module.fullName;
+    const linkedModules = Array.isArray(config.modules) ? config.modules : [];
+
     // Check if already linked
-    const existingIndex = config.modules.findIndex((m: any) => m.name === moduleName);
+    const existingIndex = linkedModules.findIndex((m: any) => getLinkedModuleId(m) === canonicalModuleId);
     
     if (existingIndex >= 0) {
-      console.log(chalk.yellow(`Module already linked: ${moduleName}`));
+      console.log(chalk.yellow(`Module already linked: ${canonicalModuleId}`));
       console.log(chalk.gray('Use "filmbuff update" to update to latest version'));
       return;
     }
 
     // Add to config
-    config.modules.push({
+    linkedModules.push({
       name: module.fullName,
       version: options.version || module.metadata.version,
       type: module.metadata.type,
       description: module.metadata.description
     });
+
+    config.modules = linkedModules;
 
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 
