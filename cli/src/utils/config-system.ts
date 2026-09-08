@@ -9,6 +9,25 @@ import { normalizeAIProvider } from './ai-provider-config';
 
 const BUILTIN_PROMPT_NAMES = ['code-review', 'module-summary', 'optimization', 'refactoring'];
 
+/**
+ * Deep-clone plain config trees so each manager owns its own mutable state.
+ */
+function cloneConfigTree<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => cloneConfigTree(item)) as unknown as T;
+  }
+
+  if (value !== null && typeof value === 'object') {
+    const cloned: Record<string, unknown> = {};
+    for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+      cloned[key] = cloneConfigTree(nestedValue);
+    }
+    return cloned as T;
+  }
+
+  return value;
+}
+
 export interface PromptTemplateConfig {
   name: string;
   description: string;
@@ -216,7 +235,7 @@ export class ConfigManager {
 
   constructor(configPath: string = '.augment/augment.json') {
     this.configPath = configPath;
-    this.config = DEFAULT_CONFIG;
+    this.config = cloneConfigTree(DEFAULT_CONFIG);
   }
 
   /**
@@ -489,49 +508,75 @@ export class ConfigManager {
    * Merge two configurations (deep merge)
    */
   private mergeConfig(base: AugmentConfig, override: Partial<AugmentConfig>): AugmentConfig {
-    return {
-      version: override.version || base.version,
-      plugins: {
-        ...base.plugins,
+    const merged = cloneConfigTree(base);
+
+    merged.version = override.version || merged.version;
+
+    if (override.plugins !== undefined) {
+      merged.plugins = cloneConfigTree({
+        ...merged.plugins,
         ...override.plugins
-      },
-      inspection: {
-        ...base.inspection,
+      });
+    }
+
+    if (override.inspection !== undefined) {
+      merged.inspection = cloneConfigTree({
+        ...merged.inspection,
         ...override.inspection
-      },
-      modules: {
-        ...base.modules,
+      });
+    }
+
+    if (override.modules !== undefined) {
+      merged.modules = cloneConfigTree({
+        ...merged.modules,
         ...override.modules,
-        searchPaths: override.modules?.searchPaths || base.modules?.searchPaths
-      },
-      hooks: {
-        ...base.hooks,
+        searchPaths: override.modules.searchPaths ?? merged.modules?.searchPaths
+      });
+    }
+
+    if (override.hooks !== undefined) {
+      merged.hooks = cloneConfigTree({
+        ...merged.hooks,
         ...override.hooks
-      },
-      handlers: {
-        ...base.handlers,
+      });
+    }
+
+    if (override.handlers !== undefined) {
+      merged.handlers = cloneConfigTree({
+        ...merged.handlers,
         ...override.handlers
-      },
-      vscode: {
-        ...base.vscode,
+      });
+    }
+
+    if (override.vscode !== undefined) {
+      merged.vscode = cloneConfigTree({
+        ...merged.vscode,
         ...override.vscode
-      },
-      ai: {
-        ...base.ai,
+      });
+    }
+
+    if (override.ai !== undefined) {
+      merged.ai = cloneConfigTree({
+        ...merged.ai,
         ...override.ai,
-        promptTemplates: override.ai?.promptTemplates ?? base.ai?.promptTemplates,
+        promptTemplates: override.ai.promptTemplates ?? merged.ai?.promptTemplates,
         summaryCache: {
-          ...base.ai?.summaryCache,
-          ...override.ai?.summaryCache
+          ...merged.ai?.summaryCache,
+          ...override.ai.summaryCache
         }
-      },
-      aiPowered: {
-        ...base.aiPowered,
+      });
+    }
+
+    if (override.aiPowered !== undefined) {
+      merged.aiPowered = cloneConfigTree({
+        ...merged.aiPowered,
         ...override.aiPowered,
         // Prefer override plugins array if provided; fall back to base.
-        plugins: override.aiPowered?.plugins ?? base.aiPowered?.plugins,
-      }
-    };
+        plugins: override.aiPowered.plugins ?? merged.aiPowered?.plugins,
+      });
+    }
+
+    return merged;
   }
 
   /**

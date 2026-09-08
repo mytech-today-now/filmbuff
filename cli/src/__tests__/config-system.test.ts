@@ -8,7 +8,18 @@
  *
  * These tests verify the Phase 7 aiPowered schema is applied correctly.
  */
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 import { ConfigManager, DEFAULT_CONFIG } from '../utils/config-system';
+
+function makeTempDir(): string {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'filmbuff-config-system-'));
+}
+
+function removeTempDir(dir: string): void {
+  fs.rmSync(dir, { recursive: true, force: true });
+}
 
 describe('ConfigManager — Phase 7 aiPowered schema (bd-e8ad)', () => {
   // -------------------------------------------------------------------------
@@ -71,6 +82,66 @@ describe('ConfigManager — Phase 7 aiPowered schema (bd-e8ad)', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Isolation and persistence
+  // -------------------------------------------------------------------------
+
+  describe('instance isolation and persistence', () => {
+    let tmpDir: string;
+
+    beforeEach(() => {
+      tmpDir = makeTempDir();
+    });
+
+    afterEach(() => {
+      removeTempDir(tmpDir);
+    });
+
+    it('creates isolated config trees per instance', () => {
+      const managerA = new ConfigManager(path.join(tmpDir, 'a.json'));
+      const managerB = new ConfigManager(path.join(tmpDir, 'b.json'));
+
+      const configA = managerA.getConfig();
+      const configB = managerB.getConfig();
+
+      expect(configA).not.toBe(configB);
+      expect(configA.aiPowered).not.toBe(configB.aiPowered);
+      expect(configA.aiPowered?.debug).toBe(false);
+      expect(configB.aiPowered?.debug).toBe(false);
+
+      managerA.set('aiPowered.debug', true);
+
+      expect(managerA.getConfig().aiPowered?.debug).toBe(true);
+      expect(managerB.getConfig().aiPowered?.debug).toBe(false);
+      expect(DEFAULT_CONFIG.aiPowered?.debug).toBe(false);
+      expect(DEFAULT_CONFIG.aiPowered?.plugins).toEqual(['audit-log']);
+    });
+
+    it('loads default values when the config file does not exist', () => {
+      const manager = new ConfigManager(path.join(tmpDir, 'missing.json'));
+      const loaded = manager.load();
+
+      expect(loaded).toEqual(DEFAULT_CONFIG);
+      expect(loaded).not.toBe(DEFAULT_CONFIG);
+      expect(manager.getConfig()).toEqual(DEFAULT_CONFIG);
+    });
+
+    it('saves the current config using the existing JSON shape', () => {
+      const configPath = path.join(tmpDir, 'augment.json');
+      const manager = new ConfigManager(configPath);
+
+      manager.set('aiPowered.debug', true);
+      manager.set('modules.searchPaths', ['filmbuff', 'custom-modules']);
+      manager.save();
+
+      const written = fs.readFileSync(configPath, 'utf-8');
+      const expected = JSON.stringify(manager.getConfig(), null, 2) + '\n';
+
+      expect(written).toBe(expected);
+      expect(JSON.parse(written)).toEqual(manager.getConfig());
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Validation
   // -------------------------------------------------------------------------
 
@@ -89,6 +160,16 @@ describe('ConfigManager — Phase 7 aiPowered schema (bd-e8ad)', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('ConfigManager.validate still reports aiPowered type errors', () => {
+    const manager = new ConfigManager();
+    const result = manager.validate({
+      ...DEFAULT_CONFIG,
+      aiPowered: { plugins: 'not-an-array' as unknown as string[], debug: false },
+    });
+    expect(result.valid).toBe(false);
+    expect(result.errors).toContain('aiPowered.plugins must be an array');
+  });
+
   it('deprecated ai.provider triggers no schema validation error', () => {
     // The schema marks ai.provider as deprecated but valid — presence alone
     // must not fail validation; only a runtime stderr warning is emitted.
@@ -98,5 +179,7 @@ describe('ConfigManager — Phase 7 aiPowered schema (bd-e8ad)', () => {
       ai: { ...DEFAULT_CONFIG.ai, provider: 'anthropic' },
     });
     expect(result.valid).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.warnings.some((warning) => warning.includes('ai.provider'))).toBe(true);
   });
 });
