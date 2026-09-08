@@ -50,15 +50,87 @@ export interface ValidationResult {
 }
 
 /**
+ * Result returned by the module-directory resolver.
+ */
+export interface ModulesDirResolution {
+  projectRoot: string | null;
+  modulesDir: string;
+  source: 'live' | 'bundled';
+  message?: string;
+}
+
+/**
+ * Walk upward from a starting directory looking for the nearest project root.
+ *
+ * We treat the first ancestor that contains a `filmbuff/` directory as the
+ * live repository root. That lets nested command runs resolve the same module
+ * tree as a top-level run without falling back to the packaged copy.
+ */
+export function findProjectRoot(startDir: string = process.cwd()): string | null {
+  let currentDir = path.resolve(startDir);
+
+  while (true) {
+    const candidatePackageJson = path.join(currentDir, 'package.json');
+    const candidateModulesDir = path.join(currentDir, 'filmbuff');
+    if (
+      fs.existsSync(candidatePackageJson) &&
+      fs.existsSync(candidateModulesDir) &&
+      fs.statSync(candidateModulesDir).isDirectory()
+    ) {
+      return currentDir;
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      break;
+    }
+
+    currentDir = parentDir;
+  }
+
+  return null;
+}
+
+/**
+ * Resolve the active modules directory.
+ *
+ * Live repository data wins whenever the current working tree can be found.
+ * When the repo root is unavailable, we fall back to the bundled package tree
+ * and surface a warning so the switch is visible to the user.
+ */
+export function resolveModulesDir(
+  startDir: string = process.cwd(),
+  bundledModulesDir: string = path.resolve(__dirname, '../../../filmbuff')
+): ModulesDirResolution {
+  const projectRoot = findProjectRoot(startDir);
+
+  if (projectRoot) {
+    return {
+      projectRoot,
+      modulesDir: path.join(projectRoot, 'filmbuff'),
+      source: 'live'
+    };
+  }
+
+  return {
+    projectRoot: null,
+    modulesDir: bundledModulesDir,
+    source: 'bundled',
+    message: `No live FilmBuff project root was found from "${path.resolve(startDir)}". Using bundled module data at "${bundledModulesDir}".`
+  };
+}
+
+/**
  * Get the modules directory path
  */
-export function getModulesDir(): string {
-  // Prefer local copy next to package root, fall back to bundled copy
-  const cwdDir = path.join(process.cwd(), 'filmbuff');
-  if (fs.existsSync(cwdDir)) {
-    return cwdDir;
+export function getModulesDir(startDir: string = process.cwd()): string {
+  const resolution = resolveModulesDir(startDir);
+
+  if (resolution.source === 'bundled' && resolution.message) {
+    console.warn(resolution.message);
   }
-  return path.join(__dirname, '../../../filmbuff');
+
+  return resolution.modulesDir;
 }
 
 /**

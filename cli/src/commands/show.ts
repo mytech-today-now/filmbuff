@@ -7,6 +7,7 @@ import {
   findModuleEnhanced,
   getModuleSuggestions,
   discoverModules,
+  findProjectRoot,
   extractModuleMetadata,
   listModuleFiles
 } from '../utils/module-system';
@@ -72,6 +73,7 @@ interface ShowModuleOptions {
   pageSize?: number;
   secure?: boolean;
   noCache?: boolean;
+  cache?: boolean;
   open?: boolean;
   preview?: boolean;
   webview?: boolean;
@@ -165,6 +167,7 @@ export async function showModuleCommand(
 ): Promise<void> {
   const outputChannel = new InspectionOutputChannel();
   let cacheShouldBeEnabled = true;
+  const disableCache = options.noCache === true || options.cache === false;
 
   try {
     const hasExplicitPageSize = options.pageSize !== undefined;
@@ -197,7 +200,7 @@ export async function showModuleCommand(
     }
 
     // Disable cache if --no-cache flag is set
-    if (options.noCache) {
+    if (disableCache) {
       outputChannel.info('Inspection cache disabled for this command.');
       moduleInspectionCache.disable();
     }
@@ -299,7 +302,7 @@ export async function showModuleCommand(
 
     process.exit(1);
   } finally {
-    if (options.noCache) {
+    if (disableCache) {
       moduleInspectionCache.setEnabled(cacheShouldBeEnabled);
     }
   }
@@ -1390,8 +1393,22 @@ function performSearch(
  * Highlight search term in text
  */
 function highlightSearchTerm(text: string, searchTerm: string): string {
-  const regex = new RegExp(`(${searchTerm})`, 'gi');
-  return text.replace(regex, chalk.bold(chalk.yellow('$1')));
+  if (!searchTerm) {
+    return text;
+  }
+
+  try {
+    const escapedSearchTerm = escapeRegExp(searchTerm);
+    const regex = new RegExp(`(${escapedSearchTerm})`, 'gi');
+    return text.replace(regex, (match) => chalk.bold(chalk.yellow(match)));
+  } catch {
+    // Fall back to plain text if highlighting cannot be constructed safely.
+    return text;
+  }
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 /**
@@ -1655,7 +1672,8 @@ export async function showAllCommand(options: ShowListOptions): Promise<void> {
  * Get linked modules from extensions.json
  */
 function getLinkedModules(): ModuleListItem[] {
-  const configPath = path.join(process.cwd(), '.augment', 'extensions.json');
+  const projectRoot = findProjectRoot() ?? process.cwd();
+  const configPath = path.join(projectRoot, '.augment', 'extensions.json');
 
   if (!fs.existsSync(configPath)) {
     return [];
@@ -1679,48 +1697,17 @@ function getLinkedModules(): ModuleListItem[] {
  * Get all available modules with linked status
  */
 async function getAllModules(): Promise<ModuleListItem[]> {
-  const modules: ModuleListItem[] = [];
-
   // Check for linked modules in current project
   const linkedModules = getLinkedModules();
+  const modules = discoverModules();
 
-  // Get all available modules from repository
-  const modulesDir = path.join(__dirname, '../../../filmbuff');
-
-  if (!fs.existsSync(modulesDir)) {
-    return linkedModules;
-  }
-
-  const categories = fs.readdirSync(modulesDir, { withFileTypes: true })
-    .filter(dirent => dirent.isDirectory())
-    .map(dirent => dirent.name);
-
-  for (const category of categories) {
-    const categoryPath = path.join(modulesDir, category);
-    const moduleNames = fs.readdirSync(categoryPath, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
-
-    for (const moduleName of moduleNames) {
-      const modulePath = path.join(categoryPath, moduleName);
-      const moduleJsonPath = path.join(modulePath, 'module.json');
-
-      if (fs.existsSync(moduleJsonPath)) {
-        const moduleData = JSON.parse(fs.readFileSync(moduleJsonPath, 'utf-8'));
-        const fullName = `${category}/${moduleName}`;
-
-        modules.push({
-          name: fullName,
-          version: moduleData.version,
-          description: moduleData.description,
-          type: moduleData.type,
-          linked: linkedModules.some(m => m.name === fullName)
-        });
-      }
-    }
-  }
-
-  return modules;
+  return modules.map(module => ({
+    name: module.fullName,
+    version: module.metadata.version,
+    description: module.metadata.description,
+    type: module.metadata.type,
+    linked: linkedModules.some(m => m.name === module.fullName)
+  }));
 }
 
 /**

@@ -16,6 +16,7 @@ import { createFormatter } from './generate-shot-list/formatter';
 import { createLogger } from './generate-shot-list/logger';
 import { createStyleSystem } from './generate-shot-list/style';
 import { ConfigManager } from '../utils/config-system';
+import { getModulesDir } from '../utils/module-system';
 import { RunLogger, computeRunLogPath } from '../utils/run-logger';
 // Phase 6 (bd-cfa7): AI provider resolution now handled entirely by the
 // ai-powered library via getFilmbuffAiClient() inside the extractors.
@@ -328,7 +329,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
       console.log(chalk.gray(`🎨 Loading cinematic styles...`));
 
       // Extensions root is the filmbuff directory in the parent of the CLI
-      const extensionsRoot = path.join(__dirname, '../../../filmbuff');
+      const extensionsRoot = getModulesDir();
       const styleSystem = createStyleSystem(extensionsRoot);
 
       // Validate all style paths

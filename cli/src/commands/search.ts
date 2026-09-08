@@ -1,6 +1,5 @@
 import chalk from 'chalk';
-import * as fs from 'fs';
-import * as path from 'path';
+import { discoverModules } from '../utils/module-system';
 
 interface SearchOptions {
   type?: string;
@@ -49,60 +48,31 @@ export async function searchCommand(keyword: string, options: SearchOptions): Pr
 }
 
 async function searchModules(keyword: string, typeFilter?: string): Promise<Module[]> {
-  const modules: Module[] = [];
-  const modulesDir = path.join(__dirname, '../../../filmbuff');
-
-  if (!fs.existsSync(modulesDir)) {
-    return modules;
-  }
-
   const lowerKeyword = keyword.toLowerCase();
+  const modules = discoverModules();
 
-  const categories = fs.readdirSync(modulesDir, { withFileTypes: true })
-    .filter(dirent => dirent.isDirectory())
-    .map(dirent => dirent.name);
-
-  for (const category of categories) {
-    // Skip if type filter doesn't match
-    if (typeFilter && category !== typeFilter) {
-      continue;
-    }
-
-    const categoryPath = path.join(modulesDir, category);
-    const moduleNames = fs.readdirSync(categoryPath, { withFileTypes: true })
-      .filter(dirent => dirent.isDirectory())
-      .map(dirent => dirent.name);
-
-    for (const moduleName of moduleNames) {
-      const modulePath = path.join(categoryPath, moduleName);
-      const moduleJsonPath = path.join(modulePath, 'module.json');
-
-      if (fs.existsSync(moduleJsonPath)) {
-        const moduleData = JSON.parse(fs.readFileSync(moduleJsonPath, 'utf-8'));
-        const fullName = `${category}/${moduleName}`;
-
-        // Search in name, description, and display name
-        const searchableText = [
-          fullName,
-          moduleData.displayName || '',
-          moduleData.description || '',
-          category,
-          moduleName
-        ].join(' ').toLowerCase();
-
-        if (searchableText.includes(lowerKeyword)) {
-          modules.push({
-            name: fullName,
-            version: moduleData.version,
-            description: moduleData.description,
-            type: moduleData.type,
-            displayName: moduleData.displayName || fullName
-          });
-        }
+  return modules
+    .filter(module => {
+      if (typeFilter && module.metadata.type !== typeFilter) {
+        return false;
       }
-    }
-  }
 
-  return modules;
+      const searchableText = [
+        module.fullName,
+        module.metadata.displayName || '',
+        module.metadata.description || '',
+        module.metadata.type || '',
+        module.metadata.name || ''
+      ].join(' ').toLowerCase();
+
+      return searchableText.includes(lowerKeyword);
+    })
+    .map(module => ({
+      name: module.fullName,
+      version: module.metadata.version,
+      description: module.metadata.description,
+      type: module.metadata.type,
+      displayName: module.metadata.displayName || module.fullName
+    }));
 }
 

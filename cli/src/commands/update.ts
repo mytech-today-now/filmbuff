@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
-import * as semver from 'semver';
+import { compareSemanticVersions, findProjectRoot, getModulesDir } from '../utils/module-system';
 
 interface UpdateOptions {
   module?: string;
@@ -31,7 +31,8 @@ export async function updateCommand(options: UpdateOptions): Promise<void> {
     console.log(chalk.blue('\n🔄 Updating modules...\n'));
 
     // Load extensions config
-    const configPath = path.join(process.cwd(), '.augment', 'extensions.json');
+    const projectRoot = findProjectRoot() ?? process.cwd();
+    const configPath = path.join(projectRoot, '.augment', 'extensions.json');
 
     if (!fs.existsSync(configPath)) {
       console.error(chalk.red('Filmbuff not initialized. Run: filmbuff init'));
@@ -117,12 +118,12 @@ async function updateCLI(): Promise<void> {
     console.log(chalk.gray(`Latest version: ${latestVersion}`));
 
     // Compare versions
-    if (semver.eq(currentVersion, latestVersion)) {
+    if (compareSemanticVersions(currentVersion, latestVersion) === 0) {
       console.log(chalk.green(`\n✓ CLI is already up to date (v${currentVersion})\n`));
       return;
     }
 
-    if (semver.gt(currentVersion, latestVersion)) {
+    if (compareSemanticVersions(currentVersion, latestVersion) > 0) {
       console.log(chalk.yellow(`\n⚠ Current version (${currentVersion}) is newer than npm registry (${latestVersion})\n`));
       return;
     }
@@ -154,11 +155,7 @@ async function updateCLI(): Promise<void> {
 
 async function updateModule(linkedModule: LinkedModule, config: any): Promise<'updated' | 'up-to-date' | 'error'> {
   try {
-    // Look for modules relative to the current working directory (the user's project).
-    // Fall back to the path bundled with the CLI package for globally-installed scenarios.
-    const cwdModulesDir = path.join(process.cwd(), 'filmbuff');
-    const pkgModulesDir = path.join(__dirname, '../../../filmbuff');
-    const modulesDir = fs.existsSync(cwdModulesDir) ? cwdModulesDir : pkgModulesDir;
+    const modulesDir = getModulesDir();
 
     const modulePath = path.join(modulesDir, linkedModule.name);
     const moduleJsonPath = path.join(modulePath, 'module.json');
@@ -179,7 +176,7 @@ async function updateModule(linkedModule: LinkedModule, config: any): Promise<'u
     }
 
     // Check if it's a newer version
-    if (compareVersions(latestVersion, currentVersion) > 0) {
+    if (compareSemanticVersions(latestVersion, currentVersion) > 0) {
       // Update in config
       const moduleIndex = config.modules.findIndex((m: LinkedModule) => m.name === linkedModule.name);
       if (moduleIndex >= 0) {
@@ -198,20 +195,5 @@ async function updateModule(linkedModule: LinkedModule, config: any): Promise<'u
     console.log(chalk.red(`✗ ${linkedModule.name}: Error updating - ${error}`));
     return 'error';
   }
-}
-
-function compareVersions(v1: string, v2: string): number {
-  const parts1 = v1.split('.').map(Number);
-  const parts2 = v2.split('.').map(Number);
-
-  for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
-    const part1 = parts1[i] || 0;
-    const part2 = parts2[i] || 0;
-
-    if (part1 > part2) return 1;
-    if (part1 < part2) return -1;
-  }
-
-  return 0;
 }
 

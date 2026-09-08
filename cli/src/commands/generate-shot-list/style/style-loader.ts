@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { promisify } from 'util';
+import { getModulesDir } from '../../../utils/module-system';
 import { StyleLoader, StyleModule, StyleGuidelines } from './types';
 import { GuidelineParser } from './guideline-parser';
 
@@ -24,7 +25,7 @@ export class CinematicStyleLoader implements StyleLoader {
   
   constructor(extensionsRoot?: string) {
     // Default to filmbuff directory
-    this.extensionsRoot = extensionsRoot || path.join(process.cwd(), 'filmbuff');
+    this.extensionsRoot = extensionsRoot || getModulesDir();
     this.parser = new GuidelineParser();
   }
   

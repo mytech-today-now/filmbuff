@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
-import { findModule, discoverCollections } from '../utils/module-system';
+import { findModule, discoverCollections, findProjectRoot } from '../utils/module-system';
 
 interface UnlinkOptions {
   force?: boolean;
@@ -12,7 +12,8 @@ export async function unlinkCommand(moduleName: string, options: UnlinkOptions =
     console.log(chalk.blue(`Unlinking module: ${moduleName}`));
 
     // Load extensions config
-    const configPath = path.join(process.cwd(), '.augment', 'extensions.json');
+    const projectRoot = findProjectRoot() ?? process.cwd();
+    const configPath = path.join(projectRoot, '.augment', 'extensions.json');
     
     if (!fs.existsSync(configPath)) {
       console.error(chalk.red('Filmbuff not initialized. Run: filmbuff init'));

@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
-import { discoverModules, Module as ModuleType } from '../utils/module-system';
+import { discoverModules, findProjectRoot } from '../utils/module-system';
 import { ModuleLoader } from '../core/module-loader';
 
 interface ListOptions {
@@ -139,7 +139,8 @@ async function getModules(linkedOnly: boolean = false, showVersions: boolean = f
 }
 
 function getLinkedModules(): Module[] {
-  const configPath = path.join(process.cwd(), '.augment', 'extensions.json');
+  const projectRoot = findProjectRoot() ?? process.cwd();
+  const configPath = path.join(projectRoot, '.augment', 'extensions.json');
   
   if (!fs.existsSync(configPath)) {
     return [];

@@ -1,7 +1,7 @@
 import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
-import { findModule } from '../utils/module-system';
+import { findModule, findProjectRoot } from '../utils/module-system';
 
 interface LinkOptions {
   version?: string;
@@ -20,7 +20,8 @@ export async function linkCommand(moduleName: string, options: LinkOptions): Pro
     console.log(chalk.blue(`Linking module: ${moduleName}`));
 
     // Load extensions config
-    const configPath = path.join(process.cwd(), '.augment', 'extensions.json');
+    const projectRoot = findProjectRoot() ?? process.cwd();
+    const configPath = path.join(projectRoot, '.augment', 'extensions.json');
     
     if (!fs.existsSync(configPath)) {
       console.error(chalk.red('Filmbuff not initialized. Run: filmbuff init'));

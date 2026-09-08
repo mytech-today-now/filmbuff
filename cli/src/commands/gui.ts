@@ -9,7 +9,7 @@ import chalk from 'chalk';
 import inquirer from 'inquirer';
 import * as fs from 'fs';
 import * as path from 'path';
-import { discoverModules, discoverCollections, Module, Collection } from '../utils/module-system.js';
+import { discoverModules, discoverCollections, findProjectRoot, getModulesDir, Module, Collection } from '../utils/module-system.js';
 import { linkCommand } from './link.js';
 import { unlinkCommand } from './unlink.js';
 import { aiStatusCommand } from './ai-status.js';
@@ -49,7 +49,8 @@ export async function guiCommand(options: Record<string, unknown> = {}): Promise
     console.log(chalk.gray('Press Ctrl+H or ? for keyboard shortcuts\n'));
 
     // Require project to be initialized
-    const configPath = path.join(process.cwd(), '.augment', 'extensions.json');
+    const projectRoot = findProjectRoot() ?? process.cwd();
+    const configPath = path.join(projectRoot, '.augment', 'extensions.json');
     if (!fs.existsSync(configPath)) {
       console.error(chalk.red('FilmBuff not initialized in this directory. Run: filmbuff init'));
       process.exit(1);
@@ -334,9 +335,7 @@ async function searchModulesInteractive(modules: Module[]): Promise<void> {
  * prefer the project's local copy, fall back to the bundled package copy).
  */
 function resolveModulesDir(): string {
-  const cwdDir = path.join(process.cwd(), 'filmbuff');
-  const pkgDir = path.join(__dirname, '../../../filmbuff');
-  return fs.existsSync(cwdDir) ? cwdDir : pkgDir;
+  return getModulesDir();
 }
 
 /**

@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { updateModulesCatalog } from './modules-catalog';
+import { getModulesDir } from './module-system';
 
 /**
  * Create a Git hook for auto-updating catalog
@@ -96,7 +97,7 @@ export function isCatalogOutOfDate(catalogPath: string = 'MODULES.md'): boolean 
   }
   
   const catalogStat = fs.statSync(catalogPath);
-  const modulesDir = path.join(__dirname, '../../../filmbuff');
+  const modulesDir = getModulesDir();
   
   if (!fs.existsSync(modulesDir)) {
     return false;
