@@ -22,6 +22,7 @@ import { ContextBuilder, ContextBuilderConfig } from './context-builder';
 import { MetadataExtractor, MetadataExtractorConfig } from './metadata-extractor';
 import { MergedStyleGuidelines } from '../style/types';
 import { AIBlockingExtractor, CharacterBlockingPosition, BlockingExtractionResult } from './ai-blocking-extractor';
+import { AiFallbackReporter } from './ai-fallback-reporter';
 import { MIN_DURATION_S, MAX_DURATION_S } from '../../../lib/duration-derivation';
 
 // ---------------------------------------------------------------------------
@@ -191,6 +192,7 @@ export class ShotListGenerator implements Generator {
   private blockingExtractor: AIBlockingExtractor;
   private styleGuidelines: MergedStyleGuidelines | null = null;
   private characterBlockingCache: Map<string, CharacterBlockingPosition> = new Map();
+  private aiFallbackReporter: AiFallbackReporter;
 
   /**
    * @param styleGuidelines  Optional merged style-system guidelines.
@@ -200,6 +202,7 @@ export class ShotListGenerator implements Generator {
   ) {
     // Store style guidelines first
     this.styleGuidelines = styleGuidelines || null;
+    this.aiFallbackReporter = new AiFallbackReporter();
 
     // Initialize modules with default configurations
     this.segmenter = new SceneSegmenter({
@@ -214,6 +217,7 @@ export class ShotListGenerator implements Generator {
       includeWeather: true,
       trackCharacterEmotions: true,
       styleGuidelines: this.styleGuidelines,
+      aiFallbackReporter: this.aiFallbackReporter,
     });
 
     this.metadataExtractor = new MetadataExtractor({
@@ -223,7 +227,7 @@ export class ShotListGenerator implements Generator {
 
     // Phase 5 (bd-551f): AIBlockingExtractor uses getFilmbuffAiClient() directly;
     // no aiOverrides chain needed — the ai-powered library manages its own config.
-    this.blockingExtractor = new AIBlockingExtractor(this.styleGuidelines);
+    this.blockingExtractor = new AIBlockingExtractor(this.styleGuidelines, this.aiFallbackReporter);
   }
 
   /**
@@ -232,6 +236,7 @@ export class ShotListGenerator implements Generator {
   async generate(scenes: Scene[], config: GeneratorConfig): Promise<ShotList> {
     // CRITICAL: Reset all state at the start of each screenplay generation
     // This prevents Character Bible contamination between different screenplays
+    this.aiFallbackReporter.reset();
     this.contextBuilder.reset();
     this.characterBlockingCache.clear();
     this.blockingExtractor.clearCache(); // Clear character description cache

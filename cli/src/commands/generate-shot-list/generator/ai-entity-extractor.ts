@@ -19,6 +19,7 @@
 
 import { getFilmbuffAiClient } from '../../../utils/filmbuff-ai-client.js';
 import type { AiClient } from '../../../utils/filmbuff-ai-client.js';
+import { AiFallbackReporter } from './ai-fallback-reporter';
 
 export interface EntityExtractionResult {
   characters: string[];
@@ -32,9 +33,11 @@ export interface EntityExtractionResult {
 export class AIEntityExtractor {
   /** Lazily-initialised AiClient; null until first extractEntities() call. */
   private client: AiClient | null = null;
+  private fallbackReporter: AiFallbackReporter;
 
-  constructor() {
+  constructor(fallbackReporter?: AiFallbackReporter) {
     // No credentials needed — getFilmbuffAiClient() reads config from the ai-powered library.
+    this.fallbackReporter = fallbackReporter ?? new AiFallbackReporter();
   }
 
   /**
@@ -68,7 +71,7 @@ export class AIEntityExtractor {
       console.log(`AI extracted ${result.characters.length} characters and ${result.objects.length} objects`);
       return result;
     } catch (error) {
-      console.warn('AI extraction failed, using fallback:', error);
+      this.fallbackReporter.report('entity-extractor', error);
       return this.fallbackExtraction(sceneText);
     }
   }
@@ -135,7 +138,7 @@ Return ONLY the JSON, nothing else.`;
         confidence: 0.95 // High confidence for AI extraction
       };
     } catch (error) {
-      console.warn('Failed to parse AI response:', error);
+      this.fallbackReporter.report('entity-extractor', error);
       return { characters: [], objects: [], confidence: 0.0 };
     }
   }
@@ -168,4 +171,3 @@ Return ONLY the JSON, nothing else.`;
     return { characters, objects, confidence: 0.5 }; // Lower confidence for fallback
   }
 }
-

@@ -14,6 +14,7 @@
 
 import { getFilmbuffAiClient } from '../../../utils/filmbuff-ai-client.js';
 import type { AiClient } from '../../../utils/filmbuff-ai-client.js';
+import { AiFallbackReporter } from './ai-fallback-reporter';
 
 export interface CharacterBlockingPosition {
   character: string;
@@ -43,12 +44,14 @@ export class AIBlockingExtractor {
   private client: AiClient | null = null;
   private characterDescriptionCache: Map<string, CharacterDescription> = new Map();
   private styleGuidelines: any | null = null; // MergedStyleGuidelines type
+  private fallbackReporter: AiFallbackReporter;
 
   /**
    * @param styleGuidelines  Optional merged style-system guidelines.
    */
-  constructor(styleGuidelines?: any) {
+  constructor(styleGuidelines?: any, fallbackReporter?: AiFallbackReporter) {
     this.styleGuidelines = styleGuidelines || null;
+    this.fallbackReporter = fallbackReporter ?? new AiFallbackReporter();
   }
 
   /**
@@ -135,7 +138,7 @@ export class AIBlockingExtractor {
 
       return result;
     } catch (error) {
-      console.error('AI blocking extraction failed:', error);
+      this.fallbackReporter.report('blocking-extractor', error);
       // Fallback to basic extraction
       return this.fallbackExtraction(actionLines, characterNames);
     }
@@ -359,8 +362,7 @@ Respond with ONLY the JSON object, no additional text.`;
         soundEffects: parsed.soundEffects || []
       };
     } catch (error) {
-      console.error('Failed to parse AI blocking response:', error);
-      console.error('Response text:', responseText);
+      this.fallbackReporter.report('blocking-extractor', error);
       return {
         characterPositions: [],
         characterDescriptions: [],
@@ -390,4 +392,3 @@ Respond with ONLY the JSON object, no additional text.`;
     };
   }
 }
-

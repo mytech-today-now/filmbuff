@@ -14,6 +14,7 @@ import { Scene, SceneElement, DialogueElement, ActionElement } from '../parser/t
 import { SceneContext, CharacterState } from './types';
 import { MergedStyleGuidelines } from '../style/types';
 import { AIEntityExtractor } from './ai-entity-extractor';
+import { AiFallbackReporter } from './ai-fallback-reporter';
 
 /**
  * Context builder configuration
@@ -23,6 +24,7 @@ export interface ContextBuilderConfig {
   includeWeather: boolean;
   trackCharacterEmotions: boolean;
   styleGuidelines?: MergedStyleGuidelines | null;
+  aiFallbackReporter?: AiFallbackReporter;
 }
 
 /**
@@ -76,7 +78,7 @@ export class ContextBuilder {
     this.styleGuidelines = config.styleGuidelines || null;
     // Phase 5 (bd-551f): AIEntityExtractor no longer takes credentials; the
     // ai-powered library sources them from its own config layers.
-    this.aiExtractor = new AIEntityExtractor();
+    this.aiExtractor = new AIEntityExtractor(config.aiFallbackReporter);
   }
 
   /**
@@ -1119,4 +1121,3 @@ export class ContextBuilder {
     return characterNames;
   }
 }
-
