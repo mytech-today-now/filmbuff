@@ -104,9 +104,38 @@ async function initProject(dir: string): Promise<void> {
 async function initCmd()     { return (await import('../commands/video/init')).videoInitCommand; }
 async function nextCmd()     { return (await import('../commands/video/next')).videoNextCommand; }
 async function generateCmd() { return (await import('../commands/video/generate')).videoGenerateCommand; }
+async function generateAllCmd() { return (await import('../commands/video/generate-all')).videoGenerateAllCommand; }
 async function approveCmd()  { return (await import('../commands/video/approve')).videoApproveCommand; }
 async function statusCmd()   { return (await import('../commands/video/status')).videoStatusCommand; }
-async function rejectCmd()   { return (await import('../commands/video/reject')).videoRejectCommand; }
+
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve(value: T): void;
+}
+
+interface MockSingleShotResult {
+  jobId: string;
+  status: 'complete' | 'failed';
+  creditsCharged?: number;
+  errorMessage?: string;
+}
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+async function waitForCondition(predicate: () => boolean, timeoutMs = 250): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return true;
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+  return predicate();
+}
 
 // ---------------------------------------------------------------------------
 // afterEach cleanup
@@ -259,6 +288,148 @@ describe('[UT-NEXT-02] video next exits 0 with all_generated when no pending rem
     const env = JSON.parse(c.stdout.trim());
     expect(env.status).toBe('success');
     expect(env.data?.all_generated).toBe(true);
+  });
+});
+
+// ===========================================================================
+// UT-GA — video generate-all
+// ===========================================================================
+
+describe('[UT-GA-01] video generate-all completes all pending shots', () => {
+  it('exits 0 and reports credits for every completed shot', async () => {
+    tmpDir = await makeTempProject();
+    await initProject(tmpDir);
+
+    const cmd = await generateAllCmd();
+    const c   = beginCapture();
+    try {
+      await cmd({ project: tmpDir, provider: 'runway-gen3', concurrency: 3, agent: true });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+    }
+
+    expect(c.exitCode).toBe(0);
+    const env = JSON.parse(c.stdout.trim());
+    expect(env.status).toBe('success');
+    expect(env.data?.generated).toBe(3);
+    expect(env.data?.failed).toBe(0);
+    expect(env.data?.pending_remaining).toBe(0);
+    expect(env.creditsSpent).toBe(15);
+  });
+});
+
+describe('[UT-GA-02] video generate-all stops later batch shots after credit exhaustion', () => {
+  it('exits 3, counts only completed work, and never submits shot 3', async () => {
+    tmpDir = await makeTempProject();
+    await initProject(tmpDir);
+
+    const perShotApi = await import('../lib/per-shot-api');
+    const calls: string[] = [];
+    const deferredResults = new Map<string, Deferred<MockSingleShotResult>>();
+
+    const generateSpy = jest.spyOn(perShotApi, 'generateSingleShot').mockImplementation(async ({ shot }) => {
+      calls.push(shot.shot_id);
+      let deferred = deferredResults.get(shot.shot_id);
+      if (!deferred) {
+        deferred = createDeferred<MockSingleShotResult>();
+        deferredResults.set(shot.shot_id, deferred);
+      }
+      return deferred.promise;
+    });
+
+    const cmd = await generateAllCmd();
+    const c   = beginCapture();
+    const runPromise = (async () => {
+      try {
+        await cmd({ project: tmpDir, provider: 'runway-gen3', concurrency: 3, agent: true });
+        return c.exitCode ?? 0;
+      } catch (e) {
+        if (e instanceof ExitError) return e.code;
+        throw e;
+      }
+    })();
+
+    const resolveShot = (shotId: string, result: MockSingleShotResult) => {
+      const deferred = deferredResults.get(shotId);
+      if (deferred) {
+        deferred.resolve(result);
+      }
+    };
+
+    try {
+      expect(await waitForCondition(() => calls.length >= 1, 500)).toBe(true);
+      expect(calls).toEqual(['s001']);
+
+      resolveShot('s001', { jobId: 'job-s001', status: 'complete', creditsCharged: 5 });
+
+      expect(await waitForCondition(() => calls.length >= 2, 500)).toBe(true);
+      expect(calls.slice(0, 2)).toEqual(['s001', 's002']);
+
+      resolveShot('s002', {
+        jobId: 'job-s002',
+        status: 'failed',
+        creditsCharged: 0,
+        errorMessage: 'credit_exhaustion',
+      });
+
+      expect(await waitForCondition(() => calls.length === 2, 100)).toBe(true);
+
+      const exitCode = await runPromise;
+      expect(exitCode).toBe(3);
+      const env = JSON.parse(c.stdout.trim());
+      expect(env.status).toBe('error');
+      expect(env.errorCode).toBe('INSUFFICIENT_CREDITS');
+      expect(env.creditsSpent).toBe(5);
+      expect(calls).toEqual(['s001', 's002']);
+    } finally {
+      resolveShot('s001', { jobId: 'cleanup-s001', status: 'complete', creditsCharged: 5 });
+      resolveShot('s002', {
+        jobId: 'cleanup-s002',
+        status: 'failed',
+        creditsCharged: 0,
+        errorMessage: 'credit_exhaustion',
+      });
+      const s3 = deferredResults.get('s003');
+      if (s3) {
+        s3.resolve({ jobId: 'cleanup-s003', status: 'complete', creditsCharged: 0 });
+      }
+      await runPromise.catch(() => undefined);
+      generateSpy.mockRestore();
+      c.restore();
+    }
+  });
+});
+
+describe('[UT-GA-03] video generate-all exits 0 when no pending shots remain', () => {
+  it('returns success without submitting any additional shots', async () => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    const completeRecord = JSON.stringify({
+      shot_id: 's001', status: 'complete', provider: 'runway-gen3',
+      provider_job_id: 'j1', clip_path: 'video/clips/s001.mp4',
+      attempt_count: 1, rejection_reason: null, approved_at: null,
+      rejected_at: null, generated_at: new Date().toISOString(), failed_at: null,
+      credits_spent: 5, updated_at: new Date().toISOString(),
+    });
+    await fs.promises.writeFile(path.join(tmpDir, '08-video-status.jsonl'), completeRecord + '\n');
+
+    const cmd = await generateAllCmd();
+    const c   = beginCapture();
+    try {
+      await cmd({ project: tmpDir, provider: 'runway-gen3', agent: true });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+    }
+
+    expect(c.exitCode).toBe(0);
+    const env = JSON.parse(c.stdout.trim());
+    expect(env.status).toBe('success');
+    expect(env.data?.generated).toBe(0);
+    expect(env.data?.pending_remaining).toBe(0);
+    expect(env.creditsSpent).toBe(0);
   });
 });
 

@@ -194,7 +194,7 @@ export function registerVideoCommands(program: Command): Command {
     videoCmd.command('generate-all')
       .description('Batch-generate all pending shots until none remain')
       .option('--provider <id>',      'Video provider for all shots')
-      .option('--concurrency <n>',    'Parallel submission count (default: 1)', '1')
+      .option('--concurrency <n>',    'Batch size limit (default: 1)', '1')
   ).action((options) =>
     videoGenerateAllCommand({
       project:     options.project,

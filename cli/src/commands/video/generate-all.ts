@@ -7,7 +7,7 @@
  * Equivalent to the old batch behavior using the per-shot state machine.
  *
  * --provider <id>       Provider to use for all shots.
- * --concurrency <n>     Parallel submission count (default: 1).
+ * --concurrency <n>     Batch size limit (default: 1).
  *
  * Exit codes:
  *   0  SUCCESS           — all shots generated (or were already generated)
@@ -22,7 +22,7 @@
 import * as path from 'path';
 import { runWatchdog } from '../../lib/watchdog.js';
 import { getLatestState, appendRecords } from '../../lib/status-file-manager.js';
-import { findByStatus, readAll } from '../../lib/shot-list-reader.js';
+import { findByStatus } from '../../lib/shot-list-reader.js';
 import { transition } from '../../lib/shot-state-machine.js';
 import type { VideoStatusRecord } from '../../lib/shot-state-machine.js';
 import {
@@ -55,65 +55,71 @@ export async function videoGenerateAllCommand(opts: VideoGenerateAllOptions): Pr
   let totalFailed     = 0;
   let totalCredits    = 0;
   let creditExhausted = false;
+  let statusMap       = new Map<string, VideoStatusRecord>();
 
-  // Main loop: keep going until no pending shots remain
+  async function processShot(shot: Awaited<ReturnType<typeof findByStatus>>[number]): Promise<boolean> {
+    const currentRecord = statusMap.get(shot.shot_id)!;
+    const clipPath      = path.join(clipsDir, `${shot.shot_id}.mp4`);
+    const submitNow     = new Date().toISOString();
+
+    // Transition: pending → generating
+    const generatingRecords = transition(currentRecord, 'SUBMIT', { provider, now: submitNow });
+    await appendRecords(projectPath, generatingRecords);
+    const generatingRecord = generatingRecords[0] as VideoStatusRecord;
+
+    let result: Awaited<ReturnType<typeof generateSingleShot>>;
+    try {
+      result = await generateSingleShot({
+        shot:       { ...shot, shot_id: shot.shot_id },
+        provider,
+        outputPath: clipPath,
+        agentToken,  // NEVER logged; AC-27
+      });
+    } catch (err) {
+      const failRecords = transition(generatingRecord, 'FAIL', { now: new Date().toISOString() });
+      await appendRecords(projectPath, failRecords);
+      totalFailed++;
+      warnFn(`⚠ Shot ${shot.shot_id} error: ${(err as Error).message}`);
+      return false;
+    }
+
+    const finalNow = new Date().toISOString();
+    if (result.status === 'complete') {
+      const completeRecs = transition(generatingRecord, 'COMPLETE', { clip_path: clipPath, now: finalNow });
+      await appendRecords(projectPath, completeRecs);
+      totalGenerated++;
+      totalCredits += result.creditsCharged ?? 0;
+      humanLog(`✓ ${shot.shot_id} complete`, agentMode);
+      return false;
+    }
+
+    const failRecords = transition(generatingRecord, 'FAIL', { now: finalNow });
+    await appendRecords(projectPath, failRecords);
+    totalFailed++;
+    const errorMsg = result.errorMessage ?? 'unknown';
+    warnFn(`⚠ Shot ${shot.shot_id} failed: ${errorMsg}`);
+    return errorMsg === 'credit_exhaustion' || errorMsg === 'quota_exceeded';
+  }
+
+  // Main loop: keep going until no pending shots remain.
+  // Shots within a batch are processed sequentially so credit exhaustion can
+  // stop the remaining pending work before it submits.
   while (!creditExhausted) {
     // Run watchdog before each batch
     await runWatchdog(projectPath, undefined, undefined, warnFn);
 
-    const statusMap = await getLatestState(projectPath);
+    statusMap = await getLatestState(projectPath);
     const pendingShots = await findByStatus(projectPath, statusMap, 'pending');
 
     if (pendingShots.length === 0) break;
 
     // Take up to `concurrency` shots per iteration
     const batch = pendingShots.slice(0, concurrency);
-    const now   = new Date().toISOString();
-
-    // Submit all shots in batch (concurrently)
-    await Promise.all(batch.map(async shot => {
-      const currentRecord = statusMap.get(shot.shot_id)!;
-      const clipPath      = path.join(clipsDir, `${shot.shot_id}.mp4`);
-
-      // Transition: pending → generating
-      const generatingRecords = transition(currentRecord, 'SUBMIT', { provider, now });
-      await appendRecords(projectPath, generatingRecords);
-      const generatingRecord = generatingRecords[0] as VideoStatusRecord;
-
-      let result: Awaited<ReturnType<typeof generateSingleShot>>;
-      try {
-        result = await generateSingleShot({
-          shot:       { ...shot, shot_id: shot.shot_id },
-          provider,
-          outputPath: clipPath,
-          agentToken,  // NEVER logged; AC-27
-        });
-      } catch (err) {
-        const failRecords = transition(generatingRecord, 'FAIL', { now: new Date().toISOString() });
-        await appendRecords(projectPath, failRecords);
-        totalFailed++;
-        warnFn(`⚠ Shot ${shot.shot_id} error: ${(err as Error).message}`);
-        return;
-      }
-
-      const finalNow = new Date().toISOString();
-      if (result.status === 'complete') {
-        const completeRecs = transition(generatingRecord, 'COMPLETE', { clip_path: clipPath, now: finalNow });
-        await appendRecords(projectPath, completeRecs);
-        totalGenerated++;
-        totalCredits += result.creditsCharged ?? 0;
-        humanLog(`✓ ${shot.shot_id} complete`, agentMode);
-      } else {
-        const failRecords = transition(generatingRecord, 'FAIL', { now: finalNow });
-        await appendRecords(projectPath, failRecords);
-        totalFailed++;
-        const errorMsg = result.errorMessage ?? 'unknown';
-        warnFn(`⚠ Shot ${shot.shot_id} failed: ${errorMsg}`);
-        if (errorMsg === 'credit_exhaustion' || errorMsg === 'quota_exceeded') {
-          creditExhausted = true;
-        }
-      }
-    }));
+    for (const shot of batch) {
+      if (creditExhausted) break;
+      creditExhausted = await processShot(shot);
+      if (creditExhausted) break;
+    }
   }
 
   // ── Final summary ─────────────────────────────────────────────────────────
