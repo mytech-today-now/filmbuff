@@ -1,0 +1,64 @@
+{
+  "testId": "issue-01-generate-all-credit-exhaustion",
+  "timestamp": "2026-09-09T15:15:54-05:00",
+  "feature": "video generate-all exhaustion gating",
+  "commit": "74801d214feb631d4a343b7bcf2056e9e49d6f5b",
+  "implementationStatus": "already-fixed-in-current-branch",
+  "sourceFixCommit": "50348b9f340111c2297733bedbadf8c54fb11969",
+  "initialConditions": {
+    "fixture": "isolated temporary three-shot project",
+    "concurrency": 3,
+    "provider": "runway-gen3",
+    "mode": "agent"
+  },
+  "assertions": [
+    {
+      "name": "completed work is reported",
+      "expected": "creditsSpent is 5 after one completed shot",
+      "status": "passed"
+    },
+    {
+      "name": "exhaustion exit code",
+      "expected": "exit code 3 and INSUFFICIENT_CREDITS",
+      "status": "passed"
+    },
+    {
+      "name": "pending batch gate",
+      "expected": "shot s003 is never submitted after s002 exhausts credits",
+      "status": "passed"
+    }
+  ],
+  "commands": [
+    {
+      "command": "npx jest --runInBand cli/src/__tests__/video-subcommands.test.ts",
+      "result": "passed",
+      "summary": "1 suite, 18 tests"
+    },
+    {
+      "command": "npx jest --runInBand cli/src/__tests__/per-shot-api.test.ts",
+      "result": "passed",
+      "summary": "1 suite, 5 tests"
+    },
+    {
+      "command": "npx eslint cli/src/commands/video/generate-all.ts cli/src/__tests__/video-subcommands.test.ts",
+      "result": "passed"
+    },
+    {
+      "command": "npm run build",
+      "result": "passed"
+    },
+    {
+      "command": "npx jest --runInBand cli/src/__tests__",
+      "result": "failed",
+      "summary": "24 suites passed, 9 unrelated baseline suites failed; 599 tests passed, 64 failed"
+    }
+  ],
+  "blocked": [
+    "bd CLI is unavailable in the Windows environment",
+    "git pull --rebase was blocked by pre-existing unstaged user changes"
+  ],
+  "finalStatus": "passed",
+  "remainingRisks": [
+    "The --concurrency option now bounds sequential batch work so exhaustion can stop pending submissions; in-flight provider work cannot be cancelled once submitted."
+  ]
+}
