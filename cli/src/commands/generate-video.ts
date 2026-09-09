@@ -12,6 +12,7 @@
  *   --input       <file>     JSONL shot list to read (required)
  *   --provider    <id>       Video provider (default: lumaai)
  *   --model       <id>       Model override for the selected provider
+ *   --provider-options <json> JSON object with provider-specific options
  *   --shots       <list>     Comma-separated shot numbers to process
  *   --output      <dir>      Output directory (default: ./generated-videos/)
  *   --concurrency <n>        Batch size for concurrent generation (default: 3)
@@ -43,6 +44,7 @@ export interface GenerateVideoOptions {
   output?:      string;
   concurrency?: number;
   mock?:        boolean;
+  providerOptions?: string | Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,6 +75,21 @@ function parseShotFilter(shotsFlag?: string): Set<number> | null {
   if (!shotsFlag) return null;
   const nums = shotsFlag.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
   return nums.length > 0 ? new Set(nums) : null;
+}
+
+export function parseProviderOptions(value?: string | Record<string, unknown>): Record<string, unknown> | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return { ...value };
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('must be a JSON object');
+    }
+    return parsed as Record<string, unknown>;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : 'invalid JSON';
+    throw new Error(`--provider-options must be a JSON object: ${detail}.`);
+  }
 }
 
 /** Translate ai-powered typed errors to user-actionable messages. */
@@ -139,6 +156,7 @@ export async function generateVideoCommand(options: GenerateVideoOptions): Promi
 
 
   try {
+    const providerOptions = parseProviderOptions(options.providerOptions);
     // 1. Read shot list
     console.log(chalk.gray('📖 Reading shot list...'));
     let shots = await readShotList(options.input);
@@ -163,6 +181,7 @@ export async function generateVideoCommand(options: GenerateVideoOptions): Promi
       provider: mock ? 'mock' : provider,
       model:    options.model,
       mock,
+      providerOptions,
     };
     const results = await gen.generateForShotList(shots, genOptions, concurrency);
 

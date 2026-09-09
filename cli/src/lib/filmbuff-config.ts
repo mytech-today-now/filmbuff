@@ -17,6 +17,11 @@ import * as fs from 'fs';
 import * as https from 'https';
 import * as http from 'http';
 import * as path from 'path';
+import {
+  getSharedVideoProvider,
+  PIKA_VIDEO_PROVIDER,
+  type VideoModelCapability
+} from './provider-capabilities.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -31,6 +36,7 @@ export interface VideoProvider {
   videoSupport?: boolean;
   /** Max reference images for I2V; -1 = unlimited; 0 = no video support. */
   maxI2VImages?: number;
+  modelCapabilities?: VideoModelCapability[];
   baseUrl?: string | null;
   [key: string]: unknown;
 }
@@ -41,6 +47,7 @@ export interface ProviderCapability {
   videoSupport: boolean;
   maxI2VImages: number;
   models: string[];
+  modelCapabilities?: VideoModelCapability[];
 }
 
 export interface FilmbuffConfig {
@@ -130,6 +137,21 @@ export const BUILTIN_DEFAULT_CONFIG: FilmbuffConfig = {
       videoSupport: true,
       maxI2VImages: -1,
       baseUrl: null
+    },
+    {
+      id: PIKA_VIDEO_PROVIDER.id,
+      displayName: PIKA_VIDEO_PROVIDER.displayName,
+      apiKeyEnvVar: PIKA_VIDEO_PROVIDER.apiKeyEnvVar,
+      defaultModel: PIKA_VIDEO_PROVIDER.defaultModel,
+      supportedModels: PIKA_VIDEO_PROVIDER.models.map(model => model.id),
+      videoSupport: PIKA_VIDEO_PROVIDER.videoSupport,
+      maxI2VImages: PIKA_VIDEO_PROVIDER.maxI2VImages,
+      baseUrl: PIKA_VIDEO_PROVIDER.baseUrl,
+      modelCapabilities: PIKA_VIDEO_PROVIDER.models.map(model => ({
+        ...model,
+        requiredOptions: [...model.requiredOptions],
+        supportedOptions: [...model.supportedOptions]
+      }))
     }
   ]
 };
@@ -185,9 +207,12 @@ export function resolveProvider(
 ): ResolvedProvider {
   // Use || (not ??) so that empty strings also fall through to the next level
   const providerId = flags.provider || config.defaultProvider || DEFAULT_PROVIDER_ID;
-  const model      = flags.model    || config.defaultModel    || DEFAULT_MODEL;
-
   const providerConfig = config.videoProviders.find(p => p.id === providerId);
+  const model = flags.model
+    || (flags.provider ? providerConfig?.defaultModel : undefined)
+    || config.defaultModel
+    || providerConfig?.defaultModel
+    || DEFAULT_MODEL;
 
   return { providerId, model, providerConfig };
 }
@@ -242,11 +267,21 @@ export async function fetchProviderCapabilities(
         typeof (entry as Record<string, unknown>).id === 'string'
       ) {
         const e = entry as Record<string, unknown>;
+        const staticCapability = staticFallback.get(e.id as string);
+        const liveModels = Array.isArray(e.models)
+          ? (e.models as unknown[]).filter((model): model is string => typeof model === 'string')
+          : [];
+        const modelCapabilities = staticCapability?.modelCapabilities;
         result.set(e.id as string, {
           id: e.id as string,
-          videoSupport: Boolean(e.videoSupport ?? e.video_support),
-          maxI2VImages: typeof e.maxI2VImages === 'number' ? e.maxI2VImages : 0,
-          models: Array.isArray(e.models) ? (e.models as string[]) : []
+          videoSupport: Boolean(e.videoSupport ?? e.video_support ?? staticCapability?.videoSupport),
+          maxI2VImages: typeof e.maxI2VImages === 'number'
+            ? e.maxI2VImages
+            : (staticCapability?.maxI2VImages ?? 0),
+          models: liveModels.length > 0
+            ? liveModels
+            : (staticCapability?.models ?? []),
+          modelCapabilities
         });
       }
     }
@@ -262,11 +297,19 @@ export async function fetchProviderCapabilities(
 export function buildStaticCapabilities(config: FilmbuffConfig): Map<string, ProviderCapability> {
   const map = new Map<string, ProviderCapability>();
   for (const p of config.videoProviders) {
+    const sharedProvider = getSharedVideoProvider(p.id);
+    const modelCapabilities = p.modelCapabilities
+      ?? sharedProvider?.models.map(model => ({
+        ...model,
+        requiredOptions: [...model.requiredOptions],
+        supportedOptions: [...model.supportedOptions]
+      }));
     map.set(p.id, {
       id: p.id,
       videoSupport: p.videoSupport ?? false,
       maxI2VImages: p.maxI2VImages ?? 0,
-      models: p.supportedModels ?? []
+      models: p.supportedModels ?? modelCapabilities?.map(model => model.id) ?? [],
+      modelCapabilities
     });
   }
   return map;

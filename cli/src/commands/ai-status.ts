@@ -27,17 +27,17 @@
 import chalk from 'chalk';
 import { loadConfig } from '../utils/filmbuff-ai-client.js';
 import { getDotEnvResult } from '../utils/env-loader.js';
+import { SHARED_VIDEO_PROVIDER_CAPABILITIES } from '../lib/provider-capabilities.js';
 
 // ---------------------------------------------------------------------------
 // Static provider / model tables for display
 // ---------------------------------------------------------------------------
 
 /** Video-capable providers and their available models. */
-const VIDEO_PROVIDERS: Array<{ id: string; models: string[] }> = [
-  { id: 'lumaai',           models: ['dream-machine-v2', 'dream-machine-v1'] },
-  { id: 'runway',           models: ['gen-3-alpha', 'gen-3-turbo'] },
-  { id: 'stable-diffusion', models: ['sd-3-medium', 'sdxl-turbo'] },
-];
+const VIDEO_PROVIDERS = SHARED_VIDEO_PROVIDER_CAPABILITIES.map(provider => ({
+  id: provider.id,
+  models: provider.models.map(model => model.id)
+}));
 
 /** Text-generation providers and their model lists. */
 const TEXT_PROVIDER_MODELS: Record<string, string[]> = {
@@ -46,8 +46,6 @@ const TEXT_PROVIDER_MODELS: Record<string, string[]> = {
   google:           ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-ultra'],
   xai:              ['grok-2', 'grok-2-mini'],
   venice:           ['venice-uncensored'],
-  lumaai:           ['dream-machine-v2', 'dream-machine-v1'],
-  runway:           ['gen-3-alpha', 'gen-3-turbo'],
   mock:             ['mock-model-fast', 'mock-model-accurate'],
 };
 

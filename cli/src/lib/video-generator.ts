@@ -11,6 +11,8 @@
 
 import { getFilmbuffAiClient } from '../utils/filmbuff-ai-client.js';
 import type { VideoControls } from './video-controls.js';
+import { generatePikaVideoForCli } from './pika-video-client.js';
+import { PIKA_VIDEO_PROVIDER } from './provider-capabilities.js';
 
 // ---------------------------------------------------------------------------
 // Public interfaces
@@ -31,6 +33,8 @@ export interface ShotEntry {
     wardrobe:           string;
   }>;
   videoControls: VideoControls;
+  /** Provider-specific options, preserved from JSONL input. */
+  providerOptions?: Record<string, unknown>;
 }
 
 /**
@@ -106,6 +110,8 @@ export interface VideoGenerationOptions {
    * Forwards `{ mock: true }` in the overrides object (spec §generate-video --mock).
    */
   mock?: boolean;
+  /** Provider-specific options applied when a shot does not provide its own. */
+  providerOptions?: Record<string, unknown>;
 }
 
 /**
@@ -129,9 +135,33 @@ export class FilmbuffVideoGenerator {
   ): Promise<GeneratedVideoResult> {
     const startMs = Date.now();
     const { provider = 'lumaai', model, mock = false } = options;
+    const effectiveModel = model ?? (provider === 'pika' ? PIKA_VIDEO_PROVIDER.defaultModel : undefined);
+
+    if (provider === 'pika' && !mock) {
+      const pikaOptions = {
+        ...(options.providerOptions ?? {}),
+        ...(shot.providerOptions ?? {})
+      };
+      const pikaResult = await generatePikaVideoForCli(
+        buildVideoPrompt(shot),
+        effectiveModel ?? PIKA_VIDEO_PROVIDER.defaultModel,
+        pikaOptions
+      );
+      return {
+        shotNumber: shot.shotNumber,
+        videoData: pikaResult.contentUrl,
+        mimeType: 'video/mp4',
+        durationSeconds: shot.videoControls.duration,
+        aspectRatio: shot.videoControls.aspectRatio,
+        provider,
+        model: effectiveModel ?? PIKA_VIDEO_PROVIDER.defaultModel,
+        generatedAt: new Date().toISOString(),
+        durationMs: Date.now() - startMs,
+      };
+    }
 
     const overrides: Record<string, unknown> = { provider };
-    if (model)  overrides['model'] = model;
+    if (effectiveModel)  overrides['model'] = effectiveModel;
     if (mock)   overrides['mock']  = true;
 
     const client = await getFilmbuffAiClient('video-generator', overrides as any);
@@ -141,6 +171,9 @@ export class FilmbuffVideoGenerator {
       {
         aspectRatio:     shot.videoControls.aspectRatio ?? '16:9',
         durationSeconds: shot.videoControls.duration,
+        ...((options.providerOptions ?? shot.providerOptions)
+          ? { providerOptions: options.providerOptions ?? shot.providerOptions }
+          : {}),
       },
     );
 

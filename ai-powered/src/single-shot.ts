@@ -18,6 +18,11 @@ import { buildShotPrompt } from './prompt-builder.js';
 import { pollShotJob, fetchJobStatus, downloadClip } from './poll-job.js';
 import type { SingleShotOptions, SingleShotResult } from './types.js';
 import { DEFAULT_WATCHDOG_TIMEOUT_MS } from './types.js';
+import {
+  type PikaModelId,
+  type PikaVideoRequest
+} from './pika.js';
+import { PIKA_VIDEO_PROVIDER } from './provider-capabilities.js';
 
 // ---------------------------------------------------------------------------
 // Internal submit helper
@@ -28,6 +33,18 @@ import { DEFAULT_WATCHDOG_TIMEOUT_MS } from './types.js';
  */
 interface SubmitResponse {
   jobId: string;
+}
+
+/** Build a validated-library-compatible Pika request from a per-shot option set. */
+export function buildSingleShotPikaRequest(
+  opts: Pick<SingleShotOptions, 'shot' | 'model' | 'providerOptions' | 'extraNotes'>
+): PikaVideoRequest {
+  const model = (opts.model ?? PIKA_VIDEO_PROVIDER.defaultModel) as PikaModelId;
+  const options: Record<string, unknown> = { ...(opts.providerOptions ?? {}) };
+  if (model === 'pika/pika-2.5/text-to-video' && options.prompt === undefined) {
+    options.prompt = buildShotPrompt(opts.shot, opts.extraNotes);
+  }
+  return { model, options } as unknown as PikaVideoRequest;
 }
 
 /**

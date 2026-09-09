@@ -625,6 +625,7 @@ program
   .option('--timeout <ms>', 'Request timeout override in milliseconds (AIPoweredClientOptions.timeoutMs)', parseInt)
   .option('--provider <id>', 'Video provider id (e.g. lumaai, mock) from filmbuff.config.json')
   .option('--model <id>', 'Video model id override for the selected video provider')
+  .option('--provider-options <json>', 'JSON object with provider-specific video options')
   .option('--offline', 'Skip URL reachability checks (V-3) and provider capability fetch; implies CI-safe mode')
   .option('--batch-output <file>', 'Write POST /batch JSON payload to this file path')
   .option('--jsonl', 'Write batch-output in JSONL format with _type:references sentinel (AC-16)')
@@ -656,6 +657,7 @@ program
       timeout:         options.timeout,
       provider:        options.provider,
       model:           options.model,
+      providerOptions: options.providerOptions,
       offline:         options.offline ?? (process.env['CI'] === 'true'),
       batchOutput:     options.batchOutput,
       jsonl:           options.jsonl ?? false,
@@ -693,6 +695,7 @@ program
   .requiredOption('--input <file>', 'Path to JSONL shot list file')
   .option('--provider <id>', 'Video provider id (e.g. lumaai, runway, mock)', 'lumaai')
   .option('--model <id>', 'Model override for the selected provider')
+  .option('--provider-options <json>', 'JSON object with provider-specific options')
   .option('--shots <list>', 'Comma-separated shot numbers to process (e.g. "1,3,5")')
   .option('--output <dir>', 'Output directory for manifest.json', './generated-videos')
   .option('--concurrency <n>', 'Batch size for concurrent generation', '3')
@@ -712,6 +715,7 @@ program
       input:        options.input,
       provider:     options.provider,
       model:        options.model,
+      providerOptions: options.providerOptions,
       shots:        options.shots,
       output:       options.output,
       concurrency:  parseInt(options.concurrency, 10),

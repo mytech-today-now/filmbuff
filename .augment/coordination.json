@@ -221,6 +221,27 @@
         ".augment/coordination.json"
       ],
       "dependencies": []
+    },
+    "pika-video-provider": {
+      "path": "openspec/changes/archive/2026-09-09-pika-video-provider/proposal.md",
+      "status": "archived",
+      "relatedTasks": ["bd-b184"],
+      "relatedRules": ["coordination-system.md", "no-unnecessary-docs.md"],
+      "affectedFiles": [
+        "ai-powered/src/**/*",
+        "cli/src/**/*provider*",
+        "cli/src/lib/**/*",
+        "cli/src/commands/ai-*.ts",
+        "cli/src/commands/generate-*.ts",
+        "cli/src/gui/state/provider-state.ts",
+        "filmbuff.config.json",
+        "docs/**/*.md",
+        "openspec/changes/archive/2026-09-09-pika-video-provider/**/*",
+        "openspec/specs/pika-video-provider/spec.md",
+        ".beads/issues.jsonl",
+        ".augment/coordination.json"
+      ],
+      "dependencies": []
     }
   },
   "tasks": {
@@ -628,6 +649,23 @@
         "bd-ai-providers.7",
         "bd-ai-providers.8"
       ]
+    },
+    "bd-b184": {
+      "title": "Add Pika AI video provider integration",
+      "status": "closed",
+      "relatedSpecs": ["pika-video-provider"],
+      "relatedRules": ["coordination-system.md", "no-unnecessary-docs.md"],
+      "outputFiles": [
+        "ai-powered/src/pika.ts",
+        "ai-powered/src/provider-capabilities.ts",
+        "cli/src/lib/provider-capabilities.ts",
+        "cli/src/lib/pika-validation.ts",
+        "cli/src/lib/pika-video-client.ts",
+        "openspec/changes/archive/2026-09-09-pika-video-provider/**/*",
+        "openspec/specs/pika-video-provider/spec.md",
+        "test-results/pika-provider-*.json"
+      ],
+      "dependencies": []
     }
   },
   "rules":{"character-count-management.md":{"path":".augment/rules/character-count-management.md","appliesTo":{"filePatterns":[".augment/**/*"],"specs":["testing/functional-tests"],"tasks":[]},"priority":"high"},"no-unnecessary-docs.md":{"path":".augment/rules/no-unnecessary-docs.md","appliesTo":{"filePatterns":["**/*.md"],"specs":[],"tasks":[]},"priority":"high"},"module-development.md":{"path":".augment/rules/module-development.md","appliesTo":{"filePatterns":[],"specs":["testing/functional-tests"],"tasks":[]},"priority":"medium"},"coordination-system.md":{"path":".augment/rules/coordination-system.md","appliesTo":{"filePatterns":[".augment/coordination.json","openspec/**/*",".beads/issues.jsonl"],"specs":["harmonize-workflows","augment-config/standardized-structure"],"tasks":[]},"priority":"high"}},

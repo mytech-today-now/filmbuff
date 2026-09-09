@@ -78,6 +78,27 @@ provider that `ai-powered` recognises.
 | `runway`          |                | ✓                | Gen-3 family           |
 | `stable-diffusion`|                | ✓                | Open-source            |
 | `mock`            | ✓              | ✓                | No key, no network     |
+| `pika`            |                | ✓                | Current Pika REST API  |
+
+### Pika AI
+
+Pika uses the current plain HTTPS API. Set `PIKA_API_KEY` in the shell or a
+secrets manager. The key is read only for the request header and is never
+stored in shot lists, manifests, batch payloads, or logs.
+
+Supported model IDs:
+
+- `pika/pika-2.5/text-to-video`
+- `pika/pika-2.5/image-to-video`
+- `pika/pikaframes/image-to-video`
+- `pika/pikadditions/video-to-video`
+- `pika/pikaswaps/video-to-video`
+- `pika/pikaffects/image-to-video`
+- `pika/pikaffects/video-to-video`
+
+Use `--provider-options '<json object>'` to pass verified model-specific
+options. Unknown options and invalid reference counts fail before a network
+request. The old `pika.me/dev` Developer API is deprecated and is not used.
 
 ---
 
@@ -96,7 +117,7 @@ responses. No network, no key, no cost.
 ## Video Generation
 
 To generate video clips from a shot list, configure a video-capable
-provider (e.g. **lumaai** or **runway**):
+provider (e.g. **lumaai**, **runway**, or **pika**):
 
 ```bash
 ai-powered config set provider lumaai
@@ -112,6 +133,7 @@ filmbuff generate-video \
   --input shots.jsonl \     # (required) JSONL shot list
   --provider lumaai \       # video provider (default: lumaai)
   --model dream-machine-v2 \# model override (optional)
+  --provider-options '{"resolution":"1080p","duration_s":5}' \
   --shots 1,3,5 \           # only generate shots 1, 3, 5
   --output ./videos \       # output directory (default: ./generated-videos)
   --concurrency 3 \         # parallel calls (default: 3)
@@ -158,8 +180,7 @@ ai-powered Library Integration
     • gpt-3.5-turbo
 
   Video Providers:
-    • lumaai: dream-machine-v2, dream-machine-v1
-    • runway: gen-3-alpha, gen-3-turbo
+    • lumaai: ray-2, ray-2-turbo
 ```
 
 The command makes **no network requests** and always exits 0.
@@ -206,4 +227,3 @@ Error: Unknown command "<cmd>". Provider configuration is now managed by ai-powe
 ---
 
 *For internal architecture details, see [cli/docs/AI_PROVIDERS.md](../cli/docs/AI_PROVIDERS.md).*
-

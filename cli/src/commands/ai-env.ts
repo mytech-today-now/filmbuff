@@ -10,7 +10,7 @@
  * Variables inspected:
  *   Provider/model   AI_PROVIDER, AI_MODEL, AI_PROFILE, AI_MOCK
  *   API keys         OPENAI_API_KEY, ANTHROPIC_API_KEY, LUMAAI_API_KEY,
- *                    RUNWAYML_API_SECRET, XAI_API_KEY, VENICE_API_KEY
+ *                    PIKA_API_KEY, RUNWAYML_API_SECRET, XAI_API_KEY, VENICE_API_KEY
  *   Custom endpoint  VENICE_BASE_URL, AI_POWERED_URL
  *   Gateway params   AI_SYSTEM_PROMPT, AI_TEMPERATURE, AI_MAX_TOKENS,
  *                    AI_TIMEOUT_MS
@@ -41,6 +41,7 @@ const AI_VARS: VarDef[] = [
   { name: 'OPENAI_API_KEY',     label: 'OpenAI Key',      sensitive: true  },
   { name: 'ANTHROPIC_API_KEY',  label: 'Anthropic Key',   sensitive: true  },
   { name: 'LUMAAI_API_KEY',     label: 'Luma AI Key',     sensitive: true  },
+  { name: 'PIKA_API_KEY',       label: 'Pika AI Key',     sensitive: true  },
   { name: 'RUNWAYML_API_SECRET',label: 'Runway Secret',   sensitive: true  },
   { name: 'XAI_API_KEY',        label: 'xAI Key',         sensitive: true  },
   { name: 'VENICE_API_KEY',     label: 'Venice Key',      sensitive: true  },

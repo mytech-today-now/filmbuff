@@ -12,6 +12,7 @@ import {
   formatRuntime,
 } from './generate-shot-list/generator';
 import { FilmbuffVideoGenerator, type VideoGenerationOptions } from '../lib/video-generator';
+import { parseProviderOptions } from './generate-video';
 import { createFormatter } from './generate-shot-list/formatter';
 import { createLogger } from './generate-shot-list/logger';
 import { createStyleSystem } from './generate-shot-list/style';
@@ -134,6 +135,8 @@ interface GenerateShotListOptions {
   videoOutput?: string;
   /** When true, pass mock: true to video generator (no real API calls). */
   mock?: boolean;
+  /** JSON object or parsed provider-specific options for in-process video generation. */
+  providerOptions?: string | Record<string, unknown>;
   help?: boolean;
   h?: boolean;
   // -------------------------------------------------------------------------
@@ -544,12 +547,13 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
       const formatter = createFormatter(format as OutputFormat);
       const output = formatter.format(shotList);
 
-      // Step 4b: Pre-export validation (Phase 6 / bd-b4ce — V-1 through V-6)
+      // Step 4b: Pre-export validation (Phase 6 / bd-b4ce, V-1 through V-7)
       // Only runs when --batch-output is specified; halts export on blocking errors.
       if (options.batchOutput) {
         const batchPayload: ValidatablePayload = {
           provider: resolvedVideoProvider.providerId,
           model:    resolvedVideoProvider.model,
+          providerOptions: parseProviderOptions(options.providerOptions),
           items:    shotList.shots.map(shot => ({
             name: shot.heading.raw
           }))
@@ -600,7 +604,9 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
         const serializedPayload = serializeBatch(
           resolvedShots,
           resolvedVideoProvider.providerId,
-          resolvedVideoProvider.model
+          resolvedVideoProvider.model,
+          undefined,
+          parseProviderOptions(options.providerOptions)
           // referencesMap (4th arg): passed in Phase 7 (bd-74fy)
         );
 
@@ -667,6 +673,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
           provider: options.provider ?? 'lumaai',
           model:    options.model,
           mock:     options.mock ?? false,
+          providerOptions: parseProviderOptions(options.providerOptions),
         };
         const videoOutputDir = options.videoOutput ?? './generated-videos';
         // Map Shot (generator domain) → ShotEntry (video-generator domain).

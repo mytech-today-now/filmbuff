@@ -56,8 +56,12 @@ export interface ShotListEntry {
 export interface SingleShotOptions {
   /** Single parsed JSONL line from 08-shot-list.jsonl. */
   shot: ShotListEntry;
-  /** Provider identifier: 'runway-gen3' | 'pika-2' | 'kling-1.6' */
+  /** Provider identifier, including the current 'pika' provider. */
   provider: string;
+  /** Provider model identifier. Required when a provider has multiple models. */
+  model?: string;
+  /** Provider-specific options. Pika options are validated by the public adapter. */
+  providerOptions?: import('./pika.js').PikaVideoOptions;
   /**
    * Appended to Director notes field for this attempt only.
    * NEVER persisted to 08-shot-list.jsonl or any other file.
@@ -114,6 +118,7 @@ export interface SingleShotResult {
 export const PROVIDER_DEFAULT_CREDITS: Record<string, number> = {
   'runway-gen3': 5,
   'pika-2':      4,
+  pika:          4,
   'kling-1.6':   6,
 };
 
@@ -121,6 +126,7 @@ export const PROVIDER_DEFAULT_CREDITS: Record<string, number> = {
 export const PROVIDER_POLL_INTERVAL_MS: Record<string, number> = {
   'runway-gen3': 5_000,
   'pika-2':      5_000,
+  pika:          5_000,
   'kling-1.6':  10_000,
 };
 

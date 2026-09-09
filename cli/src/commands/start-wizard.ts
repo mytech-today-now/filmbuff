@@ -47,7 +47,7 @@ export interface WizardDeps {
 
 const TOTAL_STEPS = 12;
 
-const VIDEO_ONLY_PROVIDERS = new Set(['lumaai', 'runway', 'stable-diffusion']);
+const VIDEO_ONLY_PROVIDERS = new Set(['lumaai', 'runway', 'stable-diffusion', 'pika']);
 
 // ---------------------------------------------------------------------------
 // Style module catalogue — grouped by category for the checkbox prompt
@@ -158,6 +158,7 @@ const ENV_KEY_TO_PROVIDER: ReadonlyArray<{ envKey: string; provider: string }> =
   { envKey: 'XAI_API_KEY',         provider: 'xai'       },
   { envKey: 'VENICE_API_KEY',      provider: 'venice'    },
   { envKey: 'LUMAAI_API_KEY',      provider: 'lumaai'    },
+  { envKey: 'PIKA_API_KEY',        provider: 'pika'      },
   { envKey: 'RUNWAYML_API_SECRET', provider: 'runway'    },
   { envKey: 'AI_CUSTOM_API_KEY',   provider: 'custom'    },
   { envKey: 'AI_CUSTOM_BASE_URL',  provider: 'custom'    },

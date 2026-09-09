@@ -10,6 +10,11 @@
  *            management
  */
 
+import {
+  SHARED_VIDEO_PROVIDER_CAPABILITIES,
+  type VideoModelCapability
+} from '../../lib/provider-capabilities.js';
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -27,6 +32,8 @@ export interface ProviderPanelState {
   activeView: ProviderPanelView;
   /** Provider ID currently selected in the list or form. */
   selectedProviderId: string | null;
+  /** Video model currently selected in the provider picker. */
+  selectedModelId: string | null;
   /** Profile name currently selected or being edited/created. */
   selectedProfileName: string | null;
   /** Whether the provider panel is expanded (vs. collapsed). */
@@ -44,6 +51,7 @@ const STORAGE_KEY = 'filmbuff_provider_panel_state';
 export const DEFAULT_PROVIDER_PANEL_STATE: ProviderPanelState = {
   activeView: 'list',
   selectedProviderId: null,
+  selectedModelId: null,
   selectedProfileName: null,
   expanded: true,
   statusMessage: null,
@@ -101,7 +109,42 @@ export function selectProviderProfile(
   providerId: string | null,
   profileName: string | null
 ): ProviderPanelState {
-  return { ...state, selectedProviderId: providerId, selectedProfileName: profileName };
+  return {
+    ...state,
+    selectedProviderId: providerId,
+    selectedModelId: providerId === state.selectedProviderId ? state.selectedModelId : null,
+    selectedProfileName: profileName
+  };
+}
+
+export interface VideoProviderChoice {
+  id: string;
+  displayName: string;
+  defaultModel: string;
+  models: VideoModelCapability[];
+}
+
+/** Return GUI video provider choices from the canonical capability table. */
+export function getVideoProviderChoices(): VideoProviderChoice[] {
+  return SHARED_VIDEO_PROVIDER_CAPABILITIES
+    .filter(provider => provider.videoSupport)
+    .map(provider => ({
+      id: provider.id,
+      displayName: provider.displayName,
+      defaultModel: provider.defaultModel,
+      models: provider.models.map(model => ({
+        ...model,
+        requiredOptions: [...model.requiredOptions],
+        supportedOptions: [...model.supportedOptions]
+      }))
+    }));
+}
+
+export function selectVideoProviderModel(
+  state: ProviderPanelState,
+  modelId: string | null
+): ProviderPanelState {
+  return { ...state, selectedModelId: modelId };
 }
 
 export function toggleProviderPanel(state: ProviderPanelState): ProviderPanelState {
@@ -118,4 +161,3 @@ export function setProviderStatusMessage(
 export function resetProviderPanel(state: ProviderPanelState): ProviderPanelState {
   return { ...state, ...DEFAULT_PROVIDER_PANEL_STATE };
 }
-

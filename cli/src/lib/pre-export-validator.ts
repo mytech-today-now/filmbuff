@@ -21,7 +21,9 @@
 
 import * as https from 'https';
 import * as http from 'http';
-import type { FilmbuffConfig } from './filmbuff-config';
+import type { FilmbuffConfig, VideoProvider } from './filmbuff-config';
+import { getSharedVideoModel, type VideoModelCapability } from './provider-capabilities.js';
+import { validatePikaOptions, validatePikaReferenceCount } from './pika-validation.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -33,6 +35,7 @@ export interface ValidatableItem {
   references?: string[];
   provider?: string;
   model?: string;
+  providerOptions?: Record<string, unknown>;
 }
 
 /** The batch payload shape expected by the validator. */
@@ -40,12 +43,13 @@ export interface ValidatablePayload {
   provider: string;
   model: string;
   references?: Record<string, string>;
+  providerOptions?: Record<string, unknown>;
   items: ValidatableItem[];
 }
 
 /** A blocking validation error. */
 export interface ValidationError {
-  rule: 'V-1' | 'V-2' | 'V-3' | 'V-4' | 'V-5';
+  rule: 'V-1' | 'V-2' | 'V-3' | 'V-4' | 'V-5' | 'V-7';
   shotName?: string;
   message: string;
 }
@@ -239,6 +243,41 @@ export async function validateBatchPayload(
     }
   }
 
+  // V-7: Pika model options and model-specific reference limits are blocking.
+  for (const item of payload.items) {
+    const effectiveProvider = item.provider ?? payload.provider;
+    if (effectiveProvider !== 'pika') continue;
+
+    const effectiveModel = item.model ?? payload.model;
+    const providerConfig = config.videoProviders.find(p => p.id === effectiveProvider);
+    const modelCapability = findModelCapability(providerConfig, effectiveModel);
+    if (!modelCapability) continue;
+
+    const refCount = item.references?.length ?? 0;
+    const optionRecord = item.providerOptions ?? payload.providerOptions;
+    const hasMediaOption = Boolean(
+      optionRecord &&
+      modelCapability.requiredOptions.some(field => Object.prototype.hasOwnProperty.call(optionRecord, field))
+    );
+    if (refCount > 0 || !hasMediaOption) {
+      for (const message of validatePikaReferenceCount(modelCapability, refCount)) {
+        errors.push({ rule: 'V-7', shotName: item.name, message: `Shot "${item.name}": ${message}` });
+      }
+    }
+
+    if (optionRecord !== undefined) {
+      for (const message of validatePikaOptions(modelCapability, optionRecord)) {
+        errors.push({ rule: 'V-7', shotName: item.name, message: `Shot "${item.name}": ${message}` });
+      }
+    } else if (modelCapability.requiredOptions.some(field => field !== 'prompt')) {
+      errors.push({
+        rule: 'V-7',
+        shotName: item.name,
+        message: `Shot "${item.name}": Pika model "${effectiveModel}" requires providerOptions.`
+      });
+    }
+  }
+
   // V-6: WARN (non-blocking) when shot has >1 reference and provider supports only 1 image
   const capabilityTable = new Map(
     config.videoProviders.map(p => [p.id, p.maxI2VImages ?? 0])
@@ -260,4 +299,12 @@ export async function validateBatchPayload(
   }
 
   return { errors, warnings };
+}
+
+function findModelCapability(
+  providerConfig: VideoProvider | undefined,
+  modelId: string
+): VideoModelCapability | undefined {
+  const configured = providerConfig?.modelCapabilities?.find(model => model.id === modelId);
+  return configured ?? getSharedVideoModel(providerConfig?.id ?? 'pika', modelId);
 }

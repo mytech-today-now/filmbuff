@@ -463,8 +463,8 @@ ai-powered Library Integration
     • gpt-3.5-turbo
 
   Video Providers:
-    • lumaai: dream-machine-v2, dream-machine-v1
-    • runway: gen-3-alpha, gen-3-turbo
+    • lumaai: ray-2, ray-2-turbo
+    • pika: pika/pika-2.5/text-to-video, pika/pika-2.5/image-to-video, pika/pikaframes/image-to-video, pika/pikadditions/video-to-video, pika/pikaswaps/video-to-video, pika/pikaffects/image-to-video, pika/pikaffects/video-to-video
 ```
 
 **Environment:**
@@ -484,8 +484,9 @@ filmbuff generate-video --input <shots-jsonl> [options]
 - `--input <file>` — Path to JSONL shot list produced by `filmbuff generate-shot-list`
 
 **Options:**
-- `--provider <id>` — Video provider id (default: `lumaai`; also: `runway`, `mock`)
+- `--provider <id>` - Video provider id (default: `lumaai`; also: `pika`, `runway`, `mock`)
 - `--model <id>` — Model override for the selected provider (optional)
+- `--provider-options <json>` - JSON object with verified provider-specific options
 - `--shots <list>` — Comma-separated shot numbers to generate (e.g. `1,3,5`)
 - `--output <dir>` — Directory where `manifest.json` is written (default: `./generated-videos`)
 - `--concurrency <n>` — Number of parallel generation calls (default: `3`)

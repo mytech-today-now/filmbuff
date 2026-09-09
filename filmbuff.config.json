@@ -68,6 +68,25 @@
       "maxI2VImages": -1,
       "baseUrl": null,
       "_note": "No API key required. Returns deterministic mock responses. maxI2VImages=-1 means unlimited. Use for CI and local development."
+    },
+    {
+      "id": "pika",
+      "displayName": "Pika AI",
+      "apiKeyEnvVar": "PIKA_API_KEY",
+      "defaultModel": "pika/pika-2.5/text-to-video",
+      "supportedModels": [
+        "pika/pika-2.5/text-to-video",
+        "pika/pika-2.5/image-to-video",
+        "pika/pikaframes/image-to-video",
+        "pika/pikadditions/video-to-video",
+        "pika/pikaswaps/video-to-video",
+        "pika/pikaffects/image-to-video",
+        "pika/pikaffects/video-to-video"
+      ],
+      "videoSupport": true,
+      "maxI2VImages": 5,
+      "baseUrl": "https://api.dev.pika.art",
+      "_note": "Current Pika REST API. Model-specific options and reference limits are defined in the shared capability source."
     }
   ],
   "_comment": [

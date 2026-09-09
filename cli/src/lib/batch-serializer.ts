@@ -39,6 +39,8 @@ export interface ResolvedShot {
    * Omitted when the shot uses the envelope-level default model.
    */
   model?: string;
+  /** Provider-specific options preserved verbatim for downstream validation. */
+  providerOptions?: Record<string, unknown>;
 }
 
 export interface BatchItem {
@@ -78,6 +80,8 @@ export interface BatchItem {
    * Omitted when shot uses the envelope-level default model.
    */
   model?: string;
+  /** Provider-specific options, such as the verified Pika request fields. */
+  providerOptions?: Record<string, unknown>;
 }
 
 export interface BatchPayload {
@@ -94,6 +98,8 @@ export interface BatchPayload {
   references?: Record<string, string>;
   /** Serialized shot items. */
   items: BatchItem[];
+  /** Optional provider-specific defaults applied by the batch consumer. */
+  providerOptions?: Record<string, unknown>;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +122,8 @@ export function serializeBatch(
   shots: ResolvedShot[],
   provider: string,
   model: string,
-  referencesMap?: Record<string, string>
+  referencesMap?: Record<string, string>,
+  providerOptions?: Record<string, unknown>
 ): BatchPayload {
   const payload: BatchPayload = {
     provider,
@@ -129,6 +136,7 @@ export function serializeBatch(
   if (referencesMap && Object.keys(referencesMap).length > 0) {
     payload.references = referencesMap;
   }
+  if (providerOptions !== undefined) payload.providerOptions = { ...providerOptions };
 
   return payload;
 }
@@ -167,6 +175,7 @@ export function shotToBatchItem(shot: ResolvedShot): BatchItem {
   // DR-9: include per-shot provider/model overrides only when non-default
   if (shot.provider !== undefined) item.provider = shot.provider;
   if (shot.model    !== undefined) item.model    = shot.model;
+  if (shot.providerOptions !== undefined) item.providerOptions = { ...shot.providerOptions };
 
   return item;
 }
@@ -188,6 +197,10 @@ export function serializeBatchToJsonl(payload: BatchPayload): string {
   if (payload.references && Object.keys(payload.references).length > 0) {
     const refLine = { _type: 'references', ...payload.references };
     lines.push(JSON.stringify(refLine));
+  }
+
+  if (payload.providerOptions !== undefined) {
+    lines.push(JSON.stringify({ _type: 'provider-options', providerOptions: payload.providerOptions }));
   }
 
   // One line per shot item
@@ -236,6 +249,9 @@ export function validateBatchPayload(payload: unknown): string[] {
   if (typeof p.createdAt !== 'string') {
     errors.push('createdAt must be an ISO-8601 string');
   }
+  if (p.providerOptions !== undefined && (!p.providerOptions || typeof p.providerOptions !== 'object' || Array.isArray(p.providerOptions))) {
+    errors.push('providerOptions must be an object when present');
+  }
   if (!Array.isArray(p.items)) {
     errors.push('items must be an array');
     return errors;
@@ -250,6 +266,9 @@ export function validateBatchPayload(payload: unknown): string[] {
     if (it.modality !== 'video')         errors.push(`items[${idx}].modality must be "video"`);
     if (typeof it.prompt !== 'string')   errors.push(`items[${idx}].prompt must be a string`);
     if (typeof it.duration !== 'number') errors.push(`items[${idx}].duration must be a number`);
+    if (it.providerOptions !== undefined && (!it.providerOptions || typeof it.providerOptions !== 'object' || Array.isArray(it.providerOptions))) {
+      errors.push(`items[${idx}].providerOptions must be an object when present`);
+    }
   });
   return errors;
 }

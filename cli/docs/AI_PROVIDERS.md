@@ -48,6 +48,7 @@ ai-powered Library Integration
   Video Providers:
     • lumaai: dream-machine-v2, dream-machine-v1
     • runway: gen-3-alpha, gen-3-turbo
+    • pika: pika/pika-2.5/text-to-video, pika/pika-2.5/image-to-video, pika/pikaframes/image-to-video, pika/pikadditions/video-to-video, pika/pikaswaps/video-to-video, pika/pikaffects/image-to-video, pika/pikaffects/video-to-video
 ```
 
 ### 4 — Run a command
@@ -63,6 +64,10 @@ filmbuff generate-video --input shots.jsonl --output ./videos
 
 Every AI feature in FilmBuff calls `getFilmbuffAiClient(toolName)`, the single
 integration point declared in `cli/src/utils/filmbuff-ai-client.ts`.
+
+Pika video generation is the documented exception because the installed
+ai-powered package does not expose the current Pika REST fields. The CLI uses
+the local typed HTTPS adapter and the same shared capability source.
 
 ```typescript
 // Only file allowed to import from 'ai-powered'
@@ -105,6 +110,11 @@ are applied consistently without callers repeating them.
 | `runway`          |                | ✓                | Gen-3 family           |
 | `stable-diffusion`|                | ✓                | Open-source            |
 | `mock`            | ✓              | ✓                | No API key, no network |
+| `pika`            |                | ✓                | Current Pika REST API; set `PIKA_API_KEY` |
+
+Pika model choices and option constraints come from the shared capability
+source. The current model IDs are the seven IDs printed by `filmbuff ai
+status`. FilmBuff does not use the deprecated `pika.me/dev` Developer API.
 
 ---
 
@@ -132,6 +142,13 @@ When mock mode is active:
 ```bash
 # Generate from a shot list
 filmbuff generate-video --input shots.jsonl --output ./videos --provider lumaai
+
+# Generate with the current Pika text-to-video model
+PIKA_API_KEY=your-key filmbuff generate-video \
+  --input shots.jsonl \
+  --provider pika \
+  --model pika/pika-2.5/text-to-video \
+  --provider-options '{"resolution":"1080p","duration_s":5,"seed":42}'
 
 # One-step pipeline (shot list + video in a single command)
 filmbuff generate-shot-list script.fountain --output shots.jsonl --generate-video \
