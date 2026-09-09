@@ -94,6 +94,27 @@ describe('CompatibilityChecker', () => {
       // TypeScript check may warn if not installed, but shouldn't error
     });
 
+    it('should fail closed when Augment version detection is unavailable', () => {
+      fs.writeFileSync(path.join(testDir, 'metadata.json'), JSON.stringify({
+        compatibility: {
+          augmentMinVersion: '1.0.0'
+        }
+      }));
+
+      const result = checker.checkCompatibility(testDir);
+
+      expect(result.compatible).toBe(false);
+      expect(result.details.augment).toEqual({
+        required: '1.0.0',
+        current: 'unknown',
+        compatible: false,
+        message: 'Unable to detect Augment version; compatibility cannot be verified (required: 1.0.0)'
+      });
+      expect(result.errors).toContain(
+        'Unable to detect Augment version; compatibility cannot be verified (required: 1.0.0)'
+      );
+    });
+
     it('should handle multiple compatibility checks', () => {
       fs.writeFileSync(path.join(testDir, 'metadata.json'), JSON.stringify({
         compatibility: {
@@ -108,9 +129,15 @@ describe('CompatibilityChecker', () => {
       
       const result = checker.checkCompatibility(testDir);
       
+      expect(result.compatible).toBe(false);
       expect(result.details.node).toBeDefined();
       expect(result.details.typescript).toBeDefined();
       expect(result.details.augment).toBeDefined();
+      expect(result.details.node?.compatible).toBe(true);
+      expect(result.details.augment?.compatible).toBe(false);
+      expect(result.errors).toContain(
+        'Unable to detect Augment version; compatibility cannot be verified (required: 1.0.0)'
+      );
       expect(result.deprecations.length).toBeGreaterThan(0);
       expect(result.warnings.length).toBeGreaterThan(0);
     });

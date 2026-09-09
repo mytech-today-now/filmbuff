@@ -109,12 +109,14 @@ export class CompatibilityChecker {
     // Check Augment version (if available)
     if (metadata.augmentMinVersion) {
       // TODO: Implement Augment version detection
+      const augmentMessage = `Unable to detect Augment version; compatibility cannot be verified (required: ${metadata.augmentMinVersion})`;
       details.augment = {
         required: metadata.augmentMinVersion,
         current: 'unknown',
-        compatible: true,
-        message: 'Augment version check not implemented'
+        compatible: false,
+        message: augmentMessage
       };
+      errors.push(augmentMessage);
     }
 
     return {

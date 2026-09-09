@@ -1,0 +1,70 @@
+{
+  "testId": "issue-03-augment-compatibility",
+  "timestamp": "2026-09-09T15:26:48-05:00",
+  "feature": "Augment compatibility checking",
+  "baselineCommit": "108a624",
+  "acceptanceCriteria": [
+    "An augmentMinVersion requirement must not produce a false-positive compatible result.",
+    "Undetected Augment versions must be reported as an explicit compatibility error.",
+    "Node.js and TypeScript compatibility behavior remains unchanged."
+  ],
+  "initialConditions": {
+    "fixture": "isolated temporary module metadata.json",
+    "augmentMinVersion": "1.0.0",
+    "augmentRuntimeDetection": "unavailable"
+  },
+  "assertions": [
+    {
+      "name": "Augment-only metadata fails closed",
+      "expected": "compatible is false, details.augment.compatible is false, current is unknown, and a clear error is returned",
+      "status": "passed"
+    },
+    {
+      "name": "Augment failure affects aggregate result",
+      "expected": "a module with otherwise compatible Node.js metadata is not reported compatible when Augment cannot be verified",
+      "status": "passed"
+    },
+    {
+      "name": "Existing compatibility checks remain active",
+      "expected": "Node.js and TypeScript details continue to be populated in the combined path",
+      "status": "passed"
+    }
+  ],
+  "commands": [
+    {
+      "command": "node scripts/run-vitest.js run tests/unit/core/compatibility-checker.test.ts",
+      "result": "passed",
+      "summary": "1 suite, 12 tests"
+    },
+    {
+      "command": "npm run test:unit -- --reporter=verbose",
+      "result": "passed",
+      "summary": "47 files, 582 tests"
+    },
+    {
+      "command": "npx tsc --noEmit -p cli/tsconfig.json",
+      "result": "passed"
+    },
+    {
+      "command": "npm run build",
+      "result": "passed"
+    },
+    {
+      "command": "npm run test:compat",
+      "result": "passed",
+      "summary": "1 suite, 9 tests"
+    },
+    {
+      "command": "npm run test:jest",
+      "result": "failed-unrelated",
+      "summary": "Interrupted after deterministic failures in pre-existing start-wizard, parser, database, module-inspection, and performance tests; no compatibility-checker failure observed"
+    }
+  ],
+  "blocked": [
+    "bd CLI is unavailable in the Windows environment"
+  ],
+  "finalStatus": "passed",
+  "remainingRisks": [
+    "The actual Augment runtime version is still not detected, so modules declaring augmentMinVersion remain blocked until detection is implemented or an explicit override is added."
+  ]
+}
