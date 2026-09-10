@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { join } from 'path';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { TestEnvironment } from '../../helpers/test-env';
+import { showAllCommand, showLinkedCommand } from '../../../cli/src/commands/show';
 
 /**
  * Module Show Tests
@@ -14,6 +15,53 @@ import { TestEnvironment } from '../../helpers/test-env';
  * - Error cases (non-existent modules, invalid paths)
  */
 
+async function createLegacyLinkedProject(projectPath: string, withModule: boolean): Promise<void> {
+  const modulesRoot = join(projectPath, 'filmbuff');
+
+  await writeFile(
+    join(projectPath, 'package.json'),
+    JSON.stringify({ name: 'legacy-linked-show-project', version: '1.0.0' }, null, 2)
+  );
+
+  await mkdir(modulesRoot, { recursive: true });
+
+  if (!withModule) {
+    return;
+  }
+
+  const modulePath = join(modulesRoot, 'writing-standards', 'screenplay');
+  await mkdir(modulePath, { recursive: true });
+  await writeFile(
+    join(modulePath, 'module.json'),
+    JSON.stringify(
+      {
+        name: 'screenplay',
+        version: '1.0.0',
+        displayName: 'Screenplay',
+        description: 'Legacy screenplay module fixture',
+        type: 'writing-standards'
+      },
+      null,
+      2
+    )
+  );
+  await writeFile(join(modulePath, 'README.md'), '# Screenplay\n\nLegacy screenplay module fixture.');
+}
+
+async function writeLinkedModulesManifest(configPath: string, modules: Array<Record<string, unknown>>): Promise<void> {
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: '1.0.0',
+        modules
+      },
+      null,
+      2
+    )
+  );
+}
+
 describe('Module Show Tests', () => {
   let testEnv: TestEnvironment;
 
@@ -24,6 +72,94 @@ describe('Module Show Tests', () => {
 
   afterEach(async () => {
     await testEnv.cleanup();
+  });
+
+  describe('Linked Module Canonicalization', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('canonicalizes legacy aliases before marking modules as linked', async () => {
+      const project = await testEnv.createProject({ name: 'legacy-linked-show-project' });
+      await createLegacyLinkedProject(project.path, true);
+      await writeLinkedModulesManifest(project.configPath, [
+        {
+          name: 'screenplay',
+          version: '1.0.0',
+          type: 'writing-standards',
+          description: 'Legacy screenplay module fixture'
+        }
+      ]);
+
+      vi.spyOn(process, 'cwd').mockReturnValue(project.path);
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await showAllCommand({ json: true });
+
+      const output = logSpy.mock.calls.map(([message]) => String(message)).join('\n');
+      const payload = JSON.parse(output) as Array<{ name: string; linked?: boolean }>;
+
+      expect(payload).toHaveLength(1);
+      expect(payload[0]).toMatchObject({
+        name: 'writing-standards/screenplay',
+        linked: true
+      });
+    });
+
+    it('keeps unresolved legacy entries visible and warns about incomplete linked status', async () => {
+      const project = await testEnv.createProject({ name: 'legacy-unresolved-show-project' });
+      await createLegacyLinkedProject(project.path, false);
+      await writeLinkedModulesManifest(project.configPath, [
+        {
+          name: 'legacy-missing-module',
+          version: '1.0.0',
+          type: 'writing-standards',
+          description: 'Missing legacy module'
+        }
+      ]);
+
+      vi.spyOn(process, 'cwd').mockReturnValue(project.path);
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await showLinkedCommand({});
+
+      const output = logSpy.mock.calls.map(([message]) => String(message)).join('\n');
+
+      expect(output).toContain('legacy-missing-module');
+      expect(output).toContain('Linked status may be incomplete until legacy names are normalized.');
+    });
+
+    it('surfaces malformed extensions config instead of treating it as no linked modules', async () => {
+      const project = await testEnv.createProject({ name: 'malformed-linked-show-project' });
+      await createLegacyLinkedProject(project.path, true);
+      await writeFile(project.configPath, '{ invalid json }');
+
+      vi.spyOn(process, 'cwd').mockReturnValue(project.path);
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await showLinkedCommand({});
+
+      const output = logSpy.mock.calls.map(([message]) => String(message)).join('\n');
+
+      expect(output).toContain('Linked modules could not be read because .augment/extensions.json is invalid.');
+      expect(output).not.toContain('No linked modules found.');
+    });
+
+    it('keeps an empty but valid extensions config as a genuine no-links state', async () => {
+      const project = await testEnv.createProject({ name: 'empty-linked-show-project' });
+      await createLegacyLinkedProject(project.path, true);
+      await writeLinkedModulesManifest(project.configPath, []);
+
+      vi.spyOn(process, 'cwd').mockReturnValue(project.path);
+      const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await showLinkedCommand({});
+
+      const output = logSpy.mock.calls.map(([message]) => String(message)).join('\n');
+
+      expect(output).toContain('No linked modules found.');
+      expect(output).not.toContain('Linked modules could not be read because .augment/extensions.json is invalid.');
+    });
   });
 
   describe('Show Module Metadata', () => {

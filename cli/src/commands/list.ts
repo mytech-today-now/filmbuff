@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
 import { discoverModules, findProjectRoot } from '../utils/module-system';
+import type { Module as DiscoveredModule } from '../utils/module-system';
 import { ModuleLoader } from '../core/module-loader';
 
 interface ListOptions {
@@ -18,6 +19,14 @@ interface Module {
   linked?: boolean;
   availableVersions?: string[];
 }
+
+interface LinkedModulesLookup {
+  modules: Module[];
+  unresolvedCount: number;
+  configError?: string;
+}
+
+const LINKED_MODULES_CONFIG_ERROR_MESSAGE = 'Linked modules could not be read because .augment/extensions.json is invalid.';
 
 /** Returns the short alias (last path segment) of a module name. */
 function alias(name: string): string {
@@ -47,17 +56,169 @@ function getGroupLabel(fullName: string): string {
   return p[0].replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
+function getLinkedModuleName(entry: unknown): string | null {
+  if (typeof entry === 'string') {
+    return entry.trim() || null;
+  }
+
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  const value = (entry as any).name ?? (entry as any).id;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function getLinkedModuleField(entry: unknown, key: 'version' | 'description' | 'type'): string {
+  if (!entry || typeof entry === 'string' || typeof entry !== 'object') {
+    return '';
+  }
+
+  const value = (entry as any)[key];
+  return typeof value === 'string' && value.trim() ? value : '';
+}
+
+function resolveLinkedModule(moduleName: string, discoveredModules: DiscoveredModule[]): DiscoveredModule | null {
+  const normalizedName = moduleName.toLowerCase();
+
+  const exactMatch = discoveredModules.find(module => module.fullName.toLowerCase() === normalizedName);
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const directoryMatch = discoveredModules.find(module => {
+    const segments = module.fullName.split('/');
+    return segments[segments.length - 1].toLowerCase() === normalizedName;
+  });
+  if (directoryMatch) {
+    return directoryMatch;
+  }
+
+  for (const module of discoveredModules) {
+    if (module.rules.some(rule => path.basename(rule, '.md').toLowerCase() === normalizedName)) {
+      return module;
+    }
+  }
+
+  return null;
+}
+
+function getLinkedModulesConfigIssue(config: unknown): string | null {
+  if (!config || typeof config !== 'object') {
+    return 'Expected .augment/extensions.json to contain a modules array.';
+  }
+
+  const modules = (config as { modules?: unknown }).modules;
+  if (!Array.isArray(modules)) {
+    return 'Expected .augment/extensions.json to contain a modules array.';
+  }
+
+  return null;
+}
+
+function printLinkedModulesConfigIssue(details: string): void {
+  console.log(chalk.yellow(LINKED_MODULES_CONFIG_ERROR_MESSAGE));
+  console.log(chalk.gray(`Details: ${details}`));
+  console.log(chalk.gray('Use "filmbuff init" to recreate the file or repair .augment/extensions.json, then rerun the command.'));
+}
+
+function buildLinkedModulesLookup(discoveredModules: DiscoveredModule[]): LinkedModulesLookup {
+  const projectRoot = findProjectRoot() ?? process.cwd();
+  const configPath = path.join(projectRoot, '.augment', 'extensions.json');
+
+  if (!fs.existsSync(configPath)) {
+    return {
+      modules: [],
+      unresolvedCount: 0
+    };
+  }
+
+  try {
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    const configIssue = getLinkedModulesConfigIssue(config);
+    if (configIssue) {
+      return {
+        modules: [],
+        unresolvedCount: 0,
+        configError: configIssue
+      };
+    }
+
+    const rawModules = config.modules as unknown[];
+    let unresolvedCount = 0;
+    let invalidEntryCount = 0;
+
+    const modules = rawModules
+      .map((entry: unknown): Module | null => {
+        const moduleName = getLinkedModuleName(entry);
+        if (!moduleName) {
+          invalidEntryCount++;
+          return null;
+        }
+
+        const resolvedModule = resolveLinkedModule(moduleName, discoveredModules);
+        if (!resolvedModule) {
+          unresolvedCount++;
+        }
+
+        return {
+          name: resolvedModule?.fullName ?? moduleName,
+          version: getLinkedModuleField(entry, 'version') || resolvedModule?.metadata.version || '',
+          description: getLinkedModuleField(entry, 'description') || resolvedModule?.metadata.description || '',
+          type: getLinkedModuleField(entry, 'type') || resolvedModule?.metadata.type || '',
+          linked: true
+        };
+      })
+      .filter((module): module is Module => module !== null);
+
+    const configError = invalidEntryCount > 0
+      ? `Linked modules config contains ${invalidEntryCount} ${invalidEntryCount === 1 ? 'entry' : 'entries'} missing a module name.`
+      : undefined;
+
+    return {
+      modules,
+      unresolvedCount,
+      configError
+    };
+  } catch (error) {
+    return {
+      modules: [],
+      unresolvedCount: 0,
+      configError: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
 export async function listCommand(options: ListOptions): Promise<void> {
   try {
-    const modules = await getModules(options.linked, options.versions || false);
+    const { modules, unresolvedCount, configError } = await getModules(options.linked, options.versions || false);
 
     if (options.json) {
+      if (configError) {
+        console.log(JSON.stringify({
+          error: LINKED_MODULES_CONFIG_ERROR_MESSAGE,
+          details: configError,
+          modules
+        }, null, 2));
+        return;
+      }
+
       console.log(JSON.stringify(modules, null, 2));
       return;
     }
 
+    if (configError) {
+      printLinkedModulesConfigIssue(configError);
+      if (modules.length === 0) {
+        return;
+      }
+    }
+
     if (modules.length === 0) {
       console.log(chalk.yellow(options.linked ? 'No linked modules found.' : 'No modules available.'));
+      if (unresolvedCount > 0) {
+        console.log(chalk.yellow('Linked status may be incomplete until legacy names are normalized.'));
+      }
       return;
     }
 
@@ -92,6 +253,9 @@ export async function listCommand(options: ListOptions): Promise<void> {
     }
 
     console.log(chalk.gray(`Total: ${modules.length} module(s)`));
+    if (unresolvedCount > 0) {
+      console.log(chalk.yellow('Linked status may be incomplete until legacy names are normalized.'));
+    }
     console.log(chalk.gray(`Tip: Use ${chalk.white('filmbuff link <alias>')} to link a module by its short name.\n`));
   } catch (error) {
     console.error(chalk.red('Error listing modules:'), error);
@@ -99,21 +263,18 @@ export async function listCommand(options: ListOptions): Promise<void> {
   }
 }
 
-async function getModules(linkedOnly: boolean = false, showVersions: boolean = false): Promise<Module[]> {
-  const modules: Module[] = [];
-
-  // Check for linked modules in current project
-  const linkedModules = getLinkedModules();
+async function getModules(linkedOnly: boolean = false, showVersions: boolean = false): Promise<LinkedModulesLookup> {
+  // Get all available modules using the module system
+  const discoveredModules = discoverModules();
+  const linkedModules = buildLinkedModulesLookup(discoveredModules);
 
   if (linkedOnly) {
     return linkedModules;
   }
 
-  // Get all available modules using the module system
-  const discoveredModules = discoverModules();
-
   // Initialize module loader for version information
   const loader = showVersions ? new ModuleLoader() : null;
+  const modules: Module[] = [];
 
   for (const module of discoveredModules) {
     const moduleData: Module = {
@@ -121,7 +282,7 @@ async function getModules(linkedOnly: boolean = false, showVersions: boolean = f
       version: module.metadata.version,
       description: module.metadata.description,
       type: module.metadata.type,
-      linked: linkedModules.some(m => m.name === module.fullName)
+      linked: linkedModules.modules.some(m => m.name === module.fullName)
     };
 
     // Get available versions if requested
@@ -135,25 +296,10 @@ async function getModules(linkedOnly: boolean = false, showVersions: boolean = f
     modules.push(moduleData);
   }
 
-  return modules;
-}
-
-function getLinkedModules(): Module[] {
-  const projectRoot = findProjectRoot() ?? process.cwd();
-  const configPath = path.join(projectRoot, '.augment', 'extensions.json');
-  
-  if (!fs.existsSync(configPath)) {
-    return [];
-  }
-
-  try {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    return (config.modules || []).map((m: any) => ({
-      ...m,
-      linked: true
-    }));
-  } catch (error) {
-    return [];
-  }
+  return {
+    modules,
+    unresolvedCount: linkedModules.unresolvedCount,
+    configError: linkedModules.configError
+  };
 }
 
