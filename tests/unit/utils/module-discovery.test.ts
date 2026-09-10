@@ -1,13 +1,18 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import * as fs from 'fs';
+import { createRequire } from 'module';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import * as os from 'os';
 import * as path from 'path';
 import {
+  discoverCollections,
   findModuleEnhanced,
   getModuleSuggestions,
   extractModuleMetadata,
   listModuleFiles,
   discoverModules
 } from '@cli/utils/module-system';
+
+const require = createRequire(import.meta.url);
+const fs = require('fs') as typeof import('fs');
 
 describe('Module Discovery', () => {
   const testModulesDir = path.join(__dirname, '__fixtures__', 'test-modules');
@@ -78,6 +83,12 @@ describe('Module Discovery', () => {
       const result = findModuleEnhanced('TEST-MODULE');
       // Result depends on actual modules available
       expect(result === null || typeof result === 'object').toBe(true);
+    });
+
+    it('should still resolve screenplay by bare name', () => {
+      const result = findModuleEnhanced('screenplay');
+
+      expect(result?.fullName).toBe('writing-standards/screenplay');
     });
   });
 
@@ -257,6 +268,165 @@ describe('Module Discovery', () => {
         expect(module).toHaveProperty('metadata');
         expect(module.metadata).toHaveProperty('name');
       }
+    });
+  });
+
+  describe('normalized discovery order', () => {
+    let tempRoot = '';
+    let originalCwd = '';
+    let originalReaddirSync = fs.readdirSync;
+
+    const makeDirent = (name: string, isDirectory: boolean) => ({
+      name,
+      isDirectory: () => isDirectory,
+      isFile: () => !isDirectory
+    });
+
+    beforeEach(() => {
+      originalCwd = process.cwd();
+      tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'filmbuff-order-'));
+      process.chdir(tempRoot);
+
+      fs.writeFileSync(path.join(tempRoot, 'package.json'), '{}', 'utf-8');
+      fs.mkdirSync(path.join(tempRoot, 'filmbuff'), { recursive: true });
+
+      const modulesDir = path.join(tempRoot, 'filmbuff', 'type');
+      const parentDir = path.join(modulesDir, 'parent');
+      const siblingDir = path.join(modulesDir, 'sibling');
+      const alphaDir = path.join(parentDir, 'alpha');
+      const betaDir = path.join(parentDir, 'beta');
+      const collectionsDir = path.join(tempRoot, 'filmbuff', 'collections');
+      const etaDir = path.join(collectionsDir, 'eta');
+      const zetaDir = path.join(collectionsDir, 'zeta');
+
+      for (const dir of [parentDir, siblingDir, alphaDir, betaDir, etaDir, zetaDir]) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      fs.writeFileSync(path.join(parentDir, 'module.json'), JSON.stringify({
+        name: 'parent',
+        version: '1.0.0',
+        displayName: 'Parent Module',
+        description: 'Parent module for order testing',
+        type: 'examples'
+      }), 'utf-8');
+
+      fs.writeFileSync(path.join(siblingDir, 'module.json'), JSON.stringify({
+        name: 'sibling',
+        version: '1.0.0',
+        displayName: 'Sibling Module',
+        description: 'Sibling module for order testing',
+        type: 'examples'
+      }), 'utf-8');
+
+      fs.writeFileSync(path.join(alphaDir, 'module.json'), JSON.stringify({
+        name: 'alpha',
+        version: '1.0.0',
+        displayName: 'Alpha Child Module',
+        description: 'Alpha child module for order testing',
+        type: 'examples'
+      }), 'utf-8');
+
+      fs.writeFileSync(path.join(betaDir, 'module.json'), JSON.stringify({
+        name: 'beta',
+        version: '1.0.0',
+        displayName: 'Beta Child Module',
+        description: 'Beta child module for order testing',
+        type: 'examples'
+      }), 'utf-8');
+
+      fs.writeFileSync(path.join(etaDir, 'collection.json'), JSON.stringify({
+        name: 'eta',
+        version: '1.0.0',
+        displayName: 'Eta Collection',
+        description: 'Eta collection for order testing',
+        type: 'collection',
+        modules: []
+      }), 'utf-8');
+
+      fs.writeFileSync(path.join(zetaDir, 'collection.json'), JSON.stringify({
+        name: 'zeta',
+        version: '1.0.0',
+        displayName: 'Zeta Collection',
+        description: 'Zeta collection for order testing',
+        type: 'collection',
+        modules: []
+      }), 'utf-8');
+
+      originalReaddirSync = fs.readdirSync;
+      fs.readdirSync = ((target: any, options?: any) => {
+        const normalizedTarget = path.resolve(String(target)).replace(/\\/g, '/');
+        const modulesRoot = path.resolve(tempRoot, 'filmbuff').replace(/\\/g, '/');
+        const typeRoot = path.resolve(tempRoot, 'filmbuff', 'type').replace(/\\/g, '/');
+        const parentRoot = path.resolve(tempRoot, 'filmbuff', 'type', 'parent').replace(/\\/g, '/');
+        const collectionsRoot = path.resolve(tempRoot, 'filmbuff', 'collections').replace(/\\/g, '/');
+        const etaRoot = path.resolve(tempRoot, 'filmbuff', 'collections', 'eta').replace(/\\/g, '/');
+        const zetaRoot = path.resolve(tempRoot, 'filmbuff', 'collections', 'zeta').replace(/\\/g, '/');
+
+        if (options?.withFileTypes) {
+          if (normalizedTarget === modulesRoot) {
+            return [makeDirent('collections', true), makeDirent('type', true)] as any;
+          }
+
+          if (normalizedTarget === typeRoot) {
+            return [makeDirent('sibling', true), makeDirent('parent', true)] as any;
+          }
+
+          if (normalizedTarget === parentRoot) {
+            return [makeDirent('beta', true), makeDirent('alpha', true)] as any;
+          }
+
+          if (normalizedTarget === collectionsRoot) {
+            return [makeDirent('zeta', true), makeDirent('eta', true)] as any;
+          }
+
+          if (normalizedTarget === etaRoot || normalizedTarget === zetaRoot) {
+            return [makeDirent('collection.json', false)] as any;
+          }
+        }
+
+        return originalReaddirSync(target as any, options as any);
+      }) as typeof fs.readdirSync;
+    });
+
+    afterEach(() => {
+      fs.readdirSync = originalReaddirSync;
+
+      process.chdir(originalCwd);
+
+      if (tempRoot && fs.existsSync(tempRoot)) {
+        fs.rmSync(tempRoot, { recursive: true, force: true });
+      }
+    });
+
+    it('returns the same module order on repeated runs', () => {
+      const firstRun = discoverModules().map(module => module.fullName);
+      const secondRun = discoverModules().map(module => module.fullName);
+
+      expect(firstRun).toEqual([
+        'type/parent',
+        'type/parent/alpha',
+        'type/parent/beta',
+        'type/sibling'
+      ]);
+      expect(secondRun).toEqual(firstRun);
+
+      const parent = discoverModules().find(module => module.fullName === 'type/parent');
+      expect(parent?.subModules).toEqual([
+        'type/parent/alpha',
+        'type/parent/beta'
+      ]);
+    });
+
+    it('returns the same collection order on repeated runs', () => {
+      const firstRun = discoverCollections().map(collection => collection.fullName);
+      const secondRun = discoverCollections().map(collection => collection.fullName);
+
+      expect(firstRun).toEqual([
+        'collections/eta',
+        'collections/zeta'
+      ]);
+      expect(secondRun).toEqual(firstRun);
     });
   });
 });

@@ -22,13 +22,18 @@ import { spawn } from 'child_process';
 async function executeCommand(
   command: string,
   args: string[],
-  cwd: string
+  cwd: string,
+  options: { env?: NodeJS.ProcessEnv } = {}
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
   return new Promise((resolve) => {
     const child = spawn(command, args, {
       cwd,
-      shell: true,
-      stdio: ['ignore', 'pipe', 'pipe']
+      shell: false,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        ...options.env
+      }
     });
 
     let stdout = '';
@@ -60,6 +65,120 @@ async function executeCommand(
   });
 }
 
+function stripAnsi(value: string): string {
+  return value.replace(/\u001b\[[0-9;]*m/g, '');
+}
+
+async function createShowSearchFixture(projectPath: string): Promise<void> {
+  const modulePath = join(projectPath, 'filmbuff', 'writing-standards', 'screenplay');
+  await mkdir(modulePath, { recursive: true });
+  await writeFile(
+    join(projectPath, 'package.json'),
+    JSON.stringify({ name: 'show-search-fixture', version: '1.0.0' }, null, 2)
+  );
+
+  await writeFile(
+    join(modulePath, 'module.json'),
+    JSON.stringify(
+      {
+        name: 'screenplay',
+        version: '1.0.0',
+        displayName: 'Screenplay Fixture',
+        description: 'Fixture module for literal search regressions',
+        type: 'writing-standards'
+      },
+      null,
+      2
+    )
+  );
+
+  await Promise.all([
+    writeFile(join(modulePath, '01-bracket.md'), '# Bracket\nThe literal token is [\n'),
+    writeFile(join(modulePath, '02-paren.md'), '# Paren\nThe literal token is (\n'),
+    writeFile(join(modulePath, '03-star.md'), '# Star\nThe literal token is *\n'),
+    writeFile(join(modulePath, '04-dot.md'), '# Dot\nThe literal token is a.dot\n'),
+    writeFile(join(modulePath, '05-normal-first.md'), '# Normal One\nneedle first\n'),
+    writeFile(join(modulePath, '06-normal-second.md'), '# Normal Two\nneedle second\n')
+  ]);
+}
+
+async function createCompletedTasksFixture(projectPath: string): Promise<void> {
+  const beadsDir = join(projectPath, '.beads');
+  const scriptsDir = join(projectPath, 'scripts');
+
+  await mkdir(beadsDir, { recursive: true });
+  await mkdir(scriptsDir, { recursive: true });
+
+  await writeFile(
+    join(scriptsDir, 'completed.jsonl'),
+    [
+      JSON.stringify({
+        id: 'bd-1001',
+        title: 'Split the search flags',
+        description: 'Give module content and completed tasks separate search options.',
+        status: 'closed',
+        priority: 2,
+        closed_at: '2026-09-07T12:00:00.000Z',
+        close_reason: 'Completed with distinct CLI flags'
+      }),
+      JSON.stringify({
+        id: 'bd-1002',
+        title: 'Unrelated task',
+        description: 'This entry should not match the completed search filter.',
+        status: 'closed',
+        priority: 3,
+        closed_at: '2026-09-06T12:00:00.000Z',
+        close_reason: 'Finished for a different reason'
+      })
+    ].join('\n')
+  );
+}
+
+interface ShowCompletedFixtureTask {
+  id: string;
+  title: string;
+  description?: string;
+  status: 'closed';
+  priority?: number;
+  issue_type?: string;
+  owner?: string;
+  created_at?: string;
+  created_by?: string;
+  updated_at?: string;
+  closed_at?: string;
+  close_reason?: string;
+  labels?: string[];
+}
+
+async function createResolvedCompletedProjectFixture(
+  projectPath: string,
+  tasks: ShowCompletedFixtureTask[],
+  options: {
+    includeBeads?: boolean;
+    includeCompletedFile?: boolean;
+  } = {}
+): Promise<void> {
+  await mkdir(join(projectPath, 'filmbuff'), { recursive: true });
+  await writeFile(
+    join(projectPath, 'package.json'),
+    JSON.stringify({ name: 'show-completed-fixture', version: '1.0.0' }, null, 2)
+  );
+
+  if (options.includeBeads !== false) {
+    await mkdir(join(projectPath, '.beads'), { recursive: true });
+  }
+
+  if (options.includeCompletedFile !== false) {
+    const scriptsDir = join(projectPath, 'scripts');
+    await mkdir(scriptsDir, { recursive: true });
+    await writeFile(join(scriptsDir, 'completed.jsonl'), tasks.map((task) => JSON.stringify(task)).join('\n'));
+  }
+}
+
+function normalizeOutput(value: string): string {
+  return stripAnsi(value).replace(/\r\n/g, '\n').trim();
+}
+
 describe('CLI Command Execution', () => {
   let testEnv: TestEnvironment;
   const CLI_PATH = join(__dirname, '../../../cli/dist/cli.js');
@@ -86,7 +205,7 @@ describe('CLI Command Execution', () => {
 
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toBeTruthy();
-    });
+    }, 15_000);
 
     it('should handle unknown command gracefully', async () => {
       const result = await executeCommand(
@@ -97,7 +216,7 @@ describe('CLI Command Execution', () => {
 
       // Should exit with error code
       expect(result.exitCode).not.toBe(0);
-    });
+    }, 15_000);
 
     // filmbuff init calls extractCommandHelp which spawns external processes —
     // use a generous timeout so slow CI environments can still complete.
@@ -133,11 +252,16 @@ describe('CLI Command Execution', () => {
   describe('stdout/stderr Capture', () => {
     it('should capture stdout from successful command', async () => {
       const project = await testEnv.createProject();
+      await writeFile(
+        join(project.path, 'package.json'),
+        JSON.stringify({ name: 'capture-fixture', version: '1.0.0' }, null, 2)
+      );
+      await mkdir(join(project.path, 'filmbuff'), { recursive: true });
       const result = await executeCommand('node', [CLI_PATH, 'list'], project.path);
 
       expect(result.stdout).toBeTruthy();
       expect(result.stderr).toBe('');
-    });
+    }, 15_000);
 
     it('should capture stderr from failed command', async () => {
       const result = await executeCommand(
@@ -157,7 +281,7 @@ describe('CLI Command Execution', () => {
       expect(result.stdout).toBeTruthy();
       // Should be valid JSON (empty array or object)
       expect(() => JSON.parse(result.stdout)).not.toThrow();
-    });
+    }, 15_000);
   });
 
   describe('Exit Codes', () => {
@@ -187,7 +311,7 @@ describe('CLI Command Execution', () => {
 
       // May succeed or fail depending on argument parsing
       expect(result.exitCode).toBeGreaterThanOrEqual(0);
-    });
+    }, 15_000);
   });
 
   describe('Command Chaining', () => {
@@ -205,7 +329,7 @@ describe('CLI Command Execution', () => {
       // Both should succeed
       expect(result1.stdout).toBeTruthy();
       expect(result2.stdout).toBeTruthy();
-    });
+    }, 15_000);
 
     // Each CLI invocation spawns a Node process loading an ESM-only package
     // (~2.5 s per invocation) — use a 30 s timeout for multi-invocation tests.
@@ -269,7 +393,7 @@ describe('CLI Command Execution', () => {
       expect(result.exitCode).not.toBe(0);
       const output = result.stdout + result.stderr;
       expect(output.length).toBeGreaterThan(0);
-    });
+    }, 15_000);
 
     it('should provide clear error for invalid project path', async () => {
       const result = await executeCommand(
@@ -293,7 +417,7 @@ describe('CLI Command Execution', () => {
       expect(result.exitCode).not.toBe(0);
       const output = result.stdout + result.stderr;
       expect(output.length).toBeGreaterThan(0);
-    });
+    }, 15_000);
   });
 
   describe('JSON Output', () => {
@@ -303,7 +427,7 @@ describe('CLI Command Execution', () => {
 
       expect(result.exitCode).toBe(0);
       expect(() => JSON.parse(result.stdout)).not.toThrow();
-    });
+    }, 15_000);
 
     it('should handle empty JSON output', async () => {
       const project = await testEnv.createProject();
@@ -381,7 +505,7 @@ describe('CLI Command Execution', () => {
 
       expect(result.exitCode).toBe(0);
       // Command should execute in project directory
-    });
+    }, 15_000);
 
     it('should handle relative paths', async () => {
       const project = await testEnv.createProject();
@@ -391,5 +515,362 @@ describe('CLI Command Execution', () => {
 
       expect(result.exitCode).toBe(0);
     }, 15_000);
+  });
+
+  describe('Show search literal regressions', () => {
+    const BIN_PATH = join(__dirname, '../../../bin/filmbuff.js');
+
+    async function runShowSearch(
+      projectPath: string,
+      searchTerm: string,
+      extraArgs: string[] = []
+    ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+      return executeCommand(
+        process.execPath,
+        [BIN_PATH, 'show', 'writing-standards/screenplay', '--search', searchTerm, ...extraArgs],
+        projectPath,
+        { env: { FORCE_COLOR: '1' } }
+      );
+    }
+
+    it.each([
+      ['[', '01-bracket.md'],
+      ['(', '02-paren.md'],
+      ['*', '03-star.md'],
+      ['.', '04-dot.md']
+    ])('treats %s as literal text', async (searchTerm, expectedFile) => {
+      const project = await testEnv.createProject();
+      await createShowSearchFixture(project.path);
+
+      const result = await runShowSearch(project.path, searchTerm);
+      const plainOutput = stripAnsi(result.stdout + result.stderr);
+
+      expect(result.exitCode).toBe(0);
+      expect(plainOutput).not.toContain('SyntaxError: Invalid regular expression');
+      expect(plainOutput).toContain(`Search Results: "${searchTerm}"`);
+      expect(plainOutput).toContain(`📄 ${expectedFile}`);
+      expect(plainOutput).toContain('Found 1 matches in 1 files');
+    }, 15_000);
+
+    it('highlights ordinary terms and preserves file order', async () => {
+      const project = await testEnv.createProject();
+      await createShowSearchFixture(project.path);
+
+      const result = await runShowSearch(project.path, 'needle');
+      const output = result.stdout + result.stderr;
+      const plainOutput = stripAnsi(output);
+      const contentLines = output
+        .split(/\r?\n/)
+        .filter((line) => stripAnsi(line).trim().startsWith('needle '));
+
+      expect(result.exitCode).toBe(0);
+      expect(plainOutput).toContain('Found 2 matches in 2 files');
+
+      const firstFileIndex = plainOutput.indexOf('📄 05-normal-first.md');
+      const secondFileIndex = plainOutput.indexOf('📄 06-normal-second.md');
+
+      expect(firstFileIndex).toBeGreaterThan(-1);
+      expect(secondFileIndex).toBeGreaterThan(firstFileIndex);
+      expect(contentLines).toHaveLength(2);
+      contentLines.forEach((line) => {
+        expect(line).toContain('\u001b[');
+      });
+    }, 15_000);
+
+    it('keeps the empty-state copy when no matches are found', async () => {
+      const project = await testEnv.createProject();
+      await createShowSearchFixture(project.path);
+
+      const result = await runShowSearch(project.path, 'missing-term');
+      const plainOutput = stripAnsi(result.stdout + result.stderr);
+
+      expect(result.exitCode).toBe(0);
+      expect(plainOutput).toContain('No matches found for: "missing-term"');
+    });
+
+    it('still honors --no-cache without changing search ordering', async () => {
+      const project = await testEnv.createProject();
+      await createShowSearchFixture(project.path);
+
+      const result = await runShowSearch(project.path, 'needle', ['--no-cache']);
+      const plainOutput = stripAnsi(result.stdout + result.stderr);
+
+      expect(result.exitCode).toBe(0);
+      expect(plainOutput).toContain('Inspection cache disabled for this command.');
+      expect(plainOutput).toContain('Found 2 matches in 2 files');
+      expect(plainOutput).toContain('📄 05-normal-first.md');
+      expect(plainOutput).toContain('📄 06-normal-second.md');
+      expect(plainOutput.indexOf('📄 05-normal-first.md')).toBeLessThan(
+        plainOutput.indexOf('📄 06-normal-second.md')
+      );
+    }, 15_000);
+  });
+
+  describe('Show search flag separation', () => {
+    const BIN_PATH = join(__dirname, '../../../bin/filmbuff.js');
+
+    it('shows module and completed search flags distinctly in help output', async () => {
+      const result = await executeCommand('node', [CLI_PATH, 'show', '--help'], testEnv.tempDir);
+      const output = stripAnsi(result.stdout + result.stderr);
+
+      expect(result.exitCode).toBe(0);
+      expect(output).toContain('Display detailed information about a module');
+      expect(output).toContain('--search <term>');
+      expect(output).toContain('Search within module content');
+      expect(output).toContain('--completed-search <term>');
+      expect(output).toMatch(/Search completed tasks by title, description, or\s+close reason/);
+    });
+
+    it('routes completed searches through the renamed flag', async () => {
+      const project = await testEnv.createProject({
+        name: 'show-completed-search',
+        withAugmentDir: false
+      });
+      await createCompletedTasksFixture(project.path);
+
+      const result = await executeCommand(
+        'node',
+        [BIN_PATH, 'show', 'completed', '--completed-search', 'distinct'],
+        project.path
+      );
+      const output = stripAnsi(result.stdout + result.stderr);
+
+      expect(result.exitCode).toBe(0);
+      expect(output).toContain('Completed Tasks (1)');
+      expect(output).toContain('bd-1001');
+      expect(output).toContain('Split the search flags');
+      expect(output).not.toContain('bd-1002');
+    }, 30_000);
+
+    it('keeps commander-style errors for unknown show flags', async () => {
+      const project = await testEnv.createProject({ name: 'show-unknown-flag' });
+
+      const result = await executeCommand(
+        'node',
+        [CLI_PATH, 'show', 'completed', '--bogus'],
+        project.path
+      );
+      const output = stripAnsi(result.stdout + result.stderr);
+
+      expect(result.exitCode).not.toBe(0);
+      expect(output).toContain("error: unknown option '--bogus'");
+    });
+
+    it('rejects the module search flag on the completed workflow', async () => {
+      const project = await testEnv.createProject({ name: 'show-completed-search-misuse' });
+      await createCompletedTasksFixture(project.path);
+
+      const result = await executeCommand(
+        'node',
+        [BIN_PATH, 'show', 'completed', '--search', 'distinct'],
+        project.path
+      );
+      const output = stripAnsi(result.stdout + result.stderr);
+
+      expect(result.exitCode).not.toBe(0);
+      expect(output).toContain(
+        'The --search option is reserved for module content. Use --completed-search with "filmbuff show completed".'
+      );
+    });
+
+    it('rejects completed-task search on module inspections', async () => {
+      const project = await testEnv.createProject({ name: 'show-completed-search-on-module' });
+
+      const result = await executeCommand(
+        'node',
+        [BIN_PATH, 'show', 'writing-standards/screenplay', '--completed-search', 'distinct'],
+        project.path
+      );
+      const output = stripAnsi(result.stdout + result.stderr);
+
+      expect(result.exitCode).not.toBe(0);
+      expect(output).toContain(
+        'The --completed-search option only applies to "filmbuff show completed". Use --search for module content.'
+      );
+    });
+  });
+
+  describe('Show completed path resolution', () => {
+    const BIN_PATH = join(__dirname, '../../../bin/filmbuff.js');
+
+    const completedTasks: ShowCompletedFixtureTask[] = [
+      {
+        id: 'bd-2001',
+        title: 'Alpha draft',
+        description: 'needle in the haystack',
+        status: 'closed',
+        priority: 2,
+        issue_type: 'task',
+        owner: 'alice@example.com',
+        created_at: '2026-09-01T09:00:00.000Z',
+        created_by: 'writer@example.com',
+        updated_at: '2026-09-07T09:30:00.000Z',
+        closed_at: '2026-09-07T10:00:00.000Z',
+        close_reason: 'First completed task',
+        labels: ['alpha', 'shared']
+      },
+      {
+        id: 'bd-2002',
+        title: 'Beta draft',
+        description: 'completely different',
+        status: 'closed',
+        priority: 1,
+        issue_type: 'bug',
+        owner: 'bob@example.com',
+        created_at: '2026-09-02T09:00:00.000Z',
+        created_by: 'writer@example.com',
+        updated_at: '2026-09-07T11:30:00.000Z',
+        closed_at: '2026-09-08T10:00:00.000Z',
+        close_reason: 'Another finished task',
+        labels: ['beta']
+      },
+      {
+        id: 'bd-2003',
+        title: 'Gamma draft',
+        description: 'needle appears here too',
+        status: 'closed',
+        priority: 3,
+        issue_type: 'task',
+        owner: 'alice@example.com',
+        created_at: '2026-09-03T09:00:00.000Z',
+        created_by: 'writer@example.com',
+        updated_at: '2026-09-06T09:30:00.000Z',
+        closed_at: '2026-09-06T10:00:00.000Z',
+        close_reason: 'Wrapped up cleanly',
+        labels: ['alpha']
+      }
+    ];
+
+    async function runShowCompleted(
+      cwd: string,
+      args: string[] = []
+    ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+      return executeCommand(
+        'node',
+        [CLI_PATH, 'show', 'completed', ...args],
+        cwd
+      );
+    }
+
+    it('finds the same completed tasks from the repository root and a nested directory', async () => {
+      const project = await testEnv.createProject({ name: 'show-completed-root-resolution' });
+      await createResolvedCompletedProjectFixture(project.path, completedTasks);
+
+      const nestedDir = join(project.path, 'nested', 'working', 'dir');
+      await mkdir(nestedDir, { recursive: true });
+
+      const rootResult = await runShowCompleted(project.path);
+      const nestedResult = await runShowCompleted(nestedDir);
+
+      expect(rootResult.exitCode).toBe(0);
+      expect(nestedResult.exitCode).toBe(0);
+      expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).toBe(
+        normalizeOutput(nestedResult.stdout + nestedResult.stderr)
+      );
+      expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).toContain('Completed Tasks (3)');
+      expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).toContain('bd-2001');
+      expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).toContain('bd-2002');
+      expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).toContain('bd-2003');
+    }, 30_000);
+
+    it('keeps the friendly Beads empty-state guidance when .beads is missing', async () => {
+      const project = await testEnv.createProject({ name: 'show-completed-missing-beads' });
+      await createResolvedCompletedProjectFixture(project.path, [], {
+        includeBeads: false,
+        includeCompletedFile: false
+      });
+
+      const nestedDir = join(project.path, 'nested');
+      await mkdir(nestedDir, { recursive: true });
+
+      const result = await runShowCompleted(nestedDir);
+      const output = normalizeOutput(result.stdout + result.stderr);
+
+      expect(result.exitCode).toBe(0);
+      expect(output).toContain('⚠ Beads is not initialized in this project.');
+      expect(output).toContain('Install Beads CLI:');
+      expect(output).toContain('bd init');
+      expect(output).toContain('See: filmbuff show workflows/beads for more information.');
+    });
+
+    it('keeps the missing completed-file guidance when scripts/completed.jsonl is absent', async () => {
+      const project = await testEnv.createProject({ name: 'show-completed-missing-file' });
+      await createResolvedCompletedProjectFixture(project.path, [], {
+        includeCompletedFile: false
+      });
+
+      const nestedDir = join(project.path, 'nested');
+      await mkdir(nestedDir, { recursive: true });
+
+      const result = await runShowCompleted(nestedDir);
+      const output = normalizeOutput(result.stdout + result.stderr);
+
+      expect(result.exitCode).toBe(0);
+      expect(output).toContain('No completed tasks file found.');
+      expect(output).toContain('The completed tasks file will be created automatically when you:');
+      expect(output).toContain('Completed tasks are stored in: scripts/completed.jsonl');
+    });
+
+    it('still honors search, filter, and sort options after resolving the project root', async () => {
+      const project = await testEnv.createProject({ name: 'show-completed-filters' });
+      await createResolvedCompletedProjectFixture(project.path, completedTasks);
+
+      const nestedDir = join(project.path, 'nested');
+      await mkdir(nestedDir, { recursive: true });
+
+      const searchResult = await runShowCompleted(nestedDir, ['--completed-search', 'needle', '--json']);
+      const filteredResult = await runShowCompleted(nestedDir, [
+        '--labels',
+        'alpha',
+        '--type',
+        'task',
+        '--priority',
+        '2',
+        '--assignee',
+        'alice@example.com',
+        '--json'
+      ]);
+      const sortedResult = await runShowCompleted(nestedDir, ['--sort', 'title', '--order', 'asc', '--json']);
+
+      expect(searchResult.exitCode).toBe(0);
+      expect(filteredResult.exitCode).toBe(0);
+      expect(sortedResult.exitCode).toBe(0);
+
+      const searchJson = JSON.parse(searchResult.stdout) as Array<{ id: string }>;
+      const filteredJson = JSON.parse(filteredResult.stdout) as Array<{ id: string }>;
+      const sortedJson = JSON.parse(sortedResult.stdout) as Array<{ title: string }>;
+
+      expect(searchJson.map((task) => task.id)).toEqual(['bd-2001', 'bd-2003']);
+      expect(filteredJson.map((task) => task.id)).toEqual(['bd-2001']);
+      expect(sortedJson.map((task) => task.title)).toEqual([
+        'Alpha draft',
+        'Beta draft',
+        'Gamma draft'
+      ]);
+    }, 30_000);
+
+    it('preserves the verbose and quiet task formatting', async () => {
+      const project = await testEnv.createProject({ name: 'show-completed-formatting' });
+      await createResolvedCompletedProjectFixture(project.path, completedTasks.slice(0, 2));
+
+      const nestedDir = join(project.path, 'nested', 'formatting');
+      await mkdir(nestedDir, { recursive: true });
+
+      const verboseResult = await runShowCompleted(nestedDir, ['--verbose']);
+      const quietResult = await runShowCompleted(nestedDir, ['--quiet']);
+      const verboseOutput = normalizeOutput(verboseResult.stdout + verboseResult.stderr);
+      const quietOutput = normalizeOutput(quietResult.stdout + quietResult.stderr);
+
+      expect(verboseResult.exitCode).toBe(0);
+      expect(quietResult.exitCode).toBe(0);
+      expect(verboseOutput).toContain('Completed Tasks (2)');
+      expect(verboseOutput).toContain('Alpha draft');
+      expect(verboseOutput).toContain('Created:');
+      expect(verboseOutput).toContain('Updated:');
+      expect(verboseOutput).toContain('Owner: alice@example.com');
+      expect(verboseOutput).toContain('Reason: First completed task');
+      expect(verboseOutput).toContain('Labels: alpha, shared');
+      expect(quietOutput).toBe('bd-2001\nbd-2002');
+    }, 30_000);
   });
 });

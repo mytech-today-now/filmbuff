@@ -6,7 +6,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import packageJson from '../../../package.json';
 import { extractCommandHelp, extractAllHelp, detectTools } from '@cli/utils/extractCommandHelp';
+
+const packageVersion = (packageJson as { version: string }).version;
 
 describe('extractCommandHelp integration tests', () => {
   let tempDir: string;
@@ -14,6 +17,7 @@ describe('extractCommandHelp integration tests', () => {
   beforeEach(() => {
     // Create temporary directory for tests
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'augx-test-'));
+    fs.writeFileSync(path.join(tempDir, 'VERSION'), `${packageVersion}\n`, 'utf8');
   });
 
   afterEach(() => {
@@ -42,7 +46,7 @@ describe('extractCommandHelp integration tests', () => {
       // Verify content
       expect(result).toContain('# Command Help Reference');
       expect(result).toContain('**Generated**:');
-      expect(result).toContain('**Version**: 1.0.0');
+      expect(result).toContain(`**Version**: ${packageVersion}`);
 
       // Read file and verify it matches returned content
       const fileContent = fs.readFileSync(fullOutputPath, 'utf8');

@@ -62,7 +62,52 @@ describe('VersionManager', () => {
       const result1 = versionManager.getVersion(testDir);
       const result2 = versionManager.getVersion(testDir);
       
-      expect(result1).toEqual(result2);
+      expect(result1).toBe(result2);
+    });
+
+    it('should refresh cached VERSION changes before TTL expiry', () => {
+      const versionPath = path.join(testDir, 'VERSION');
+      fs.writeFileSync(versionPath, '1.0.0\n');
+
+      const result1 = versionManager.getVersion(testDir);
+
+      fs.writeFileSync(versionPath, '2.0.0\n');
+      const future = new Date(Date.now() + 1000);
+      fs.utimesSync(versionPath, future, future);
+
+      const result2 = versionManager.getVersion(testDir);
+
+      expect(result1?.version).toBe('1.0.0');
+      expect(result2?.version).toBe('2.0.0');
+      expect(result2).not.toBe(result1);
+    });
+
+    it('should refresh cached metadata.json changes before TTL expiry', () => {
+      const versionPath = path.join(testDir, 'VERSION');
+      const metadataPath = path.join(testDir, 'metadata.json');
+
+      fs.writeFileSync(versionPath, '1.0.0\n');
+      fs.writeFileSync(metadataPath, JSON.stringify({
+        deprecated: false,
+        deprecationMessage: 'Use v1'
+      }));
+
+      const result1 = versionManager.getVersion(testDir);
+
+      fs.writeFileSync(metadataPath, JSON.stringify({
+        deprecated: true,
+        deprecationMessage: 'Use v2'
+      }));
+      const future = new Date(Date.now() + 1000);
+      fs.utimesSync(metadataPath, future, future);
+
+      const result2 = versionManager.getVersion(testDir);
+
+      expect(result1?.deprecated).toBe(false);
+      expect(result1?.deprecationMessage).toBe('Use v1');
+      expect(result2?.deprecated).toBe(true);
+      expect(result2?.deprecationMessage).toBe('Use v2');
+      expect(result2).not.toBe(result1);
     });
   });
 

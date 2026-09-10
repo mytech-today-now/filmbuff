@@ -155,7 +155,7 @@ export function resolveAlias(alias: string): Module | null {
   const aliasLower = alias.toLowerCase();
 
   // Walk the full module list and score each candidate
-  const allModules = discoverModules();
+  const allModules = discoverModulesRaw();
 
   // 1. Exact match on the last path segment of fullName (directory alias)
   const directoryMatch = allModules.find(m => {
@@ -370,7 +370,9 @@ export function loadModule(modulePath: string): Module | null {
         .filter(dir => fs.existsSync(path.join(modulePath, dir, 'module.json')))
         .map(dir => `${fullName}/${dir}`);
 
-      subModules = foundSubModules.length > 0 ? foundSubModules : undefined;
+      subModules = foundSubModules.length > 0
+        ? [...foundSubModules].sort(compareCanonicalFullNames)
+        : undefined;
     }
 
     return {
@@ -772,10 +774,40 @@ function findModuleJsonFiles(dir: string): string[] {
   return results;
 }
 
-/**
- * Discover all modules in the modules directory
- */
-export function discoverModules(): Module[] {
+function compareCanonicalFullNames(left: string, right: string): number {
+  const normalizedLeft = String(left ?? '').replace(/\\/g, '/');
+  const normalizedRight = String(right ?? '').replace(/\\/g, '/');
+  const foldedLeft = normalizedLeft.toLowerCase();
+  const foldedRight = normalizedRight.toLowerCase();
+
+  try {
+    const localeResult = foldedLeft.localeCompare(foldedRight, 'en', { sensitivity: 'base' });
+    if (localeResult !== 0) {
+      return localeResult;
+    }
+
+    const canonicalResult = normalizedLeft.localeCompare(normalizedRight, 'en', { sensitivity: 'variant' });
+    if (canonicalResult !== 0) {
+      return canonicalResult;
+    }
+  } catch {
+    // Fall through to deterministic comparisons below.
+  }
+
+  if (foldedLeft < foldedRight) return -1;
+  if (foldedLeft > foldedRight) return 1;
+  if (normalizedLeft < normalizedRight) return -1;
+  if (normalizedLeft > normalizedRight) return 1;
+  return 0;
+}
+
+function sortByCanonicalFullName<T extends { fullName: string }>(items: T[]): T[] {
+  return [...items].sort((left, right) =>
+    compareCanonicalFullNames(left.fullName, right.fullName)
+  );
+}
+
+function discoverModulesRaw(): Module[] {
   const modules: Module[] = [];
   const modulesDir = getModulesDir();
 
@@ -798,6 +830,13 @@ export function discoverModules(): Module[] {
   }
 
   return modules;
+}
+
+/**
+ * Discover all modules in the modules directory
+ */
+export function discoverModules(): Module[] {
+  return sortByCanonicalFullName(discoverModulesRaw());
 }
 
 /**
@@ -864,7 +903,7 @@ export function discoverCollections(): Collection[] {
     }
   }
 
-  return collections;
+  return sortByCanonicalFullName(collections);
 }
 
 /**
@@ -883,7 +922,7 @@ export function findModule(moduleName: string): Module | null {
   }
 
   // Search all categories for the module by fullName suffix
-  const modules = discoverModules();
+  const modules = discoverModulesRaw();
   const byFullName = modules.find(m =>
     m.fullName.toLowerCase() === moduleName.toLowerCase() ||
     m.fullName.toLowerCase().endsWith(`/${moduleName.toLowerCase()}`)

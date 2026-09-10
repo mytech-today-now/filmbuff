@@ -26,7 +26,7 @@ import { readAll } from '../../lib/shot-list-reader.js';
 import { getLatestState, getStatusFilePath } from '../../lib/status-file-manager.js';
 import type { ShotStatus, VideoStatusRecord } from '../../lib/shot-state-machine.js';
 import {
-  EXIT, isAgentMode, agentSuccess, agentError, humanLog, warnLog,
+  EXIT, isAgentMode, agentSuccess, agentError, warnLog,
 } from '../../lib/agent-mode.js';
 
 export interface VideoStatusOptions {
@@ -45,6 +45,30 @@ const STATUS_SYMBOL: Record<ShotStatus, string> = {
   failed:     '!',
 };
 
+const SHOT_LIST_READ_ERROR_MESSAGE =
+  'Unable to read the shot list. Fix 08-shot-list.jsonl before checking video status.';
+
+function isErrnoCode(err: unknown, code: string): boolean {
+  return typeof err === 'object'
+    && err !== null
+    && 'code' in err
+    && (err as { code?: unknown }).code === code;
+}
+
+function failShotListRead(err: unknown, agentMode: boolean): never {
+  if (isErrnoCode(err, 'ENOENT')) {
+    if (agentMode) { agentError(EXIT.NOT_FOUND, SHOT_LIST_READ_ERROR_MESSAGE); } else { console.error(`✗ ${SHOT_LIST_READ_ERROR_MESSAGE}`); }
+    process.exit(EXIT.NOT_FOUND);
+  }
+
+  const detail = err instanceof Error && err.message ? err.message : String(err);
+  const message = agentMode
+    ? `${SHOT_LIST_READ_ERROR_MESSAGE} ${detail}`
+    : SHOT_LIST_READ_ERROR_MESSAGE;
+  if (agentMode) { agentError(EXIT.GENERAL_ERROR, message); } else { console.error(`✗ ${message}`); }
+  process.exit(EXIT.GENERAL_ERROR);
+}
+
 export async function videoStatusCommand(opts: VideoStatusOptions): Promise<void> {
   const projectPath = path.resolve(opts.project);
   const agentMode   = isAgentMode(opts.agent) || (opts.json === true);
@@ -58,22 +82,28 @@ export async function videoStatusCommand(opts: VideoStatusOptions): Promise<void
     process.exit(EXIT.NOT_FOUND);
   }
 
-  // ── 1. Watchdog sweep ─────────────────────────────────────────────────────
+  // ── 1. Load data ──────────────────────────────────────────────────────────
+  let shots: Awaited<ReturnType<typeof readAll>>;
+  try {
+    shots = await readAll(projectPath);
+  } catch (err) {
+    failShotListRead(err, agentMode);
+  }
+
+  // ── 2. Watchdog sweep ─────────────────────────────────────────────────────
   await runWatchdog(projectPath, undefined, undefined, warnFn);
 
-  // ── 2. Load data ──────────────────────────────────────────────────────────
-  let shots: Awaited<ReturnType<typeof readAll>>;
-  try { shots = await readAll(projectPath); } catch { shots = []; }
+  // ── 3. Reload status after watchdog sweep ────────────────────────────────
   const statusMap = await getLatestState(projectPath);
 
-  // ── 3. Apply filter ───────────────────────────────────────────────────────
+  // ── 4. Apply filter ───────────────────────────────────────────────────────
   const filterStatus = opts.filter as ShotStatus | undefined;
   const records: VideoStatusRecord[] = shots
     .map(s => statusMap.get(s.shot_id))
     .filter((r): r is VideoStatusRecord => r !== undefined)
     .filter(r => !filterStatus || r.status === filterStatus);
 
-  // ── 4. Build counts ───────────────────────────────────────────────────────
+  // ── 5. Build counts ───────────────────────────────────────────────────────
   const counts: Record<string, number> = {
     pending: 0, generating: 0, complete: 0, approved: 0, rejected: 0, failed: 0,
   };
@@ -81,7 +111,7 @@ export async function videoStatusCommand(opts: VideoStatusOptions): Promise<void
     counts[rec.status] = (counts[rec.status] ?? 0) + 1;
   }
 
-  // ── 5. Output ─────────────────────────────────────────────────────────────
+  // ── 6. Output ─────────────────────────────────────────────────────────────
   if (agentMode) {
     agentSuccess({
       total_shots: shots.length,

@@ -61,7 +61,8 @@ daemon.lock
 openspec/
 
 # scripts (entire directory - project-specific tests)
-scripts/
+scripts/*
+!scripts/version-sync.js
 
 # Augment Extensions
 .augment/extensions.json

@@ -437,6 +437,7 @@ export async function generateShotListCommand(options: GenerateShotListOptions):
         warningThreshold: 90, // 90% threshold for warnings
         includeContext: true,
         includeMetadata: true,
+        sourceFormat: screenplay.metadata.format,
         muteSfx: options.muteSfx || false,
         totalBudgetSeconds,  // propagate resolved budget (refactor-slg-01 Task 2C)
       };

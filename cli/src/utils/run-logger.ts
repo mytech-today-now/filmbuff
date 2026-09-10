@@ -86,14 +86,16 @@ export class RunLogger {
     this.active = true;
 
     // ── Save originals ─────────────────────────────────────────────────────
+    // Save the exact original functions so stop() can restore them without
+    // leaving behind wrapper layers.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.origStdout      = (process.stdout.write as any).bind(process.stdout);
+    this.origStdout      = process.stdout.write as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.origStderr      = (process.stderr.write as any).bind(process.stderr);
+    this.origStderr      = process.stderr.write as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.origFsWriteSync = (fsReal.writeSync as any).bind(fsReal);
+    this.origFsWriteSync = fsReal.writeSync as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.origFsWrite     = (fsReal.write as any).bind(fsReal);
+    this.origFsWrite     = fsReal.write as any;
 
     const self = this;
 
@@ -101,12 +103,12 @@ export class RunLogger {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (process.stdout as any).write = function (chunk: any, ...args: any[]): boolean {
       self._teeChunk(chunk);
-      return self.origStdout(chunk, ...args);
+      return self.origStdout.call(process.stdout, chunk, ...args);
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (process.stderr as any).write = function (chunk: any, ...args: any[]): boolean {
       self._teeChunk(chunk);
-      return self.origStderr(chunk, ...args);
+      return self.origStderr.call(process.stderr, chunk, ...args);
     };
 
     // ── Path B: fs.writeSync / fs.write — used by pino / sonic-boom ────────
@@ -118,19 +120,17 @@ export class RunLogger {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fsReal.writeSync = function (fd: number, buffer: any, ...args: any[]): number {
       if (fd === 1 || fd === 2) {
-        process.stderr.write(`[RunLogger DEBUG] writeSync fd=${fd} type=${typeof buffer}\n`);
         self._teeChunk(buffer);
       }
-      return self.origFsWriteSync(fd, buffer, ...args);
+      return self.origFsWriteSync.call(fsReal, fd, buffer, ...args);
     } as typeof fs.writeSync;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     fsReal.write = function (fd: number, buffer: any, ...args: any[]): void {
       if (fd === 1 || fd === 2) {
-        process.stderr.write(`[RunLogger DEBUG] write fd=${fd} type=${typeof buffer}\n`);
         self._teeChunk(buffer);
       }
-      return self.origFsWrite(fd, buffer, ...args);
+      return self.origFsWrite.call(fsReal, fd, buffer, ...args);
     } as typeof fs.write;
 
     if (header) {

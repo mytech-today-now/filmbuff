@@ -1,0 +1,2334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FilmBuff pre-mortem report - 2026-09-07 11:24:34</title>
+<style>
+:root {
+  --bg: #f3efe8;
+  --bg-alt: #e8f0ef;
+  --panel: #fffdf8;
+  --panel-soft: #fcf8f1;
+  --text: #19212b;
+  --muted: #5f6b75;
+  --border: #d8d1c8;
+  --border-strong: #b9aea1;
+  --core: #8c1d18;
+  --core-soft: rgba(140, 29, 24, 0.11);
+  --add: #7d5400;
+  --add-soft: rgba(125, 84, 0, 0.11);
+  --success: #1e6b3c;
+  --shadow: 0 18px 48px rgba(26, 30, 36, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background:
+    radial-gradient(circle at top left, rgba(140, 29, 24, 0.10), transparent 26%),
+    radial-gradient(circle at top right, rgba(125, 84, 0, 0.10), transparent 24%),
+    linear-gradient(180deg, #f7f3ec 0%, #f1ede5 38%, #ece7de 100%);
+  font: 16px/1.6 Georgia, "Times New Roman", serif;
+  text-rendering: optimizeLegibility;
+}
+
+img {
+  max-width: 100%;
+}
+
+a {
+  color: #8c1d18;
+  text-decoration-thickness: 0.08em;
+  text-underline-offset: 0.14em;
+}
+
+a:hover {
+  text-decoration-thickness: 0.12em;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  line-height: 1.18;
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+}
+
+h1 {
+  font-size: clamp(2rem, 3vw, 3rem);
+  letter-spacing: -0.03em;
+}
+
+h2 {
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  letter-spacing: -0.02em;
+}
+
+h3 {
+  font-size: 1.2rem;
+  letter-spacing: -0.01em;
+}
+
+h4 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+code,
+pre,
+kbd {
+  font-family: Consolas, "Liberation Mono", monospace;
+  font-size: 0.95em;
+}
+
+pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: 1rem 1.1rem;
+  background: #111821;
+  color: #f4f4f4;
+  border-radius: 14px;
+}
+
+main {
+  width: min(1220px, calc(100% - 2rem));
+  margin: 0 auto 2rem;
+  display: grid;
+  gap: 1.25rem;
+  padding: 1rem 0 2rem;
+}
+
+.report-header,
+.report-section,
+.issue-card,
+.table-shell {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  box-shadow: var(--shadow);
+}
+
+.report-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.95fr);
+  gap: 1.25rem;
+  padding: 1.5rem;
+}
+
+.eyebrow {
+  margin: 0 0 0.4rem;
+  color: var(--core);
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.lede {
+  margin: 0.75rem 0 0;
+  max-width: 70ch;
+  color: var(--muted);
+}
+
+.meta-list {
+  margin: 0;
+  display: grid;
+  gap: 0.7rem;
+  align-content: start;
+}
+
+.meta-list div {
+  padding: 0.82rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--panel-soft), #ffffff);
+}
+
+.meta-list dt {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.meta-list dd {
+  margin: 0.18rem 0 0;
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: 0.98rem;
+  word-break: break-word;
+}
+
+.report-section {
+  padding: 1.35rem 1.35rem 1.45rem;
+}
+
+.report-section > p {
+  margin-top: 0.8rem;
+}
+
+.summary-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 1rem;
+}
+
+.summary-grid div {
+  padding: 0.95rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: linear-gradient(180deg, #ffffff, #faf7f1);
+}
+
+.summary-grid strong {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+}
+
+.notes-list,
+.plain-list {
+  margin: 0.75rem 0 0;
+  padding-left: 1.2rem;
+}
+
+.notes-list li,
+.plain-list li {
+  margin: 0.3rem 0;
+}
+
+.table-shell {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1120px;
+}
+
+caption {
+  padding: 1rem 1rem 0.7rem;
+  text-align: left;
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 0.85rem 0.8rem;
+  background: #f3eee5;
+  border-bottom: 1px solid var(--border-strong);
+  color: #24303d;
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: 0.84rem;
+  text-align: left;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+tbody td {
+  padding: 0.85rem 0.8rem;
+  border-top: 1px solid rgba(217, 209, 198, 0.9);
+  vertical-align: top;
+}
+
+tbody tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.58);
+}
+
+tbody tr:hover {
+  background: rgba(140, 29, 24, 0.04);
+}
+
+.table-id {
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+  font-weight: 700;
+}
+
+.kind-pill,
+.priority-pill,
+.severity-pill,
+.likelihood-pill {
+  display: inline-block;
+  padding: 0.14rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.kind-core,
+.core {
+  color: var(--core);
+}
+
+.kind-additional,
+.additional {
+  color: var(--add);
+}
+
+.issue-card {
+  --accent: var(--core);
+  padding: 1.35rem 1.35rem 1.45rem;
+  border-left: 9px solid var(--accent);
+}
+
+.issue-card[data-issue-kind="core"] {
+  --accent: var(--core);
+  background:
+    linear-gradient(180deg, rgba(140, 29, 24, 0.05), rgba(255, 255, 255, 0.0)),
+    var(--panel);
+}
+
+.issue-card[data-issue-kind="additional"] {
+  --accent: var(--add);
+  background:
+    linear-gradient(180deg, rgba(125, 84, 0, 0.05), rgba(255, 255, 255, 0.0)),
+    var(--panel);
+}
+
+.issue-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.issue-index {
+  margin: 0;
+  color: var(--muted);
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.issue-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.issue-badges span {
+  display: inline-block;
+  padding: 0.28rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fbf8f2;
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.issue-facts {
+  display: grid;
+  grid-template-columns: minmax(160px, 240px) minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  margin: 0;
+}
+
+.issue-facts dt {
+  margin: 0;
+  padding-top: 0.08rem;
+  color: var(--muted);
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.issue-facts dd {
+  margin: 0;
+  min-width: 0;
+}
+
+.issue-facts dd p {
+  margin: 0 0 0.65rem;
+}
+
+.issue-facts dd p:last-child {
+  margin-bottom: 0;
+}
+
+.issue-facts dd ul,
+.issue-facts dd ol {
+  margin: 0.45rem 0 0.75rem 1.2rem;
+  padding-left: 0.2rem;
+}
+
+.issue-facts dd li {
+  margin: 0.28rem 0;
+}
+
+.issue-facts dd code {
+  padding: 0.05rem 0.3rem;
+  background: #f4efe7;
+  border: 1px solid #ddd3c6;
+  border-radius: 6px;
+}
+
+.confidence-high {
+  color: var(--success);
+}
+
+.confidence-medium {
+  color: #805e00;
+}
+
+.confidence-low {
+  color: #8c1d18;
+}
+
+.footer {
+  width: min(1220px, calc(100% - 2rem));
+  margin: 0 auto 2rem;
+  padding: 1rem 1.15rem;
+  color: var(--muted);
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+  font-size: 0.94rem;
+  border-top: 1px solid rgba(182, 172, 159, 0.8);
+}
+
+.footer p {
+  margin: 0.3rem 0;
+}
+
+@media (max-width: 980px) {
+  .report-header {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .issue-facts {
+    grid-template-columns: 1fr;
+  }
+
+  .issue-facts dt {
+    padding-top: 0.5rem;
+  }
+
+  .issue-facts dt:first-of-type {
+    padding-top: 0;
+  }
+}
+
+@media (max-width: 720px) {
+  body {
+    font-size: 15px;
+  }
+
+  main {
+    width: min(100% - 1rem, 1220px);
+  }
+
+  .report-header,
+  .report-section,
+  .issue-card {
+    padding: 1rem;
+  }
+
+  .issue-header {
+    align-items: flex-start;
+  }
+}
+
+@media print {
+  body {
+    background: #ffffff;
+    color: #000000;
+    font-size: 11pt;
+  }
+
+  main,
+  .footer {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .report-header,
+  .report-section,
+  .issue-card,
+  .table-shell {
+    box-shadow: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .table-shell {
+    overflow: visible;
+  }
+
+  thead th {
+    position: static;
+  }
+
+  a {
+    color: #000000;
+    text-decoration: none;
+  }
+
+  .kind-pill,
+  .priority-pill,
+  .severity-pill,
+  .likelihood-pill {
+    border-color: #444444;
+    color: #000000;
+  }
+}
+</style>
+</head>
+<body>
+<header class="report-header">
+  <div>
+    <p class="eyebrow">Pre-mortem report</p>
+    <h1>FilmBuff pre-mortem report</h1>
+    <p class="lede">
+      Static, self-contained gap analysis for the current working tree. The report is built to be readable in a browser, in print preview, and with CSS disabled.
+    </p>
+  </div>
+  <dl class="meta-list" aria-label="Report metadata">
+    <div>
+      <dt>Generated</dt>
+      <dd>2026-09-07 11:24:34 local</dd>
+    </div>
+    <div>
+      <dt>Repository</dt>
+      <dd>mytech-today-now/filmbuff</dd>
+    </div>
+    <div>
+      <dt>Root</dt>
+      <dd>C:/GitHub/filmbuff-project/filmbuff</dd>
+    </div>
+    <div>
+      <dt>Branch</dt>
+      <dd>main</dd>
+    </div>
+    <div>
+      <dt>Commit</dt>
+      <dd>ab55f8d</dd>
+    </div>
+    <div>
+      <dt>Output</dt>
+      <dd>ai-prompts/pre-mortem-2026-09-07-11-24-34.html</dd>
+    </div>
+  </dl>
+</header>
+
+<main>
+  <section class="report-section" id="executive-summary">
+    <h2>Executive Summary</h2>
+    <p>
+      The current repository shows a cluster of high-confidence failures that would hurt trust quickly if they reached users: a crash-prone search path, duplicate module linking, a broken package entrypoint, several placeholder CLI commands that silently do nothing, and output noise that will mask real failures. The remaining risks are mostly around root resolution, mutable shared state, and documentation or version drift.
+    </p>
+    <div class="summary-grid" role="list" aria-label="Key themes">
+      <div role="listitem">
+        <strong>Direct correctness failures</strong>
+        Search highlighting can throw, linking can duplicate records, and four advertised commands are still stubs.
+      </div>
+      <div role="listitem">
+        <strong>Release and packaging drift</strong>
+        The package entrypoint, lint script, README example, and generated help are not aligned with the current build.
+      </div>
+      <div role="listitem">
+        <strong>Operational visibility risk</strong>
+        Run logging and AI fallback paths emit noisy debug or stack traces that will bury the real signal.
+      </div>
+      <div role="listitem">
+        <strong>Project-root assumptions</strong>
+        Several commands still rely on cwd-relative paths or bundled data instead of the live working tree.
+      </div>
+    </div>
+  </section>
+
+  <section class="report-section" id="methodology">
+    <h2>Review Scope and Methodology</h2>
+    <p>
+      I read the root <code>AGENTS.md</code>, checked for nested agent instructions, inspected the package manifest, CLI entrypoints, command handlers, utility modules, README guidance, and the built <code>cli/dist</code> output. I also ran a small set of read-only diagnostics to separate confirmed runtime failures from code-level risks.
+    </p>
+    <ul class="notes-list">
+      <li><code>npm run lint</code> failed because the workspace could not resolve <code>eslint</code>.</li>
+      <li><code>npm run verify:dist</code> passed.</li>
+      <li><code>npm run test:compat</code> passed.</li>
+      <li><code>node bin/filmbuff.js show writing-standards/screenplay --search "["</code> was rerun and it crashed on an unescaped regular expression.</li>
+      <li>A sample <code>generate-shot-list</code> run completed, but it emitted repeated AI fallback stack traces and run-logger debug lines.</li>
+      <li>A temporary ConfigManager check showed that separate instances share the same default object in memory.</li>
+    </ul>
+  </section>
+
+  <section class="report-section" id="input-resolution">
+    <h2>Input-Resolution Note</h2>
+    <p>
+      The source request did not enumerate the 10 mandatory issue descriptions, so this report resolves that inconsistency by selecting the 10 highest-priority core issues through repository inspection and then adding 6 distinct, high-value additional issues. Each issue is marked <code>Core</code> or <code>Additional</code> in both the risk table and the issue article. Two of the additional issues are labeled <code>Testable assumption</code> because the code path strongly suggests the failure, but a nested-directory confirmation run would make the conclusion even stronger.
+    </p>
+  </section>
+
+  <section class="report-section" id="risk-table">
+    <h2>Prioritized Risk Table</h2>
+    <div class="table-shell" role="region" aria-label="Prioritized risk table">
+      <table>
+        <caption>All 16 issues, ordered from highest to lowest priority</caption>
+        <thead>
+          <tr>
+            <th scope="col">Priority</th>
+            <th scope="col">Issue</th>
+            <th scope="col">Kind</th>
+            <th scope="col">Severity</th>
+            <th scope="col">Likelihood</th>
+            <th scope="col">Impacted area</th>
+            <th scope="col">Failure mode</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr id="risk-01">
+            <td class="table-id">P1</td>
+            <td><a href="#issue-01">Literal search terms crash module inspection</a></td>
+            <td><span class="kind-pill kind-core">Core</span></td>
+            <td>Critical</td>
+            <td>Likely</td>
+            <td>CLI search and module inspection</td>
+            <td>Raw search text is treated as a regular expression and can throw on metacharacters.</td>
+          </tr>
+          <tr id="risk-02">
+            <td class="table-id">P2</td>
+            <td><a href="#issue-02">Relinking by alias creates duplicate module records</a></td>
+            <td><span class="kind-pill kind-core">Core</span></td>
+            <td>Critical</td>
+            <td>Likely</td>
+            <td>Linked module manifest</td>
+            <td>The duplicate check uses the raw alias instead of the canonical module name.</td>
+          </tr>
+          <tr id="risk-03">
+            <td class="table-id">P3</td>
+            <td><a href="#issue-03">Package main points to a missing dist entrypoint</a></td>
+            <td><span class="kind-pill kind-core">Core</span></td>
+            <td>High</td>
+            <td>Almost certain</td>
+            <td>Package entrypoint resolution</td>
+            <td>Consumers that resolve the package root will look for a file that does not exist.</td>
+          </tr>
+          <tr id="risk-04">
+            <td class="table-id">P4</td>
+            <td><a href="#issue-04">The lint script cannot resolve eslint</a></td>
+            <td><span class="kind-pill kind-core">Core</span></td>
+            <td>High</td>
+            <td>Almost certain</td>
+            <td>Lint and CI quality gates</td>
+            <td>The defined lint command cannot start, so the repo has no working lint gate.</td>
+          </tr>
+          <tr id="risk-05">
+            <td class="table-id">P5</td>
+            <td><a href="#issue-05">create <span>&lt;name&gt;</span> is a placeholder no-op</a></td>
+            <td><span class="kind-pill kind-core">Core</span></td>
+            <td>High</td>
+            <td>Almost certain</td>
+            <td>Module scaffold generation</td>
+            <td>The command advertises success but never performs any work.</td>
+          </tr>
+          <tr id="risk-06">
+            <td class="table-id">P6</td>
+            <td><a href="#issue-06">pin <span>&lt;module&gt; &lt;version&gt;</span> is a placeholder no-op</a></td>
+            <td><span class="kind-pill kind-core">Core</span></td>
+            <td>High</td>
+            <td>Almost certain</td>
+            <td>Version pinning workflow</td>
+            <td>The command exists in help output but never updates any persisted state.</td>
+          </tr>
+          <tr id="risk-07">
+            <td class="table-id">P7</td>
+            <td><a href="#issue-07">check-updates is a placeholder no-op</a></td>
+            <td><span class="kind-pill kind-core">Core</span></td>
+            <td>High</td>
+            <td>Almost certain</td>
+            <td>Update checking workflow</td>
+            <td>The command promises update discovery but currently returns no usable result.</td>
+          </tr>
+          <tr id="risk-08">
+            <td class="table-id">P8</td>
+            <td><a href="#issue-08">diff <span>&lt;module&gt;</span> is a placeholder no-op</a></td>
+            <td><span class="kind-pill kind-core">Core</span></td>
+            <td>High</td>
+            <td>Almost certain</td>
+            <td>Module diff workflow</td>
+            <td>The command surface exists, but the implementation body is still empty.</td>
+          </tr>
+          <tr id="risk-09">
+            <td class="table-id">P9</td>
+            <td><a href="#issue-09">show overloads one search flag for two workflows</a></td>
+            <td><span class="kind-pill kind-core">Core</span></td>
+            <td>Medium</td>
+            <td>Likely</td>
+            <td>Command option parsing and help</td>
+            <td>Two unrelated searches share the same flag name, so one meaning can shadow the other.</td>
+          </tr>
+          <tr id="risk-10">
+            <td class="table-id">P10</td>
+            <td><a href="#issue-10">RunLogger injects debug noise into every write path</a></td>
+            <td><span class="kind-pill kind-core">Core</span></td>
+            <td>Medium</td>
+            <td>Likely</td>
+            <td>Operational diagnostics</td>
+            <td>Every stdout or stderr write can echo debug lines that contaminate normal runs.</td>
+          </tr>
+          <tr id="risk-11">
+            <td class="table-id">P11</td>
+            <td><a href="#issue-11">Module discovery can fall back to bundled data instead of the live tree</a></td>
+            <td><span class="kind-pill kind-additional">Additional</span></td>
+            <td>High</td>
+            <td>Possible</td>
+            <td>Module discovery and inspection</td>
+            <td>The cwd heuristic can silently prefer packaged files over the current working tree.</td>
+          </tr>
+          <tr id="risk-12">
+            <td class="table-id">P12</td>
+            <td><a href="#issue-12">Completed-task viewing assumes project-root-relative paths</a></td>
+            <td><span class="kind-pill kind-additional">Additional</span></td>
+            <td>High</td>
+            <td>Possible</td>
+            <td>Beads completed-task view</td>
+            <td>The command reads <code>.beads</code> and <code>scripts/completed.jsonl</code> without root resolution.</td>
+          </tr>
+          <tr id="risk-13">
+            <td class="table-id">P13</td>
+            <td><a href="#issue-13">ConfigManager shares mutable default state across instances</a></td>
+            <td><span class="kind-pill kind-additional">Additional</span></td>
+            <td>High</td>
+            <td>Likely</td>
+            <td>Config persistence</td>
+            <td>One manager can mutate the default object that later instances reuse.</td>
+          </tr>
+          <tr id="risk-14">
+            <td class="table-id">P14</td>
+            <td><a href="#issue-14">AI fallback extractors flood output with raw stack traces</a></td>
+            <td><span class="kind-pill kind-additional">Additional</span></td>
+            <td>Medium</td>
+            <td>Likely</td>
+            <td>AI-assisted shot list generation</td>
+            <td>The fallback path repeats dependency-resolution errors for each affected scene.</td>
+          </tr>
+          <tr id="risk-15">
+            <td class="table-id">P15</td>
+            <td><a href="#issue-15">README quick start shows obsolete generate-shot-list syntax</a></td>
+            <td><span class="kind-pill kind-additional">Additional</span></td>
+            <td>Medium</td>
+            <td>Likely</td>
+            <td>Documentation and onboarding</td>
+            <td>The example command omits <code>--input</code>, so copy-paste usage fails.</td>
+          </tr>
+          <tr id="risk-16">
+            <td class="table-id">P16</td>
+            <td><a href="#issue-16">Version metadata is stale across the README and generated help</a></td>
+            <td><span class="kind-pill kind-additional">Additional</span></td>
+            <td>Low</td>
+            <td>Likely</td>
+            <td>Release metadata and supportability</td>
+            <td>Version strings still report 1.0.0 even though the package manifest says 1.0.2.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <article class="issue-card" id="issue-01" data-issue-kind="core" data-priority="1" aria-labelledby="issue-01-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 01</p>
+        <h3 id="issue-01-title">Literal search terms crash module inspection</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-core">Core</span>
+        <span>Critical</span>
+        <span>Likely</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>Literal search terms crash module inspection</dd>
+
+      <dt>Kind</dt>
+      <dd>Core</dd>
+
+      <dt>Priority</dt>
+      <dd>P1</dd>
+
+      <dt>Severity</dt>
+      <dd>Critical</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Likely</dd>
+
+      <dt>Impacted area</dt>
+      <dd>CLI search and module inspection</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          <code>highlightSearchTerm()</code> in <code>cli/src/commands/show.ts</code> builds a regular expression directly from user input. A literal term such as <code>[</code> or <code>(</code> is treated as regex syntax, so the command can throw after it has already found matches.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          Source evidence is in <code>cli/src/commands/show.ts:1392-1394</code>, where <code>new RegExp(`(${searchTerm})`, 'gi')</code> is created without escaping. A live repro with <code>node bin/filmbuff.js show writing-standards/screenplay --search "["</code> exited 1 with <code>SyntaxError: Invalid regular expression: /([)/gi: Unterminated character class</code>.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          Search is one of the main exploration tools in the CLI. A crash on common punctuation breaks trust, interrupts inspection, and makes support harder because the output looks like the search succeeded until the final exception.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Preserve literal search semantics, but escape regex metacharacters before creating the highlighter or replace the regex path with a plain literal matcher. If highlighting cannot be built safely, show plain text matches instead of throwing.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>cli/src/commands/show.ts</code>, the <code>show</code> registration in <code>cli/src/cli.ts</code>, and any existing search helpers or tests first. Replace the raw regex construction with a literal-safe path that preserves the current visual output for ordinary searches, keeps the current search result ordering, and never throws when the search term contains punctuation. Do not add a broad search framework or alter unrelated module rendering. If highlighting fails for any reason, fall back to an unhighlighted line rather than aborting the command. Add regression tests for <code>[</code>, <code>(</code>, <code>*</code>, and a normal term, then run the targeted CLI repro and the repo's normal build or verification command if it applies. Your final report should name the files changed, the exact test commands, the observed outputs, and any remaining assumptions.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Run <code>node bin/filmbuff.js show writing-standards/screenplay --search "["</code> and assert the command exits cleanly without a syntax error.</li>
+          <li>Search with <code>(</code>, <code>*</code>, and <code>.</code> to confirm each term is treated as literal text.</li>
+          <li>Verify a normal search term still highlights matches and still prints the same files and line order.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Search for a term that is absent and confirm the empty-state copy still appears.</li>
+          <li>Search with <code>--no-cache</code> or other existing show flags to ensure the new helper does not change unrelated behavior.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>No literal search term causes a thrown regular-expression error.</li>
+          <li>Highlighting still works for ordinary search terms.</li>
+          <li>If highlighting cannot be built safely, the command falls back to plain text output instead of failing.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-02" data-issue-kind="core" data-priority="2" aria-labelledby="issue-02-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 02</p>
+        <h3 id="issue-02-title">Relinking by alias creates duplicate module records</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-core">Core</span>
+        <span>Critical</span>
+        <span>Likely</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>Relinking by alias creates duplicate module records</dd>
+
+      <dt>Kind</dt>
+      <dd>Core</dd>
+
+      <dt>Priority</dt>
+      <dd>P2</dd>
+
+      <dt>Severity</dt>
+      <dd>Critical</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Likely</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Linked module manifest</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The duplicate check compares the raw user input against <code>config.modules[].name</code>, but the command stores <code>module.fullName</code>. If the user links by alias or repeats a canonical name through a different spelling, the same module can be written twice.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>cli/src/commands/link.ts:25-37</code> resolves the module, then checks <code>m.name === moduleName</code> instead of comparing normalized identifiers. A temporary project run, <code>filmbuff init</code> followed by two <code>filmbuff link screenplay</code> invocations, produced duplicate <code>writing-standards/screenplay</code> entries in <code>.augment/extensions.json</code>.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          Duplicate manifest entries make downstream commands ambiguous, can create repeated updates, and undermine the expectation that linking a module is idempotent. This is a data integrity issue, not just a cosmetic one.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Normalize the duplicate check to the canonical module id, preferably <code>module.fullName</code>, before writing any manifest changes. Keep the current manifest shape, preserve unrelated entries, and continue to surface a clear already-linked message.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>cli/src/commands/link.ts</code>, <code>cli/src/utils/module-system.ts</code>, and the linked-module manifest format in <code>.augment/extensions.json</code> first. Change the duplicate detection so the command compares a canonical module id, not the raw alias string, and keep the write path idempotent. Do not introduce a new manifest format or a larger module registry. If the module is already linked, preserve the existing record instead of appending a second one. Add tests that link by alias, by canonical name, and twice in a row. Run the same repro sequence you used to confirm the bug and include the manifest diff in your final report.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Link the same module twice by alias and confirm only one manifest entry exists.</li>
+          <li>Link by canonical name after linking by alias and confirm the manifest still contains one record.</li>
+          <li>Confirm an unrelated module still appends a new record.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Verify the existing version metadata and description are preserved when an already linked module is skipped.</li>
+          <li>Confirm the user-facing already-linked message still appears.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>The same module can never be linked twice under different input aliases.</li>
+          <li>Existing manifest ordering and unrelated entries remain unchanged.</li>
+          <li>The command continues to succeed or report already-linked status without rewriting duplicates.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-03" data-issue-kind="core" data-priority="3" aria-labelledby="issue-03-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 03</p>
+        <h3 id="issue-03-title">Package main points to a missing dist entrypoint</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-core">Core</span>
+        <span>High</span>
+        <span>Almost certain</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>Package main points to a missing dist entrypoint</dd>
+
+      <dt>Kind</dt>
+      <dd>Core</dd>
+
+      <dt>Priority</dt>
+      <dd>P3</dd>
+
+      <dt>Severity</dt>
+      <dd>High</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Almost certain</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Package entrypoint resolution</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The package manifest advertises <code>cli/dist/index.js</code> as <code>main</code>, but the built output exposes <code>cli/dist/cli.js</code> instead. Consumers that load the package root will resolve a file that does not exist.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>package.json:5</code> sets <code>"main": "cli/dist/index.js"</code>. The built tree contains <code>cli/dist/cli.js</code> and many supporting files, but no <code>cli/dist/index.js</code>. The binary wrapper in <code>bin/filmbuff.js</code> already points at <code>cli/dist/cli.js</code>, so the package surface is internally inconsistent.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          Even if the CLI binary still launches, package consumers, smoke tests, and bundlers that resolve the root entrypoint will fail. That creates a release and compatibility problem that will surface after publish.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Make <code>main</code> point to a real built entrypoint, or add a small shim file that exists after build and re-exports the CLI surface. Keep the binary wrapper unchanged so the command-line path stays stable.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>package.json</code>, <code>bin/filmbuff.js</code>, the build output under <code>cli/dist</code>, and any packaging checks first. Align the package entrypoint with a file that is guaranteed to exist after the normal build, and do not disturb the existing binary launcher. Avoid introducing a second entrypoint tree or a broad publish refactor. Add a smoke test that loads the package root and confirms the resolved file exists, then run <code>npm run verify:dist</code> and any package-resolution smoke you can support locally. In your final report, note the exact entrypoint chosen, the build artifact it resolves to, and any remaining packaging assumptions.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Require the package root in a Node smoke test and confirm it resolves without a missing-file error.</li>
+          <li>Confirm the published binary wrapper still points at the same CLI file.</li>
+          <li>Run <code>npm run verify:dist</code> and confirm the build output still contains the expected CLI file.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Verify the package metadata still lists the same files for publish.</li>
+          <li>Confirm the CLI help output remains unchanged after the entrypoint adjustment.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>The package root resolves to an existing built file after the normal build step.</li>
+          <li>The binary wrapper still launches the CLI successfully.</li>
+          <li>No published entrypoint references a file that is absent from the build output.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-04" data-issue-kind="core" data-priority="4" aria-labelledby="issue-04-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 04</p>
+        <h3 id="issue-04-title">The lint script cannot resolve eslint</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-core">Core</span>
+        <span>High</span>
+        <span>Almost certain</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>The lint script cannot resolve eslint</dd>
+
+      <dt>Kind</dt>
+      <dd>Core</dd>
+
+      <dt>Priority</dt>
+      <dd>P4</dd>
+
+      <dt>Severity</dt>
+      <dd>High</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Almost certain</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Lint and CI quality gates</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The repo's lint script invokes <code>eslint</code>, but the current workspace cannot start that binary. That means the lint gate fails before it inspects any source files.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>package.json:51-52</code> defines <code>"lint": "eslint cli/src"</code> and <code>"lint:providers": "eslint cli/src/providers/builtin"</code>. A live <code>npm run lint</code> attempt failed immediately with <code>'eslint' is not recognized as an internal or external command</code>.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          When lint cannot run, the repo loses a major safety net for syntax, style, and a subset of correctness checks. That increases the chance that regressions escape into a release or a prebuilt dist artifact.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Restore a runnable local lint command by making the declared tool available through the repo's own dependency set or by wiring the script to the canonical binary already used by this workspace. Keep the lint scope focused on the current source tree.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>package.json</code>, the lockfile, any eslint configuration, and the current install scripts first. Make the lint command runnable in a clean checkout without relying on a globally installed binary. Do not broaden the lint surface or add a second lint framework. If the repo already has the right package but the script is miswired, fix the script. If the dependency is missing, add the minimum required dev dependency and update the lockfile. Add a smoke test or CI check that runs the lint command, then rerun <code>npm run lint</code> and <code>npm run verify:dist</code>. Your final report should include the exact cause, the dependency or script change, and the observed command output after the fix.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Run <code>npm run lint</code> in a clean environment and confirm it exits 0.</li>
+          <li>Run <code>npm run lint:providers</code> if the repo supports it and confirm the provider subset still works.</li>
+          <li>Confirm <code>npm run verify:dist</code> still passes after the lint fix.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Confirm the lint configuration still targets the intended source directories.</li>
+          <li>Verify the lockfile records the expected toolchain version if a dependency was added.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>The lint command runs without requiring a global install.</li>
+          <li>The repo has a working lint gate again.</li>
+          <li>Existing build verification still passes after the change.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-05" data-issue-kind="core" data-priority="5" aria-labelledby="issue-05-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 05</p>
+        <h3 id="issue-05-title">create <span>&lt;name&gt;</span> is a placeholder no-op</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-core">Core</span>
+        <span>High</span>
+        <span>Almost certain</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>create <span>&lt;name&gt;</span> is a placeholder no-op</dd>
+
+      <dt>Kind</dt>
+      <dd>Core</dd>
+
+      <dt>Priority</dt>
+      <dd>P5</dd>
+
+      <dt>Severity</dt>
+      <dd>High</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Almost certain</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Module scaffold generation</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The command prints a progress line and then reaches a <code>// Implementation</code> comment. Users receive no scaffold, no error, and no actionable next step.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>cli/src/cli.ts:271-277</code> registers <code>create &lt;name&gt;</code> and then leaves the action body empty except for the placeholder comment. The same pattern appears in the other stubbed commands, so this is not an isolated typo.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          A command that appears successful but does no work is worse than a clear error because it lets the user assume the requested module exists. That can cascade into failed downstream links, missing docs, and wasted setup time.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Implement the smallest module creation flow that matches the repository's existing module conventions, or if creation is intentionally unavailable, fail loudly with an explicit unsupported-command error and a clear explanation. Silent success is not acceptable.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>cli/src/cli.ts</code>, existing module templates or examples under <code>filmbuff/</code>, and any module-system helpers first. Replace the placeholder with the smallest repository-consistent create flow. Prefer reusing existing scaffold files or module examples over inventing a new generator. Do not add a broad code-generation framework or alter unrelated commands. Handle expected errors such as duplicate names, invalid paths, or missing template files with clear messages and non-zero exits. Preserve any user-entered name or path when reporting errors, and keep the command idempotent by never overwriting an existing module without explicit intent. Add tests for a successful scaffold, an already-existing target, and invalid input. Run the create command in a scratch project and report the created files, exit codes, and any limitations in your final summary.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Create a new module in a scratch project and confirm the expected files are written.</li>
+          <li>Run the command again with the same name and confirm it does not silently overwrite the prior module.</li>
+          <li>Pass an invalid name or path and confirm the command exits non-zero with a clear message.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Confirm <code>filmbuff list</code> and <code>filmbuff show</code> discover the new module after creation.</li>
+          <li>Verify the generated scaffold matches the existing module naming and metadata conventions.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>The command either creates a real scaffold or fails loudly with an explicit unsupported error.</li>
+          <li>It never prints a success message without performing work.</li>
+          <li>The result is compatible with existing module discovery commands.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-06" data-issue-kind="core" data-priority="6" aria-labelledby="issue-06-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 06</p>
+        <h3 id="issue-06-title">pin <span>&lt;module&gt; &lt;version&gt;</span> is a placeholder no-op</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-core">Core</span>
+        <span>High</span>
+        <span>Almost certain</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>pin <span>&lt;module&gt; &lt;version&gt;</span> is a placeholder no-op</dd>
+
+      <dt>Kind</dt>
+      <dd>Core</dd>
+
+      <dt>Priority</dt>
+      <dd>P6</dd>
+
+      <dt>Severity</dt>
+      <dd>High</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Almost certain</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Version pinning workflow</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The command is advertised in the CLI but its body is still a placeholder. No pin state is written, so users will believe a dependency has been pinned when nothing changed.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>cli/src/cli.ts:287-291</code> registers <code>pin &lt;module&gt; &lt;version&gt;</code> and then ends in <code>// Implementation</code>. There is no visible write path to the manifest or version metadata.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          Pinning exists to prevent drift. A no-op pin command creates false confidence during releases, upgrades, and debugging because the project appears locked while it still floats.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Wire the command to the existing module and version storage used by the project, and write only the selected version field. Keep the current manifest layout and error behavior stable.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>cli/src/cli.ts</code>, <code>cli/src/core/version-manager.ts</code>, <code>cli/src/commands/update.ts</code>, and any manifest or version-pinning helpers first. Implement the minimum pin flow that writes a deterministic version selection for the requested module, and do not invent a new persistence layer. Preserve unrelated module records, preserve current file formatting, and return a clear error when the module or version does not exist. Add tests for pinning an existing version, pinning the same version twice, and rejecting an unknown module or version. Run the pin command in a scratch project if a supported harness exists, and include the exact file changes and command output in your final report.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Pin a known module to a specific version and confirm the version is persisted.</li>
+          <li>Run the same pin twice and confirm the manifest does not accumulate duplicates.</li>
+          <li>Reject an unknown module or version with a non-zero exit code.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Verify the command still emits the same help text and option parsing.</li>
+          <li>Confirm unrelated module metadata remains unchanged after a pin operation.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>The command either writes a real pin or fails loudly if pinning is unsupported.</li>
+          <li>A successful pin leaves a reproducible manifest state.</li>
+          <li>The command never claims success without changing state.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-07" data-issue-kind="core" data-priority="7" aria-labelledby="issue-07-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 07</p>
+        <h3 id="issue-07-title">check-updates is a placeholder no-op</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-core">Core</span>
+        <span>High</span>
+        <span>Almost certain</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>check-updates is a placeholder no-op</dd>
+
+      <dt>Kind</dt>
+      <dd>Core</dd>
+
+      <dt>Priority</dt>
+      <dd>P7</dd>
+
+      <dt>Severity</dt>
+      <dd>High</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Almost certain</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Update checking workflow</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The command path exists, but the handler never performs the version comparison that its name promises. Users cannot tell whether their linked modules are current.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>cli/src/cli.ts:295-299</code> registers <code>check-updates</code> and then stops at <code>// Implementation</code>. The repo already has version logic in nearby files, so the stub is a real gap rather than a deliberate omission.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          Update checks are the early warning system for stale or incompatible modules. A no-op command allows version drift to go unnoticed until a failure is much harder to isolate.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Reuse the existing version manager or resolver code to perform a dry-run update comparison and present the result without modifying files. If the command is intentionally unsupported, return a clear error instead of success.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>cli/src/cli.ts</code>, <code>cli/src/core/version-manager.ts</code>, <code>cli/src/core/version-resolver.ts</code>, and <code>cli/src/commands/update.ts</code> first. Implement the smallest update-check flow that reports whether any linked modules are outdated, without making writes unless the command already has an established update path. Reuse the existing semver and metadata helpers, and avoid introducing a second version source. Preserve the current module format and the user's selected output style. Add tests for current, outdated, and missing-version cases, then run the command in a scratch project and include the observed output in your final report.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Confirm the command reports when all linked modules are current.</li>
+          <li>Confirm it reports an available update when a newer version exists.</li>
+          <li>Reject missing metadata or unsupported modules with a clear non-zero exit.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Verify the command does not mutate files in dry-run mode.</li>
+          <li>Confirm the output remains stable enough for terminal parsing or automation.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>The command provides a real update comparison or fails clearly if unsupported.</li>
+          <li>It does not silently return success with no useful result.</li>
+          <li>Existing update behavior, if any, remains intact.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-08" data-issue-kind="core" data-priority="8" aria-labelledby="issue-08-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 08</p>
+        <h3 id="issue-08-title">diff <span>&lt;module&gt;</span> is a placeholder no-op</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-core">Core</span>
+        <span>High</span>
+        <span>Almost certain</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>diff <span>&lt;module&gt;</span> is a placeholder no-op</dd>
+
+      <dt>Kind</dt>
+      <dd>Core</dd>
+
+      <dt>Priority</dt>
+      <dd>P8</dd>
+
+      <dt>Severity</dt>
+      <dd>High</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Almost certain</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Module diff workflow</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The command exists in the top-level CLI, but the action body never computes or prints a diff. Users get a progress line and then silence.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>cli/src/cli.ts:304-308</code> registers <code>diff &lt;module&gt;</code> and then stops at <code>// Implementation</code>. There is no current diff engine or fallback message in the command path.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          Diffing is the expected review step before accepting a version change or local edit. A no-op command blocks release review and makes it impossible to inspect what changed.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Connect the command to the existing module loading and formatting helpers so it can emit a deterministic, text-only diff. If the repository does not have a safe diff source, return a clear unsupported error instead of success.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>cli/src/cli.ts</code>, <code>cli/src/commands/show.ts</code>, <code>cli/src/utils/module-system.ts</code>, and any version or file-format helpers first. Implement the smallest deterministic diff path that fits the existing module workflow. Reuse the repo's current file loading and text formatting patterns, and do not add a third-party diff dependency unless the repository already relies on one. Keep the command read-only if possible, preserve current help text, and handle missing modules or versions with an explicit error. Add tests that cover a changed module, an unchanged module, and an unknown module, then run the command in a scratch project and include the exact output shape in your final report.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Run a diff against a changed module and confirm a readable diff appears.</li>
+          <li>Run the command when no diff exists and confirm it reports that result clearly.</li>
+          <li>Reject unknown modules with a non-zero exit and a helpful message.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Verify the command output remains stable for terminal and automation use.</li>
+          <li>Confirm no unrelated files are modified by the diff command itself.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>The command either prints a real diff or fails clearly when unsupported.</li>
+          <li>It never reports success without showing useful output.</li>
+          <li>The implementation stays read-only unless the repository already defines a write path.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-09" data-issue-kind="core" data-priority="9" aria-labelledby="issue-09-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 09</p>
+        <h3 id="issue-09-title">show overloads one search flag for two workflows</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-core">Core</span>
+        <span>Medium</span>
+        <span>Likely</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>show overloads one search flag for two workflows</dd>
+
+      <dt>Kind</dt>
+      <dd>Core</dd>
+
+      <dt>Priority</dt>
+      <dd>P9</dd>
+
+      <dt>Severity</dt>
+      <dd>Medium</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Likely</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Command option parsing and help</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The generic <code>show</code> command registers <code>--search</code> twice, once for module content and once for completed-task filtering. Both meanings collapse into a single parsed option name, so one workflow can shadow the other.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>cli/src/cli.ts:148</code> and <code>cli/src/cli.ts:167</code> both declare <code>--search &lt;term&gt;</code> on the same command. The action handler then routes module inspection and completed-task inspection through the same option object.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          Users cannot reliably tell which search path a flag affects, and help output becomes ambiguous. That increases the chance of the wrong data being shown or a valid query being ignored.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Give the completed-task filter a distinct flag name, or split the completed-task search onto a dedicated option set that cannot collide with module-content search. Preserve both behaviors, but make the semantics explicit in help text and tests.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect the <code>show</code> command registration in <code>cli/src/cli.ts</code>, the completed-task view in <code>cli/src/commands/showCompleted.ts</code>, and any help generation or snapshots first. Rename or split the conflicting search option so module inspection and completed-task filtering use different, unambiguous flags. Keep the current routes and output formatting stable, and do not remove either capability. Update help text, any examples, and any tests that assert parsed options. Then run the relevant <code>show</code> command variants and verify that each flag reaches only the intended code path. Your final report should mention the exact option names chosen, the commands exercised, and any compatibility tradeoffs.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Confirm module-content search still works on <code>show &lt;module&gt;</code>.</li>
+          <li>Confirm completed-task search still works through its renamed or separated flag.</li>
+          <li>Verify help output shows both meanings without a collision.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Confirm the special <code>completed</code> and <code>linked</code> paths still route correctly.</li>
+          <li>Verify unknown flags still produce the existing commander error style.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>Each search meaning has its own unambiguous flag or subcommand path.</li>
+          <li>No option collision remains in the <code>show</code> command registration.</li>
+          <li>Existing module inspection and completed-task filtering still work.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-10" data-issue-kind="core" data-priority="10" aria-labelledby="issue-10-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 10</p>
+        <h3 id="issue-10-title">RunLogger injects debug noise into every write path</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-core">Core</span>
+        <span>Medium</span>
+        <span>Likely</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>RunLogger injects debug noise into every write path</dd>
+
+      <dt>Kind</dt>
+      <dd>Core</dd>
+
+      <dt>Priority</dt>
+      <dd>P10</dd>
+
+      <dt>Severity</dt>
+      <dd>Medium</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Likely</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Operational diagnostics</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The patched <code>fs.writeSync</code> and <code>fs.write</code> hooks emit <code>[RunLogger DEBUG]</code> lines to stderr whenever stdout or stderr is written. That means normal runs carry extra noise that is not part of the user's actual output.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>cli/src/utils/run-logger.ts:121-130</code> writes debug text from inside the global write hooks. A sample <code>generate-shot-list</code> run showed those debug lines mixed into the terminal output alongside the real command logs and AI fallback output.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          This kind of noise makes support logs harder to read, can break downstream parsers that expect the existing output format, and will bury real warnings when the command is already under stress.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Remove the debug writes from the normal capture path, or gate them behind an explicit debug switch that is off by default. Keep the tee behavior, the restore path, and the log-file capture intact.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>cli/src/utils/run-logger.ts</code> and any tests or snapshots that consume run-log output first. Remove the unconditional debug writes from the write hooks, or guard them behind a deliberate debug flag that is not enabled by normal commands. Do not change the tee mechanism, the log file format, or the restore-on-stop behavior. Add tests that prove a standard command run no longer emits <code>[RunLogger DEBUG]</code> while still capturing stdout and stderr in the log file. Because this change touches every command that uses the run logger, keep a rollback note in your final report describing how to restore the previous capture path if output capture regresses.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Run a typical command that uses <code>RunLogger</code> and assert no debug lines appear in terminal output.</li>
+          <li>Confirm the run log still contains the captured stdout and stderr content.</li>
+          <li>Verify <code>stop()</code> restores the original write functions.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Confirm repeated runs do not leak duplicate hooks.</li>
+          <li>Verify the log file header and footer still render correctly.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>Normal runs no longer print <code>[RunLogger DEBUG]</code>.</li>
+          <li>The log capture still works for stdout and stderr.</li>
+          <li>The output format stays compatible with existing command behavior.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-11" data-issue-kind="additional" data-priority="11" aria-labelledby="issue-11-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 11</p>
+        <h3 id="issue-11-title">Module discovery can fall back to bundled data instead of the live tree</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-additional">Additional</span>
+        <span>High</span>
+        <span>Possible</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>Module discovery can fall back to bundled data instead of the live tree</dd>
+
+      <dt>Kind</dt>
+      <dd>Additional</dd>
+
+      <dt>Priority</dt>
+      <dd>P11</dd>
+
+      <dt>Severity</dt>
+      <dd>High</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Possible</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Module discovery and inspection</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          <strong>Testable assumption.</strong> <code>getModulesDir()</code> checks only <code>process.cwd()/filmbuff</code> and then falls back to the bundled <code>__dirname</code> tree. If the command is run from a nested subdirectory, or if the live tree layout changes, the CLI can silently inspect packaged data instead of the current working tree.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>cli/src/utils/module-system.ts:55-61</code> contains the cwd check and the bundled fallback. That is enough to explain why a nested-directory run could miss live edits, even though the repo root works.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          The repository instructions say the current working tree is the authoritative source. If discovery silently switches to the packaged tree, local edits will appear to disappear and inspection output will be stale.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Add a real repository-root resolver that walks upward from the current directory and prefers the live tree whenever it exists. Keep the bundled fallback only for installed-package use, where a repo root truly is unavailable.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>cli/src/utils/module-system.ts</code>, <code>cli/src/commands/list.ts</code>, <code>cli/src/commands/show.ts</code>, and any other call sites that discover modules first. Replace the cwd-only heuristic with a root-resolution helper that walks upward to the nearest real project root and prefers the live source tree when it exists. Preserve the bundled fallback for the installed-package case, and do not introduce a new module registry. Add tests that run from the repo root and from a nested subdirectory, then confirm they both discover the same live modules. If the resolver cannot find a project root, emit a clear message instead of silently switching trees. Your final report should state whether the fallback still fires in the package-only scenario and how you verified it.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Run discovery from the repository root and confirm it uses the live tree.</li>
+          <li>Run discovery from a nested subdirectory and confirm it still uses the same live tree.</li>
+          <li>Confirm the bundled fallback still works when no repo root is available.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Verify list, show, and search commands all call the same resolver path.</li>
+          <li>Confirm missing root detection produces a helpful error message.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>Live repository data wins whenever it is available.</li>
+          <li>Bundled data is used only for true package-only execution.</li>
+          <li>Nested-directory runs no longer risk stale module discovery.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-medium">Medium</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-12" data-issue-kind="additional" data-priority="12" aria-labelledby="issue-12-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 12</p>
+        <h3 id="issue-12-title">Completed-task viewing assumes project-root-relative paths</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-additional">Additional</span>
+        <span>High</span>
+        <span>Possible</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>Completed-task viewing assumes project-root-relative paths</dd>
+
+      <dt>Kind</dt>
+      <dd>Additional</dd>
+
+      <dt>Priority</dt>
+      <dd>P12</dd>
+
+      <dt>Severity</dt>
+      <dd>High</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Possible</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Beads completed-task view</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          <strong>Testable assumption.</strong> <code>showCompletedCommand()</code> reads <code>.beads</code> and <code>scripts/completed.jsonl</code> using relative paths, so a user who runs the command from a nested directory can miss the project state that actually lives at the repository root.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>cli/src/commands/showCompleted.ts:133-166</code> hardcodes the relative paths and never resolves a project root. That is enough to predict a failure mode without inventing one.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          Completed-task review is a project state command, not a cwd experiment. If it reads the wrong directory, users will think their Beads history vanished or that the project is not initialized.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Resolve the project root first, then read the Beads files from that root while keeping the existing friendly empty-state guidance. Do not change the output format unless it improves clarity and preserves current behavior.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>cli/src/commands/showCompleted.ts</code>, <code>cli/src/utils/beadsCompletedChecker.ts</code>, and the <code>show completed</code> routing in <code>cli/src/cli.ts</code> first. Replace the hardcoded relative paths with a resolved project-root path so the command sees the same Beads files from any subdirectory. Keep the current empty-state copy, labels, and filtering behavior unchanged. Do not add a new Beads abstraction or alter the task schema. Add tests that run the command from the repository root and from a nested working directory, and confirm the correct files are found in both cases. Your final report should include the root-resolution path you chose and the exact message the command emits when the files are missing.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Run the command from the repository root and confirm it finds the expected Beads files.</li>
+          <li>Run the command from a nested directory and confirm it resolves to the same project root.</li>
+          <li>Confirm the existing no-Beads empty-state guidance still appears when the files are absent.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Verify the search, filter, and sort options still work with the resolved path.</li>
+          <li>Confirm the command still prints the same task formatting for verbose and quiet modes.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>The command resolves the correct project state from nested directories.</li>
+          <li>The current friendly fallback messages remain intact.</li>
+          <li>No cwd-only path assumption remains in the Beads completed-task view.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-medium">Medium</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-13" data-issue-kind="additional" data-priority="13" aria-labelledby="issue-13-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 13</p>
+        <h3 id="issue-13-title">ConfigManager shares mutable default state across instances</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-additional">Additional</span>
+        <span>High</span>
+        <span>Likely</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>ConfigManager shares mutable default state across instances</dd>
+
+      <dt>Kind</dt>
+      <dd>Additional</dd>
+
+      <dt>Priority</dt>
+      <dd>P13</dd>
+
+      <dt>Severity</dt>
+      <dd>High</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Likely</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Config persistence</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The constructor assigns <code>DEFAULT_CONFIG</code> directly, and <code>set()</code> mutates nested objects in place. A mutation in one manager instance can therefore leak into later instances and unrelated tests.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>cli/src/utils/config-system.ts:219</code> sets <code>this.config = DEFAULT_CONFIG</code>, and <code>cli/src/utils/config-system.ts:558-567</code> mutates nested paths directly. A runtime check confirmed the leak: after one instance set <code>aiPowered.debug</code> to <code>true</code>, a second instance saw the same value, and both <code>getConfig()</code> calls returned the same object reference.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          Shared mutable defaults create non-deterministic test failures and can make long-lived processes appear to remember state that should have been isolated. That is a data integrity and reliability risk.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Deep-clone the default config in the constructor and keep update and merge paths returning fresh objects. Preserve the default values and the current persistence format, but remove the shared reference.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>cli/src/utils/config-system.ts</code>, especially the constructor, <code>mergeConfig()</code>, <code>updateConfig()</code>, and <code>set()</code>, first. Replace the shared default-object assignment with a real clone so one manager instance cannot mutate the state of another. Do not introduce a new config layer or a broader state container. Keep the existing JSON shape, save behavior, and validation rules unchanged. Add tests that create two managers, mutate one, and prove the other remains unchanged. Run the config smoke that you used to confirm the leak and include the before and after behavior in your final report.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Create two ConfigManager instances and confirm mutating one does not affect the other.</li>
+          <li>Confirm the saved config still serializes correctly after the clone change.</li>
+          <li>Verify the default config values remain the same after a fresh load.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Confirm the validation warnings and errors still behave the same.</li>
+          <li>Verify the constructor still loads defaults when no file exists.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>Instances no longer share the same mutable config object.</li>
+          <li>Mutation in one manager cannot bleed into another.</li>
+          <li>The public config file format and validation behavior remain unchanged.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-14" data-issue-kind="additional" data-priority="14" aria-labelledby="issue-14-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 14</p>
+        <h3 id="issue-14-title">AI fallback extractors flood output with raw stack traces</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-additional">Additional</span>
+        <span>Medium</span>
+        <span>Likely</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>AI fallback extractors flood output with raw stack traces</dd>
+
+      <dt>Kind</dt>
+      <dd>Additional</dd>
+
+      <dt>Priority</dt>
+      <dd>P14</dd>
+
+      <dt>Severity</dt>
+      <dd>Medium</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Likely</dd>
+
+      <dt>Impacted area</dt>
+      <dd>AI-assisted shot list generation</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          When the AI dependency is unavailable, both extractor classes log the full exception repeatedly. The fallback still succeeds, but the terminal and run log are flooded with the same <code>ERR_MODULE_NOT_FOUND</code> stack trace for every affected scene.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>cli/src/commands/generate-shot-list/generator/ai-entity-extractor.ts:61-71</code> logs <code>console.warn('AI extraction failed, using fallback:', error)</code>. <code>cli/src/commands/generate-shot-list/generator/ai-blocking-extractor.ts:138-140</code> does the same with <code>console.error</code>. A sample shot-list run produced repeated dependency-resolution stacks and still completed, which means the fallback works but the error reporting is too noisy.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          The command is supposed to recover gracefully when the AI path is unavailable. Raw stack traces every few lines make the recovery path look like a failure and bury the actual shot-list result.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Keep the fallback behavior, but collapse the error reporting into one concise warning per run or per scene group. Send detailed exception data to a debug channel or the run log only when explicitly requested.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect both AI extractor classes and the shot-list run logger first. Keep the fallback extraction path intact, but replace the repeated raw stack-trace logging with a concise warning that fires at most once per run or once per scene batch. Do not remove the fallback result, do not add a second AI abstraction, and do not change the generated shot-list format. If an AI provider is absent, the command should still complete and explain the fallback in plain language. Add tests that simulate the missing AI dependency, verify only one concise warning appears, and confirm the output file is still generated. Your final report should say where the detailed error went, if anywhere, and how you confirmed the fallback stayed operational.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Simulate the missing AI dependency and confirm the command still completes successfully.</li>
+          <li>Assert the fallback warning appears once per run or per batch, not once per scene.</li>
+          <li>Confirm the generated shot-list file is still written.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Verify successful AI extraction still logs the normal success path.</li>
+          <li>Confirm the run log remains readable and does not duplicate the same stack trace.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>The fallback path stays available when the AI provider is missing.</li>
+          <li>The terminal no longer floods with repeated raw stack traces.</li>
+          <li>The command remains usable and the output file is still produced.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-medium">Medium</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-15" data-issue-kind="additional" data-priority="15" aria-labelledby="issue-15-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 15</p>
+        <h3 id="issue-15-title">README quick start shows obsolete generate-shot-list syntax</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-additional">Additional</span>
+        <span>Medium</span>
+        <span>Likely</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>README quick start shows obsolete generate-shot-list syntax</dd>
+
+      <dt>Kind</dt>
+      <dd>Additional</dd>
+
+      <dt>Priority</dt>
+      <dd>P15</dd>
+
+      <dt>Severity</dt>
+      <dd>Medium</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Likely</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Documentation and onboarding</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The README quick-start example shows <code>filmbuff generate-shot-list script.fountain</code>, but the command actually requires <code>--input &lt;file&gt;</code>. A copy-paste user gets a usage error instead of the advertised workflow.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>README.md:43</code> shows the positional example. <code>cli/src/commands/generate-shot-list.ts:229</code> validates the input file after the parser has already required the flagged form, and a live run without <code>--input</code> returned <code>error: required option '--input &lt;file&gt;' not specified</code>.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          This is an onboarding trust issue. The docs tell users to start one way, the executable demands another, and the first experience becomes a failure even though the command itself is working as designed.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Synchronize the README quick-start, command help, and examples with the actual parser contract. If positional input is not intended, update the docs instead of expanding the command surface.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>README.md</code>, <code>cli/src/commands/generate-shot-list.ts</code>, and any help-text generation or command docs first. Update the quick-start and related examples so they match the actual required <code>--input</code> syntax, unless the repository already intends to support positional input everywhere. Prefer updating docs and help text over changing the parser just for convenience. Keep the command behavior stable, do not add a second input mode unless the existing command contract already depends on it, and make sure any code snippets in the docs escape special characters correctly. Add a simple documentation check or help snapshot if the repo has one, then run the command help and the quick-start smoke you used to confirm the mismatch. Your final report should include the exact text that changed and any remaining examples that still need sync.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Confirm the README quick-start example matches the actual required input syntax.</li>
+          <li>Run the command with the documented form and confirm it works.</li>
+          <li>Run the command without <code>--input</code> and confirm the error text still points to the missing flag.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Verify other README examples and command help text use the same syntax.</li>
+          <li>Confirm special characters in docs code blocks are escaped correctly.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>The documented quick-start command matches the executable contract.</li>
+          <li>Users no longer hit a copy-paste usage error from the main README example.</li>
+          <li>Docs and help stay synchronized with the command parser.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <article class="issue-card" id="issue-16" data-issue-kind="additional" data-priority="16" aria-labelledby="issue-16-title">
+    <header class="issue-header">
+      <div>
+        <p class="issue-index">Issue 16</p>
+        <h3 id="issue-16-title">Version metadata is stale across the README and generated help</h3>
+      </div>
+      <div class="issue-badges">
+        <span class="kind-pill kind-additional">Additional</span>
+        <span>Low</span>
+        <span>Likely</span>
+      </div>
+    </header>
+    <dl class="issue-facts">
+      <dt>Title</dt>
+      <dd>Version metadata is stale across the README and generated help</dd>
+
+      <dt>Kind</dt>
+      <dd>Additional</dd>
+
+      <dt>Priority</dt>
+      <dd>P16</dd>
+
+      <dt>Severity</dt>
+      <dd>Low</dd>
+
+      <dt>Likelihood</dt>
+      <dd>Likely</dd>
+
+      <dt>Impacted area</dt>
+      <dd>Release metadata and supportability</dd>
+
+      <dt>Failure mode</dt>
+      <dd>
+        <p>
+          The version badge in the README and the generated command help both still report <code>1.0.0</code>, while the package manifest reports <code>1.0.2</code>. That creates a visible release mismatch even when the code itself is correct.
+        </p>
+      </dd>
+
+      <dt>Evidence or rationale</dt>
+      <dd>
+        <p>
+          <code>README.md:5</code> shows the badge text <code>version-1.0.0</code>. <code>cli/src/utils/extractCommandHelp.ts:213</code> hardcodes <code>**Version**: 1.0.0</code>. <code>package.json:3</code> says <code>1.0.2</code>. The release metadata is therefore not sourced from one place.
+        </p>
+      </dd>
+
+      <dt>Why this matters</dt>
+      <dd>
+        <p>
+          Version drift confuses support, release notes, and automated help consumers. It also makes it harder to tell whether a report or bug is about the current build or an outdated artifact.
+        </p>
+      </dd>
+
+      <dt>Recommended mitigation</dt>
+      <dd>
+        <p>
+          Derive surfaced version strings from one shared source, ideally the package manifest or a single version helper. Keep the README badge and generated help in sync with that source and avoid hardcoded release literals.
+        </p>
+      </dd>
+
+      <dt>Implementation prompt</dt>
+      <dd>
+        <p>
+          Work in the current project and resolve the repo root yourself. Inspect <code>package.json</code>, <code>README.md</code>, and <code>cli/src/utils/extractCommandHelp.ts</code> first. Replace the hardcoded version strings with a single shared source of truth so the README badge and generated command help always match the package version after the normal version sync step. Do not introduce a second version store or a release service. Keep the generated markdown and README rendering plain and static, and preserve the current help layout. Add a test or smoke check that compares the surfaced version against <code>package.json</code>, then run the help generation flow and the repo's version-sync command if it exists. Your final report should list every version string you changed and the command you used to verify they now match.
+        </p>
+      </dd>
+
+      <dt>Regression tests</dt>
+      <dd>
+        <ul>
+          <li>Generate command help and confirm the surfaced version matches <code>package.json</code>.</li>
+          <li>Update the README badge and confirm it matches the same version string.</li>
+          <li>Run any version-sync or dist verification command the repo supports.</li>
+        </ul>
+      </dd>
+
+      <dt>Additional baseline tests</dt>
+      <dd>
+        <ul>
+          <li>Confirm the help output still renders the same command list.</li>
+          <li>Verify the README still builds as plain markdown with the new version text.</li>
+        </ul>
+      </dd>
+
+      <dt>Acceptance criteria</dt>
+      <dd>
+        <ul>
+          <li>All surfaced version strings match the package version after sync.</li>
+          <li>No hardcoded 1.0.0 release text remains in the affected docs or help generator.</li>
+          <li>The help and README stay synchronized across future releases.</li>
+        </ul>
+      </dd>
+
+      <dt>Confidence</dt>
+      <dd class="confidence-high">High</dd>
+    </dl>
+  </article>
+
+  <section class="report-section" id="scope-notes">
+    <h2>Scope Notes and Limitations</h2>
+    <ul class="notes-list">
+      <li>No pre-existing <code>pre-mortem-*</code> file was present in <code>ai-prompts/</code>, so this report uses an original print-ready visual system instead of adapting a prior pre-mortem design.</li>
+      <li>The 10 core issues were selected by repository inspection because the source request did not enumerate them.</li>
+      <li>Two additional issues are labeled <code>Testable assumption</code> because the code path clearly suggests the risk, but a nested-directory confirmation would make the evidence even stronger.</li>
+      <li>Diagnostics were read-only. No application source, test, CI, or dependency file was modified while preparing the report.</li>
+      <li>All repository claims in the body are grounded in local evidence, command output, or explicitly marked assumptions.</li>
+    </ul>
+  </section>
+</main>
+
+<footer class="footer">
+  <p><strong>Repository:</strong> mytech-today-now/filmbuff</p>
+  <p><strong>Branch:</strong> main</p>
+  <p><strong>Generated:</strong> 2026-09-07 11:24:34 local</p>
+  <p><strong>Output path:</strong> ai-prompts/pre-mortem-2026-09-07-11-24-34.html</p>
+  <p><strong>Report scope:</strong> 16 issue pre-mortem for the current working tree, including 10 core issues and 6 additional issues.</p>
+</footer>
+</body>
+</html>

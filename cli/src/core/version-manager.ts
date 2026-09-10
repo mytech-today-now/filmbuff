@@ -22,9 +22,20 @@ export interface VersionMetadata {
 /**
  * Version cache entry
  */
+interface FileFreshness {
+  exists: boolean;
+  size?: bigint;
+  mtimeNs?: bigint;
+}
+
+/**
+ * File freshness probe result used to validate cached metadata.
+ */
 interface VersionCacheEntry {
   metadata: VersionMetadata;
   timestamp: number;
+  versionFreshness: FileFreshness;
+  metadataFreshness: FileFreshness;
 }
 
 /**
@@ -44,12 +55,20 @@ export class VersionManager {
     // Check cache first
     const cached = this.cache.get(modulePath);
     if (cached && Date.now() - cached.timestamp < this.cacheTTL) {
-      return cached.metadata;
+      const freshness = this.isCacheFresh(modulePath, cached);
+      if (freshness === true) {
+        return cached.metadata;
+      }
+
+      if (freshness === null) {
+        console.warn('Version metadata could not be confirmed from cache. Reloading from disk.');
+      }
     }
 
     // Load from VERSION file
     const versionFile = path.join(modulePath, 'VERSION');
-    if (!fs.existsSync(versionFile)) {
+    const versionFreshness = this.getFileFreshness(versionFile);
+    if (versionFreshness === null || !versionFreshness.exists) {
       return null;
     }
 
@@ -62,9 +81,14 @@ export class VersionManager {
 
       // Load additional metadata if available
       const metadataFile = path.join(modulePath, 'metadata.json');
+      const metadataFreshness = this.getFileFreshness(metadataFile);
+      if (metadataFreshness === null) {
+        return null;
+      }
+
       let metadata: VersionMetadata = { version };
 
-      if (fs.existsSync(metadataFile)) {
+      if (metadataFreshness.exists) {
         const metadataContent = JSON.parse(fs.readFileSync(metadataFile, 'utf-8'));
         metadata = {
           version,
@@ -79,11 +103,13 @@ export class VersionManager {
       // Cache the result
       this.cache.set(modulePath, {
         metadata,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        versionFreshness,
+        metadataFreshness
       });
 
       return metadata;
-    } catch (error) {
+    } catch {
       return null;
     }
   }
@@ -107,7 +133,7 @@ export class VersionManager {
       this.cache.delete(modulePath);
 
       return true;
-    } catch (error) {
+    } catch {
       return false;
     }
   }
@@ -154,6 +180,76 @@ export class VersionManager {
    */
   setCacheTTL(ttl: number): void {
     this.cacheTTL = ttl;
+  }
+
+  /**
+   * Probe file freshness with high-resolution file metadata.
+   * Returns null when freshness cannot be confirmed safely.
+   */
+  private getFileFreshness(filePath: string): FileFreshness | null {
+    try {
+      const stats = fs.statSync(filePath, { bigint: true });
+      return {
+        exists: true,
+        size: stats.size,
+        mtimeNs: stats.mtimeNs
+      };
+    } catch (error) {
+      if (this.isMissingFileError(error)) {
+        return { exists: false };
+      }
+
+      return null;
+    }
+  }
+
+  /**
+   * Check whether a cached entry still matches the current on-disk files.
+   */
+  private isCacheFresh(modulePath: string, cached: VersionCacheEntry): boolean | null {
+    const versionFile = path.join(modulePath, 'VERSION');
+    const currentVersionFreshness = this.getFileFreshness(versionFile);
+    if (currentVersionFreshness === null) {
+      return null;
+    }
+
+    if (!this.isSameFreshness(cached.versionFreshness, currentVersionFreshness)) {
+      return false;
+    }
+
+    const metadataFile = path.join(modulePath, 'metadata.json');
+    const currentMetadataFreshness = this.getFileFreshness(metadataFile);
+    if (currentMetadataFreshness === null) {
+      return null;
+    }
+
+    if (!this.isSameFreshness(cached.metadataFreshness, currentMetadataFreshness)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  /**
+   * Compare two freshness probes.
+   */
+  private isSameFreshness(left: FileFreshness, right: FileFreshness): boolean {
+    if (left.exists !== right.exists) {
+      return false;
+    }
+
+    if (!left.exists) {
+      return true;
+    }
+
+    return left.size === right.size && left.mtimeNs === right.mtimeNs;
+  }
+
+  /**
+   * Detect missing-file errors without treating other failures as cache-safe.
+   */
+  private isMissingFileError(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT';
   }
 }
 

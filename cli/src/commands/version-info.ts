@@ -4,7 +4,7 @@ import * as path from 'path';
 import { ModuleLoader } from '../core/module-loader';
 import { VersionManager } from '../core/version-manager';
 import { CompatibilityChecker } from '../core/compatibility-checker';
-import { discoverModules } from '../utils/module-system';
+import { discoverModules, findModule } from '../utils/module-system';
 
 export interface VersionInfoCommandOptions {
   json?: boolean;
@@ -15,13 +15,13 @@ export interface VersionInfoCommandOptions {
 export async function versionInfoCommand(moduleName: string, options: VersionInfoCommandOptions = {}): Promise<void> {
   try {
     const { json = false, changelog = true, compatibility = true } = options;
-    const modules = discoverModules();
-    const module = modules.find(m => m.fullName === moduleName || m.metadata.name === moduleName);
+    const module = findModule(moduleName);
 
     if (!module) {
       if (json) {
         console.log(JSON.stringify({ error: `Module not found: ${moduleName}` }, null, 2));
       } else {
+        const modules = discoverModules();
         console.error(chalk.red(`✗ Module not found: ${moduleName}`));
         console.log(chalk.gray('\nAvailable modules:'));
         modules.forEach(m => console.log(chalk.gray(`  - ${m.fullName}`)));
@@ -117,6 +117,11 @@ export async function versionInfoCommand(moduleName: string, options: VersionInf
       if (compatResult.details.typescript) {
         const ts = compatResult.details.typescript;
         console.log(`  ${chalk.gray('TypeScript:')} ${ts.current} ${ts.compatible ? chalk.green('✓') : chalk.red('✗')} (requires ${ts.required}+)`);
+      }
+
+      if (compatResult.details.augment) {
+        const augment = compatResult.details.augment;
+        console.log(`  ${chalk.gray('Augment:')} ${augment.current} ${augment.compatible ? chalk.green('✓') : chalk.red('✗')} (requires ${augment.required}+)`);
       }
 
       if (compatResult.warnings.length > 0) {

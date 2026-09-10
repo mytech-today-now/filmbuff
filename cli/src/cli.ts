@@ -7,8 +7,6 @@ loadDotEnv();
 
 import { Command } from 'commander';
 import chalk from 'chalk';
-import { readFileSync } from 'fs';
-import { join } from 'path';
 import { initCommand } from './commands/init';
 import { listCommand } from './commands/list';
 import { showCommand, showModuleCommand, showLinkedCommand, showAllCommand } from './commands/show';
@@ -24,8 +22,11 @@ import { validateCommand } from './commands/validate';
 import { catalogCommand, catalogHookCommand } from './commands/catalog';
 import { unlinkCommand } from './commands/unlink';
 import { createCommand } from './commands/create';
+import { pinCommand } from './commands/pin';
+import { diffCommand } from './commands/diff';
 import { generateShotListCommand } from './commands/generate-shot-list';
 import { generateVideoCommand } from './commands/generate-video';
+import { checkUpdatesCommand } from './commands/check-updates';
 import { registerVideoCommands } from './commands/video/index';
 import { mcpServerCommand } from './commands/mcp-server';
 import { guiCommand } from './commands/gui';
@@ -38,18 +39,16 @@ import { unknownProviderCommand } from './commands/provider';
 import { aiStatusCommand } from './commands/ai-status';
 import { aiSetCommand } from './commands/ai-set';
 import { aiEnvCommand } from './commands/ai-env';
+import { readPackageVersion } from './utils/version';
 
-// Read version from package.json
-const packageJson = JSON.parse(
-  readFileSync(join(__dirname, '../../package.json'), 'utf-8')
-);
+const packageVersion = readPackageVersion();
 
 const program = new Command();
 
 program
   .name('filmbuff')
   .description('CLI tool for managing writing, prose, and screenplay extension modules')
-  .version(packageJson.version);
+  .version(packageVersion);
 
 // Init command with subcommands
 const initCmd = program
@@ -140,7 +139,7 @@ program
 // Generic show command (register FIRST as the default)
 program
   .command('show <module> [file-path]')
-  .description('Display detailed information about a module (use "completed" to show Beads completed tasks, "linked" for linked modules, "all" for all modules)')
+  .description('Display detailed information about a module (use "completed" to show Beads completed tasks with --completed-search, "linked" for linked modules, "all" for all modules)')
   .option('--json', 'Output as JSON')
   .option('--content', 'Display aggregated content from all module files')
   .option('--format <format>', 'Output format: json, markdown, text', 'text')
@@ -165,7 +164,7 @@ program
   .option('--since <date>', 'Filter completed tasks since date (ISO 8601 format, e.g., 2026-01-01)')
   .option('--until <date>', 'Filter completed tasks until date (ISO 8601 format, e.g., 2026-12-31)')
   .option('--limit <number>', 'Limit number of completed tasks shown', parseInt)
-  .option('--search <term>', 'Search completed tasks by title, description, or close reason')
+  .option('--completed-search <term>', 'Search completed tasks by title, description, or close reason')
   .option('--labels <labels>', 'Filter completed tasks by labels (comma-separated)')
   .option('--type <type>', 'Filter completed tasks by issue type (e.g., task, epic, bug)')
   .option('--priority <number>', 'Filter completed tasks by priority (0-3)', parseInt)
@@ -199,6 +198,11 @@ program
 
     // Handle special subcommands
     if (moduleName === 'completed') {
+      if (options.search !== undefined) {
+        program.error(
+          'The --search option is reserved for module content. Use --completed-search with "filmbuff show completed".'
+        );
+      }
       showCompletedCommand(options);
       return;
     }
@@ -209,6 +213,12 @@ program
     if (moduleName === 'all') {
       showAllCommand(options);
       return;
+    }
+
+    if (options.completedSearch !== undefined) {
+      program.error(
+        'The --completed-search option only applies to "filmbuff show completed". Use --search for module content.'
+      );
     }
 
     // Route advanced inspection use-cases to the enhanced module viewer
@@ -283,27 +293,19 @@ program
 program
   .command('pin <module> <version>')
   .description('Pin module to specific version')
-  .action((module: string, version: string) => {
-    console.log(chalk.cyan(`Pinning ${module} to version ${version}`));
-    // Implementation
-  });
+  .action((module: string, version: string) => pinCommand(module, version));
 
 program
   .command('check-updates')
   .description('Check for available module updates')
-  .action(() => {
-    console.log(chalk.blue('Checking for updates...'));
-    // Implementation
-  });
+  .option('--json', 'Output as JSON')
+  .action(checkUpdatesCommand);
 
 
 program
   .command('diff <module>')
   .description('Show differences between current and latest version')
-  .action((module: string) => {
-    console.log(chalk.magenta(`Showing diff for: ${module}`));
-    // Implementation
-  });
+  .action(diffCommand);
 
 program
   .command('catalog')
@@ -715,11 +717,11 @@ program
       input:        options.input,
       provider:     options.provider,
       model:        options.model,
-      providerOptions: options.providerOptions,
       shots:        options.shots,
       output:       options.output,
       concurrency:  parseInt(options.concurrency, 10),
       mock:         options.mock ?? false,
+      providerOptions: options.providerOptions,
     });
   });
 

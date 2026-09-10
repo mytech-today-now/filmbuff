@@ -13,6 +13,13 @@ import { PDFParser } from './pdf-parser';
 import { DOCXParser } from './docx-parser';
 import { RTFParser } from './rtf-parser';
 
+type SupportedFormat = 'fountain' | 'markdown' | 'plaintext' | 'finaldraft' | 'pdf' | 'docx' | 'rtf';
+
+interface FormatDetectionResult {
+  format: SupportedFormat;
+  ambiguous: boolean;
+}
+
 /**
  * Create parser for specified format
  */
@@ -40,7 +47,7 @@ export const createParser: ParserFactory = (format) => {
 /**
  * Detect format from file extension
  */
-export function detectFormatFromExtension(filename: string): 'fountain' | 'markdown' | 'plaintext' | 'finaldraft' | 'pdf' | 'docx' | 'rtf' | null {
+export function detectFormatFromExtension(filename: string): SupportedFormat | null {
   const ext = filename.toLowerCase().split('.').pop();
 
   switch (ext) {
@@ -69,7 +76,7 @@ export function detectFormatFromExtension(filename: string): 'fountain' | 'markd
  * Detect format from content analysis
  * Handles both text-based and binary format detection
  */
-export function detectFormatFromContent(content: string | Buffer): 'fountain' | 'markdown' | 'plaintext' | 'finaldraft' | 'pdf' | 'docx' | 'rtf' {
+function detectFormatFromContentDetailed(content: string | Buffer): FormatDetectionResult {
   // Convert Buffer to string for signature checking
   const contentStr = typeof content === 'string' ? content : content.toString('binary');
 
@@ -77,12 +84,12 @@ export function detectFormatFromContent(content: string | Buffer): 'fountain' | 
 
   // PDF signature: %PDF-
   if (contentStr.startsWith('%PDF-')) {
-    return 'pdf';
+    return { format: 'pdf', ambiguous: false };
   }
 
   // RTF signature: {\rtf
   if (contentStr.startsWith('{\\rtf')) {
-    return 'rtf';
+    return { format: 'rtf', ambiguous: false };
   }
 
   // DOCX signature: PK (ZIP archive)
@@ -91,7 +98,7 @@ export function detectFormatFromContent(content: string | Buffer): 'fountain' | 
     // Further check for DOCX-specific content
     // Look for word/ directory or [Content_Types].xml
     if (contentStr.includes('word/') || contentStr.includes('[Content_Types].xml')) {
-      return 'docx';
+      return { format: 'docx', ambiguous: false };
     }
   }
 
@@ -99,7 +106,7 @@ export function detectFormatFromContent(content: string | Buffer): 'fountain' | 
   if (contentStr.trimStart().startsWith('<?xml')) {
     // Check if it contains FinalDraft root element
     if (contentStr.includes('<FinalDraft')) {
-      return 'finaldraft';
+      return { format: 'finaldraft', ambiguous: false };
     }
   }
 
@@ -109,6 +116,7 @@ export function detectFormatFromContent(content: string | Buffer): 'fountain' | 
   // Check for Fountain markers
   let fountainScore = 0;
   let markdownScore = 0;
+  let hasStructuredSignals = false;
 
   for (const line of lines.slice(0, Math.min(100, lines.length))) {
     const trimmed = line.trim();
@@ -116,54 +124,83 @@ export function detectFormatFromContent(content: string | Buffer): 'fountain' | 
     // Fountain indicators
     if (/^(INT|EXT|INT\/EXT|EXT\/INT)[\.\s]/.test(trimmed)) {
       fountainScore += 3;
+      hasStructuredSignals = true;
     }
     if (/^[A-Z][A-Z\s]+$/.test(trimmed) && trimmed.length > 2 && trimmed.length < 50) {
       fountainScore += 1; // Character name
+      hasStructuredSignals = true;
     }
     if (/^(FADE IN:|FADE OUT\.|CUT TO:)/.test(trimmed)) {
       fountainScore += 2;
+      hasStructuredSignals = true;
     }
 
     // Markdown indicators
     if (/^#{1,6}\s/.test(trimmed)) {
       markdownScore += 2;
+      hasStructuredSignals = true;
     }
     if (/^\*\*.*\*\*$/.test(trimmed) || /^__.*__$/.test(trimmed)) {
       markdownScore += 1;
+      hasStructuredSignals = true;
     }
     if (/^\[.*\]\(.*\)/.test(trimmed)) {
       markdownScore += 1;
+      hasStructuredSignals = true;
     }
   }
 
   // Determine format based on scores
   // Lower thresholds to be more sensitive to format indicators
   if (fountainScore > markdownScore && fountainScore >= 3) {
-    return 'fountain';
+    return { format: 'fountain', ambiguous: false };
   }
   if (markdownScore >= 3) {
-    return 'markdown';
+    return { format: 'markdown', ambiguous: false };
   }
 
-  // Default to plaintext
-  return 'plaintext';
+  // Default to plaintext only when there are no format signals at all.
+  if (!hasStructuredSignals) {
+    return { format: 'plaintext', ambiguous: false };
+  }
+
+  return { format: 'plaintext', ambiguous: true };
+}
+
+export function detectFormatFromContent(content: string | Buffer): SupportedFormat {
+  return detectFormatFromContentDetailed(content).format;
 }
 
 /**
  * Auto-detect format and create appropriate parser
  */
 export function createParserAuto(filename: string, content: string | Buffer): Parser {
-  // Try extension first
-  let format = detectFormatFromExtension(filename);
+  const formatFromExtension = detectFormatFromExtension(filename);
+  const contentDetection = detectFormatFromContentDetailed(content);
+  const ambiguousFormatError = 'Format could not be detected confidently. Specify the input format explicitly.';
 
-  // Fall back to content analysis
-  if (!format) {
-    format = detectFormatFromContent(content);
+  if (formatFromExtension) {
+    if (formatFromExtension === 'plaintext' && contentDetection.ambiguous) {
+      throw new Error(ambiguousFormatError);
+    }
+
+    if (
+      contentDetection.format !== 'plaintext' &&
+      contentDetection.format !== formatFromExtension &&
+      !contentDetection.ambiguous
+    ) {
+      throw new Error(ambiguousFormatError);
+    }
+
+    return createParser(formatFromExtension);
   }
 
-  return createParser(format);
+  if (contentDetection.ambiguous) {
+    throw new Error(ambiguousFormatError);
+  }
+
+  return createParser(contentDetection.format);
 }
 
 // Re-export types
 export * from './types';
-

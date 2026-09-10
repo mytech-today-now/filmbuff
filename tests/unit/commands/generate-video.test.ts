@@ -138,6 +138,48 @@ describe('generate-video command', () => {
     expect(manifest.map((result: { shotNumber: number }) => result.shotNumber)).toEqual([1, 3]);
   });
 
+  it('treats an empty --shots value as no filter', async () => {
+    const input = writeJsonl(tmpDir, [shotLine(1), shotLine(2), shotLine(3)]);
+    const outputDir = path.join(tmpDir, 'out-empty-shots');
+
+    await generateVideoCommand({ input, shots: '', mock: true, output: outputDir });
+
+    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(generateForShotListMock).toHaveBeenCalledTimes(1);
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(outputDir, 'manifest.json'), 'utf-8'));
+    expect(manifest.map((result: { shotNumber: number }) => result.shotNumber)).toEqual([1, 2, 3]);
+  });
+
+  it('filters valid shot numbers deterministically when the list includes whitespace', async () => {
+    const input = writeJsonl(tmpDir, [shotLine(1), shotLine(2), shotLine(3), shotLine(4)]);
+    const outputDir = path.join(tmpDir, 'out-whitespace-shots');
+
+    await generateVideoCommand({ input, shots: ' 1, 3 ', mock: true, output: outputDir });
+
+    expect(exitSpy).toHaveBeenCalledWith(0);
+    expect(generateForShotListMock).toHaveBeenCalledTimes(1);
+
+    const manifest = JSON.parse(fs.readFileSync(path.join(outputDir, 'manifest.json'), 'utf-8'));
+    expect(manifest.map((result: { shotNumber: number }) => result.shotNumber)).toEqual([1, 3]);
+  });
+
+  it('rejects malformed --shots tokens before generation and explains how to recover', async () => {
+    const input = writeJsonl(tmpDir, [shotLine(1), shotLine(2), shotLine(3)]);
+    const outputDir = path.join(tmpDir, 'out-invalid-shots');
+
+    await generateVideoCommand({ input, shots: '1, 2a, 3', mock: true, output: outputDir });
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(FilmbuffVideoGeneratorMock).not.toHaveBeenCalled();
+    expect(generateForShotListMock).not.toHaveBeenCalled();
+    expect(fs.existsSync(outputDir)).toBe(false);
+
+    const errorText = errorSpy.mock.calls.flat().join(' ');
+    expect(errorText).toContain('The shot selector contains an invalid token. Fix the list and rerun the command.');
+    expect(errorText).toContain('Offending token: 2a');
+  });
+
   it('exits 0 with the existing no-shots message for empty input', async () => {
     const input = writeJsonl(tmpDir, ['   ', '']);
 

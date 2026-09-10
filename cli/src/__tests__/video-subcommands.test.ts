@@ -8,7 +8,7 @@
  * UT-NEXT-01 through UT-NEXT-02  video next
  * UT-GEN-01  through UT-GEN-02   video generate
  * UT-APP-01  through UT-APP-02   video approve
- * UT-STAT-01 through UT-STAT-02  video status
+ * UT-STAT-01 through UT-STAT-06  video status
  * UT-DEPR-01 through UT-DEPR-02  generate-video deprecation
  * UT-PROJ-01 through UT-PROJ-02  --project flag
  *
@@ -19,6 +19,8 @@
 import * as fs    from 'fs';
 import * as os    from 'os';
 import * as path  from 'path';
+
+import type { VideoStatusRecord } from '../lib/shot-state-machine';
 
 // ---------------------------------------------------------------------------
 // Mocks hoisted above all imports
@@ -90,6 +92,46 @@ async function makeTempProject(shots = SHOT_LIST_3): Promise<string> {
   const lines = shots.map(s => JSON.stringify(s)).join('\n') + '\n';
   await fs.promises.writeFile(path.join(dir, '08-shot-list.jsonl'), lines);
   return dir;
+}
+
+const STALE_UPDATED_AT = '2024-01-01T00:00:00.000Z';
+
+function makeStatusRecord(overrides: Partial<VideoStatusRecord> = {}): VideoStatusRecord {
+  return {
+    shot_id:          's001',
+    status:           'pending',
+    provider:         null,
+    provider_job_id:  null,
+    clip_path:        null,
+    attempt_count:    0,
+    rejection_reason: null,
+    approved_at:      null,
+    rejected_at:      null,
+    generated_at:     null,
+    failed_at:        null,
+    credits_spent:    0,
+    updated_at:       STALE_UPDATED_AT,
+    ...overrides,
+  };
+}
+
+async function writeStatusFile(dir: string, records: VideoStatusRecord[]): Promise<void> {
+  const lines = records.map(record => JSON.stringify(record)).join('\n') + '\n';
+  await fs.promises.writeFile(path.join(dir, '08-video-status.jsonl'), lines);
+}
+
+function mockStdinTTY(value: boolean): () => void {
+  const original = process.stdin.isTTY;
+  Object.defineProperty(process.stdin, 'isTTY', {
+    value,
+    configurable: true,
+  });
+  return () => {
+    Object.defineProperty(process.stdin, 'isTTY', {
+      value: original,
+      configurable: true,
+    });
+  };
 }
 
 async function initProject(dir: string): Promise<void> {
@@ -436,6 +478,7 @@ describe('[UT-GA-03] video generate-all exits 0 when no pending shots remain', (
 afterEach(async () => {
   if (tmpDir) { await fs.promises.rm(tmpDir, { recursive: true, force: true }); tmpDir = ''; }
   delete process.env['FILMBUFF_MOCK_PROVIDER'];
+  delete process.env['FILMBUFF_WATCHDOG_TIMEOUT_MS'];
   jest.resetModules();
 });
 
@@ -570,6 +613,114 @@ describe('[UT-STAT-02] video status exits NOT_FOUND(2) before init', () => {
     expect(c.exitCode).toBe(2);
     const env = JSON.parse(c.stdout.trim());
     expect(env.errorCode).toBe('NOT_FOUND');
+  });
+});
+
+describe('[UT-STAT-03] video status renders a table for valid human-mode input', () => {
+  it('prints the table, rows, and summary for an initialized project', async () => {
+    tmpDir = await makeTempProject();
+    await initProject(tmpDir);
+
+    const restoreTTY = mockStdinTTY(true);
+    const cmd = await statusCmd();
+    const c   = beginCapture();
+    try { await cmd({ project: tmpDir }); }
+    catch (e) { if (!(e instanceof ExitError)) throw e; }
+    finally   { c.restore(); restoreTTY(); }
+
+    expect(c.exitCode).toBe(0);
+    expect(c.stdout).toContain('FilmBuff — Video Status');
+    expect(c.stdout).toContain('Shot');
+    expect(c.stdout).toContain('s001');
+    expect(c.stdout).toContain('Summary:');
+    expect(c.stdout).toContain('pending: 3');
+  });
+});
+
+describe('[UT-STAT-04] video status fails loudly for corrupt shot-list input', () => {
+  it('returns a structured GENERAL_ERROR and leaves the status file untouched', async () => {
+    tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'fb-corrupt-'));
+    const statusPath = path.join(tmpDir, '08-video-status.jsonl');
+
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'generating',
+        provider: 'runway-gen3',
+        provider_job_id: 'job-1',
+        attempt_count: 1,
+      }),
+    ]);
+    await fs.promises.writeFile(path.join(tmpDir, '08-shot-list.jsonl'), '{"shot_id":"s001"}\nnot-json\n');
+    const before = fs.readFileSync(statusPath, 'utf-8');
+    process.env['FILMBUFF_WATCHDOG_TIMEOUT_MS'] = '1';
+
+    const cmd = await statusCmd();
+    const c   = beginCapture();
+    try { await cmd({ project: tmpDir, json: true, agent: true }); }
+    catch (e) { if (!(e instanceof ExitError)) throw e; }
+    finally   { c.restore(); }
+
+    expect(c.exitCode).toBe(1);
+    const env = JSON.parse(c.stdout.trim());
+    expect(env.status).toBe('error');
+    expect(env.errorCode).toBe('GENERAL_ERROR');
+    expect(env.data).toBeNull();
+
+    const err = JSON.parse(c.stderr.trim());
+    expect(err.error.code).toBe('GENERAL_ERROR');
+    expect(err.error.message).toContain('Unable to read the shot list');
+    expect(fs.readFileSync(statusPath, 'utf-8')).toBe(before);
+  });
+});
+
+describe('[UT-STAT-05] video status exits NOT_FOUND(2) when the shot list is missing', () => {
+  it('prints the shot-list message in human mode and leaves state unchanged', async () => {
+    tmpDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'fb-missing-'));
+    const statusPath = path.join(tmpDir, '08-video-status.jsonl');
+
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'pending',
+      }),
+    ]);
+    const before = fs.readFileSync(statusPath, 'utf-8');
+
+    const restoreTTY = mockStdinTTY(true);
+    const cmd = await statusCmd();
+    const c   = beginCapture();
+    try { await cmd({ project: tmpDir }); }
+    catch (e) { if (!(e instanceof ExitError)) throw e; }
+    finally   { c.restore(); restoreTTY(); }
+
+    expect(c.exitCode).toBe(2);
+    const output = `${c.stdout}${c.stderr}`;
+    expect(output).toContain('Unable to read the shot list. Fix 08-shot-list.jsonl before checking video status.');
+    expect(output).not.toContain('FilmBuff — Video Status');
+    expect(fs.readFileSync(statusPath, 'utf-8')).toBe(before);
+  });
+});
+
+describe('[UT-STAT-06] video status filter returns an empty view without mutating state', () => {
+  it('renders no matching rows when the filter value is absent', async () => {
+    tmpDir = await makeTempProject();
+    await initProject(tmpDir);
+
+    const statusPath = path.join(tmpDir, '08-video-status.jsonl');
+    const before = fs.readFileSync(statusPath, 'utf-8');
+    const restoreTTY = mockStdinTTY(true);
+    const cmd = await statusCmd();
+    const c   = beginCapture();
+    try { await cmd({ project: tmpDir, filter: 'ghost' }); }
+    catch (e) { if (!(e instanceof ExitError)) throw e; }
+    finally   { c.restore(); restoreTTY(); }
+
+    expect(c.exitCode).toBe(0);
+    expect(c.stdout).toContain('Filter: ghost');
+    expect(c.stdout).toContain('Summary:');
+    expect(c.stdout).not.toContain('s001');
+    expect(fs.readFileSync(statusPath, 'utf-8')).toBe(before);
   });
 });
 

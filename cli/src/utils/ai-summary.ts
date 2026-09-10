@@ -327,13 +327,48 @@ function createCacheKey(module: Module, format: AISummaryFormat, includeContent:
     module: safeValue(() => module.fullName, 'unknown-module'),
     version: safeValue(() => module.metadata.version, 'unknown-version'),
     type: safeValue(() => module.metadata.type, 'unknown-type'),
+    description: safeValue(() => module.metadata.description, 'unknown-description'),
     path: safeValue(() => module.path, 'unknown-path'),
+    freshness: safeValue(() => getModuleFreshnessFingerprint(module.path), 'unknown-freshness'),
     format,
     includeContent,
     rules: safeValue(() => module.rules, [] as string[]),
     examples: safeValue(() => module.examples, [] as string[]),
     characterCount: safeValue(() => module.metadata.augment?.characterCount || 0, 0)
   })).digest('hex');
+}
+
+function getModuleFreshnessFingerprint(modulePath: string): string {
+  if (!modulePath || !fs.existsSync(modulePath)) {
+    return 'missing-module-path';
+  }
+
+  const hash = crypto.createHash('sha1');
+
+  function visitDirectory(currentPath: string): void {
+    const entries = fs.readdirSync(currentPath, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name));
+
+    for (const entry of entries) {
+      const fullPath = path.join(currentPath, entry.name);
+      const relativePath = path.relative(modulePath, fullPath).replace(/\\/g, '/');
+
+      if (entry.isDirectory()) {
+        visitDirectory(fullPath);
+        continue;
+      }
+
+      if (!entry.isFile()) {
+        continue;
+      }
+
+      const stats = fs.statSync(fullPath, { bigint: true });
+      hash.update(`file:${relativePath}:${stats.size}:${stats.mtimeNs}\n`);
+    }
+  }
+
+  visitDirectory(modulePath);
+  return hash.digest('hex');
 }
 
 function getCacheFilePath(cacheDirectory: string, cacheKey: string): string {

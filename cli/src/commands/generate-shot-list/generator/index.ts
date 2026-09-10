@@ -16,6 +16,7 @@ import {
   CharacterState,
   ShotMetadata
 } from './types';
+import type { ShotListSourceFormat } from './types';
 import { createValidator } from './validator';
 import { SceneSegmenter, SegmentationConfig } from './scene-segmenter';
 import { ContextBuilder, ContextBuilderConfig } from './context-builder';
@@ -256,6 +257,20 @@ export class ShotListGenerator implements Generator {
     // Calculate totals
     const totalDuration = shots.reduce((sum, shot) => sum + shot.duration, 0);
     const totalCharacters = shots.reduce((sum, shot) => sum + shot.characterCount, 0);
+    const sourceFormat: ShotListSourceFormat = config.sourceFormat ?? 'unknown';
+
+    if (!config.sourceFormat) {
+      console.warn(
+        chalk.yellow('Source format could not be confirmed. Marking the generated metadata as unknown.')
+      );
+    }
+
+    const metadata = {
+      generatedAt: new Date(),
+      maxCharacters: config.maxCharacters,
+      maxShotLength: config.maxShotLength,
+      sourceFormat
+    };
 
     // Create shot list
     const shotList: ShotList = {
@@ -264,12 +279,7 @@ export class ShotListGenerator implements Generator {
       totalDuration,
       totalCharacters,
       warnings: [],
-      metadata: {
-        generatedAt: new Date(),
-        maxCharacters: config.maxCharacters,
-        maxShotLength: config.maxShotLength,
-        sourceFormat: 'fountain' // TODO: Get from screenplay metadata
-      }
+      metadata
     };
 
     // Validate shot list using validator module
@@ -282,12 +292,7 @@ export class ShotListGenerator implements Generator {
       totalDuration,
       totalCharacters,
       warnings,
-      metadata: {
-        generatedAt: new Date(),
-        maxCharacters: config.maxCharacters,
-        maxShotLength: config.maxShotLength,
-        sourceFormat: 'fountain' // TODO: Get from screenplay metadata
-      }
+      metadata
     };
   }
 

@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { compareSemanticVersions, satisfiesVersionRange } from '../utils/module-system';
+import { compareSemanticVersions, findProjectRoot, isValidSemanticVersion, satisfiesVersionRange } from '../utils/module-system';
 import { execSync } from 'child_process';
 
 /**
@@ -106,17 +106,36 @@ export class CompatibilityChecker {
       }
     }
 
-    // Check Augment version (if available)
+    // Check Augment version using the best available project-root version metadata.
     if (metadata.augmentMinVersion) {
-      // TODO: Implement Augment version detection
-      const augmentMessage = `Unable to detect Augment version; compatibility cannot be verified (required: ${metadata.augmentMinVersion})`;
-      details.augment = {
-        required: metadata.augmentMinVersion,
-        current: 'unknown',
-        compatible: false,
-        message: augmentMessage
-      };
-      errors.push(augmentMessage);
+      const augmentVersion = this.detectAugmentVersion(modulePath);
+
+      if (!augmentVersion) {
+        const augmentMessage = `Unable to detect Augment version; compatibility cannot be verified (required: ${metadata.augmentMinVersion})`;
+        details.augment = {
+          required: metadata.augmentMinVersion,
+          current: 'unknown',
+          compatible: false,
+          message: augmentMessage
+        };
+        errors.push(augmentMessage);
+      } else {
+        const compatible = satisfiesVersionRange(augmentVersion, `>=${metadata.augmentMinVersion}`);
+        const augmentMessage = compatible
+          ? undefined
+          : `Augment ${metadata.augmentMinVersion} or higher required (current: ${augmentVersion})`;
+
+        details.augment = {
+          required: metadata.augmentMinVersion,
+          current: augmentVersion,
+          compatible,
+          message: augmentMessage
+        };
+
+        if (!compatible && augmentMessage) {
+          errors.push(augmentMessage);
+        }
+      }
     }
 
     return {
@@ -171,6 +190,42 @@ export class CompatibilityChecker {
         ? undefined
         : `TypeScript ${requiredVersion} or higher required (current: ${this.typescriptVersion})`
     };
+  }
+
+  /**
+   * Detect the current Augment runtime version from the module's project root.
+   * Returns null when the version cannot be verified safely.
+   */
+  private detectAugmentVersion(modulePath: string): string | null {
+    const projectRoot = findProjectRoot(modulePath);
+
+    if (!projectRoot) {
+      return null;
+    }
+
+    const versionFile = path.join(projectRoot, 'VERSION');
+    if (fs.existsSync(versionFile)) {
+      const version = fs.readFileSync(versionFile, 'utf-8').trim();
+      if (isValidSemanticVersion(version)) {
+        return version;
+      }
+    }
+
+    const packageJsonFile = path.join(projectRoot, 'package.json');
+    if (fs.existsSync(packageJsonFile)) {
+      try {
+        const packageJson = JSON.parse(fs.readFileSync(packageJsonFile, 'utf-8'));
+        const packageVersion = typeof packageJson.version === 'string' ? packageJson.version.trim() : '';
+
+        if (packageVersion && isValidSemanticVersion(packageVersion)) {
+          return packageVersion;
+        }
+      } catch {
+        // Ignore invalid package metadata and keep the fail-closed fallback.
+      }
+    }
+
+    return null;
   }
 
   /**

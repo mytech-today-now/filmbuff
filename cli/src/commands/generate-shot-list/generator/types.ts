@@ -5,7 +5,13 @@
  */
 
 import { Scene, SceneHeading } from '../parser/types';
+import type { Screenplay } from '../parser/types';
 import type { VideoControls } from '../../../lib/video-controls';
+
+/**
+ * Source screenplay format tracked through shot list generation.
+ */
+export type ShotListSourceFormat = Screenplay['metadata']['format'] | 'unknown';
 
 /**
  * Shot type classification
@@ -169,7 +175,7 @@ export interface ShotList {
     generatedAt: Date;
     maxCharacters: number;
     maxShotLength: number;
-    sourceFormat: 'fountain' | 'markdown' | 'plaintext';
+    sourceFormat: ShotListSourceFormat;
   };
 }
 
@@ -182,6 +188,11 @@ export interface GeneratorConfig {
   warningThreshold: number; // percentage (e.g., 90 for 90%)
   includeContext: boolean;
   includeMetadata: boolean;
+  /**
+   * Upstream source screenplay format detected by the parser.
+   * Falls back to `unknown` when the caller cannot determine it.
+   */
+  sourceFormat?: ShotListSourceFormat;
   cinematicStyle?: string;  // Formatted cinematic style name(s) for display
   muteSfx?: boolean;  // Remove all MUSIC and SOUND EFFECT content from output
   /**

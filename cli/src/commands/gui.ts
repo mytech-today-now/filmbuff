@@ -57,11 +57,16 @@ export async function guiCommand(options: Record<string, unknown> = {}): Promise
     }
 
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    const linkedModules: string[] = (config.modules ?? []).map((m: { name: string }) => m.name);
+    const linkedModules: string[] = Array.isArray(config.modules)
+      ? config.modules
+          .map((m: { name?: unknown }) => m?.name)
+          .filter((name): name is string => typeof name === 'string' && name.trim().length > 0)
+      : [];
 
     // Discover available modules and collections
     const modules = discoverModules();
     const collections = discoverCollections();
+    const linkedStates = buildLinkedModuleStates(linkedModules, modules);
 
     // Main menu
     const { action } = await inquirer.prompt([
@@ -96,7 +101,7 @@ export async function guiCommand(options: Record<string, unknown> = {}): Promise
       displayKeyboardHelp();
       return await guiCommand(options);
     } else if (action === 'link-modules') {
-      await linkModulesInteractive(modules, linkedModules);
+      await linkModulesInteractive(modules, linkedStates);
     } else if (action === 'link-collection') {
       await linkCollectionInteractive(collections, linkedModules);
     } else if (action === 'search') {
@@ -105,31 +110,31 @@ export async function guiCommand(options: Record<string, unknown> = {}): Promise
       await listSubmodulesInteractive(
         'writing-standards/screenplay/genres',
         '🎬 Genres',
-        linkedModules,
+        linkedStates,
       );
     } else if (action === 'styles') {
       await listSubmodulesInteractive(
         'writing-standards/screenplay/styles',
         '🎨 Styles',
-        linkedModules,
+        linkedStates,
       );
     } else if (action === 'themes') {
       await listSubmodulesInteractive(
         'writing-standards/screenplay/themes',
         '🎭 Themes',
-        linkedModules,
+        linkedStates,
       );
     } else if (action === 'directors') {
       await listSubmodulesInteractive(
         'writing-standards/screenplay/cinematic-styles/directors',
         '🎥 Directors',
-        linkedModules,
+        linkedStates,
       );
     } else if (action === 'franchises') {
       await listSubmodulesInteractive(
         'writing-standards/screenplay/cinematic-styles/franchises',
         '🏛️  Franchises',
-        linkedModules,
+        linkedStates,
       );
     } else if (action === 'providers') {
       await providerMenuInteractive();
@@ -192,11 +197,60 @@ function groupModulesByCategory(modules: Module[]): Map<string, Module[]> {
   return grouped;
 }
 
-async function linkModulesInteractive(modules: Module[], linkedModules: string[]): Promise<void> {
+interface LinkedModuleState {
+  rawName: string;
+  canonicalName: string;
+  resolvedModule: Module | null;
+}
+
+function resolveLinkedModuleName(moduleName: string, modules: Module[]): Module | null {
+  const normalizedName = moduleName.toLowerCase();
+
+  const exactMatch = modules.find(module => module.fullName.toLowerCase() === normalizedName);
+  if (exactMatch) {
+    return exactMatch;
+  }
+
+  const directoryMatch = modules.find(module => {
+    const segments = module.fullName.split('/');
+    return segments[segments.length - 1].toLowerCase() === normalizedName;
+  });
+  if (directoryMatch) {
+    return directoryMatch;
+  }
+
+  for (const module of modules) {
+    if (module.rules.some(rule => path.basename(rule, '.md').toLowerCase() === normalizedName)) {
+      return module;
+    }
+  }
+
+  return null;
+}
+
+function buildLinkedModuleStates(linkedModules: string[], modules: Module[]): LinkedModuleState[] {
+  return linkedModules.map(rawName => {
+    const resolvedModule = resolveLinkedModuleName(rawName, modules);
+    return {
+      rawName,
+      canonicalName: resolvedModule?.fullName ?? rawName,
+      resolvedModule,
+    };
+  });
+}
+
+async function linkModulesInteractive(modules: Module[], linkedStates: LinkedModuleState[]): Promise<void> {
   if (modules.length === 0) {
     console.log(chalk.yellow('No modules found in filmbuff directory.'));
     return;
   }
+
+  const linkedModuleNames = new Set(
+    linkedStates
+      .filter(state => state.resolvedModule)
+      .map(state => state.canonicalName),
+  );
+  const unresolvedStates = linkedStates.filter(state => !state.resolvedModule);
 
   // Group by smart category and insert separators for clarity
   const grouped = groupModulesByCategory(modules);
@@ -211,9 +265,21 @@ async function linkModulesInteractive(modules: Module[], linkedModules: string[]
       choices.push({
         name: `${chalk.cyan(alias.padEnd(28))}${chalk.gray(short)}`,
         value: m.fullName,
-        checked: linkedModules.includes(m.fullName),
+        checked: linkedModuleNames.has(m.fullName),
       });
     }
+  }
+
+  if (unresolvedStates.length > 0) {
+    choices.push(new inquirer.Separator('-- Unresolved Linked Entries --'));
+    for (const state of unresolvedStates) {
+      choices.push({
+        name: `${chalk.yellow(state.rawName.padEnd(28))}${chalk.gray('left unchanged')}`,
+        value: state.rawName,
+        disabled: 'left unchanged',
+      });
+    }
+    console.log(chalk.yellow('Some linked entries could not be normalized. They were left unchanged.'));
   }
 
   const { selected } = await inquirer.prompt([
@@ -227,8 +293,12 @@ async function linkModulesInteractive(modules: Module[], linkedModules: string[]
   ]);
 
   // Determine what to link and unlink
-  const toLink: string[] = selected.filter((n: string) => !linkedModules.includes(n));
-  const toUnlink: string[] = linkedModules.filter(n => !selected.includes(n));
+  const selectedModules: string[] = Array.isArray(selected) ? selected : [];
+  const selectedModuleNames = new Set(selectedModules);
+  const toLink: string[] = selectedModules.filter((name: string) => !linkedModuleNames.has(name));
+  const toUnlink: string[] = linkedStates
+    .filter(state => state.resolvedModule && !selectedModuleNames.has(state.canonicalName))
+    .map(state => state.rawName);
 
   for (const name of toLink) {
     await linkCommand(name, {});
@@ -344,12 +414,12 @@ function resolveModulesDir(): string {
  * @param relPath  Path relative to the filmbuff root, e.g.
  *                 "writing-standards/screenplay/genres"
  * @param label    Display label for the menu header
- * @param linkedModules  Currently-linked module names
+ * @param linkedStates  Currently-linked module states
  */
 async function listSubmodulesInteractive(
   relPath: string,
   label: string,
-  linkedModules: string[],
+  linkedStates: LinkedModuleState[],
 ): Promise<void> {
   const modulesDir = resolveModulesDir();
   const containerPath = path.join(modulesDir, ...relPath.split('/'));
@@ -383,15 +453,32 @@ async function listSubmodulesInteractive(
 
   console.log(chalk.bold.cyan(`\n${label} (${entries.length} available)\n`));
 
+  const entryFullNames = new Set(entries.map(entry => entry.fullName));
+  const relevantLinkedStates = linkedStates.filter(state => entryFullNames.has(state.canonicalName));
+  const linkedModuleNames = new Set(relevantLinkedStates.map(state => state.canonicalName));
+  const unresolvedStates = linkedStates.filter(state => !state.resolvedModule);
+
   const choices = entries.map(e => {
     const alias = chalk.cyan(e.name.padEnd(26));
     const desc = e.description.length > 50 ? e.description.slice(0, 47) + '...' : e.description;
     return {
       name: `${alias}${chalk.gray(desc)}`,
       value: e.fullName,
-      checked: linkedModules.includes(e.fullName),
+      checked: linkedModuleNames.has(e.fullName),
     };
   });
+
+  if (unresolvedStates.length > 0) {
+    choices.push(new inquirer.Separator('-- Unresolved Linked Entries --'));
+    for (const state of unresolvedStates) {
+      choices.push({
+        name: `${chalk.yellow(state.rawName.padEnd(26))}${chalk.gray('left unchanged')}`,
+        value: state.rawName,
+        disabled: 'left unchanged',
+      });
+    }
+    console.log(chalk.yellow('Some linked entries could not be normalized. They were left unchanged.'));
+  }
 
   const { selected } = await inquirer.prompt([
     {
@@ -403,10 +490,12 @@ async function listSubmodulesInteractive(
     },
   ]);
 
-  const toLink: string[] = selected.filter((n: string) => !linkedModules.includes(n));
-  const toUnlink: string[] = linkedModules.filter(n =>
-    entries.some(e => e.fullName === n) && !selected.includes(n)
-  );
+  const selectedModules: string[] = Array.isArray(selected) ? selected : [];
+  const selectedModuleNames = new Set(selectedModules);
+  const toLink: string[] = selectedModules.filter((name: string) => !linkedModuleNames.has(name));
+  const toUnlink: string[] = relevantLinkedStates
+    .filter(state => !selectedModuleNames.has(state.canonicalName))
+    .map(state => state.rawName);
 
   for (const name of toLink) {
     await linkCommand(name, {});

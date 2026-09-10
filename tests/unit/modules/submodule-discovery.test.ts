@@ -100,6 +100,26 @@ describe('Submodule Discovery', () => {
       // Should include screenplay and its submodules
       expect(writingStandardsModules.length).toBeGreaterThan(1);
     });
+
+    it('should return nested screenplay modules in canonical order', () => {
+      const modules = discoverModules();
+      const writingStandardsModules = modules.filter(m =>
+        m.fullName.startsWith('writing-standards/')
+      );
+      const orderedNames = writingStandardsModules.map(m => m.fullName);
+      const sortedNames = [...orderedNames].sort((left, right) => {
+        const normalizedLeft = left.toLowerCase();
+        const normalizedRight = right.toLowerCase();
+
+        if (normalizedLeft < normalizedRight) return -1;
+        if (normalizedLeft > normalizedRight) return 1;
+        if (left < right) return -1;
+        if (left > right) return 1;
+        return 0;
+      });
+
+      expect(orderedNames).toEqual(sortedNames);
+    });
   });
 
   describe('Top-level Module Detection', () => {

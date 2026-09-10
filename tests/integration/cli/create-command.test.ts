@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { spawn } from 'child_process';
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join } from 'path';
+import { mkdir, writeFile } from 'fs/promises';
 import { TestEnvironment } from '../../helpers/test-env';
 
 async function executeCommand(
@@ -53,6 +54,14 @@ function stripAnsi(value: string): string {
   return value.replace(/\u001b\[[0-9;]*m/g, '');
 }
 
+async function createProjectRootMarker(projectPath: string): Promise<void> {
+  await writeFile(
+    join(projectPath, 'package.json'),
+    JSON.stringify({ name: 'create-fixture', version: '1.0.0' }, null, 2)
+  );
+  await mkdir(join(projectPath, 'filmbuff'), { recursive: true });
+}
+
 describe('create command', () => {
   let testEnv: TestEnvironment;
 
@@ -67,6 +76,7 @@ describe('create command', () => {
 
   it('creates a scaffold that list and show can discover', async () => {
     const project = await testEnv.createProject({ name: 'create-scaffold-project', withAugmentDir: false });
+    await createProjectRootMarker(project.path);
 
     const createResult = await executeCommand(
       ['create', 'My New Module', '--type', 'coding-standards'],
@@ -117,6 +127,7 @@ describe('create command', () => {
 
   it('refuses to overwrite an existing module', async () => {
     const project = await testEnv.createProject({ name: 'duplicate-module-project', withAugmentDir: false });
+    await createProjectRootMarker(project.path);
     const modulePath = join(project.path, 'filmbuff', 'coding-standards', 'duplicate-module');
 
     const firstResult = await executeCommand(
@@ -145,6 +156,7 @@ describe('create command', () => {
 
   it('rejects invalid name or path input', async () => {
     const project = await testEnv.createProject({ name: 'invalid-module-project', withAugmentDir: false });
+    await createProjectRootMarker(project.path);
 
     const result = await executeCommand(
       ['create', '../bad-module', '--type', 'coding-standards'],
@@ -156,6 +168,6 @@ describe('create command', () => {
     expect(result.exitCode).not.toBe(0);
     expect(output).toContain('../bad-module');
     expect(output).toContain('Invalid module name or path');
-    expect(existsSync(join(project.path, 'filmbuff'))).toBe(false);
+    expect(existsSync(join(project.path, 'filmbuff', 'bad-module'))).toBe(false);
   }, 60_000);
 });

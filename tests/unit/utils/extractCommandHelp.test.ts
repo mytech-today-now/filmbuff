@@ -1,4 +1,5 @@
 import * as fs from 'fs';
+import packageJson from '../../../package.json';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   detectTools,
@@ -7,6 +8,8 @@ import {
   Tool,
   HelpNode
 } from '@cli/utils/extractCommandHelp';
+
+const packageVersion = (packageJson as { version: string }).version;
 
 vi.mock('fs', () => ({
   existsSync: vi.fn()
@@ -161,7 +164,7 @@ Commands:
 
       helpMap.set(tool, helpNode);
 
-      const result = generateMarkdown(helpMap);
+      const result = generateMarkdown(helpMap, packageVersion);
 
       expect(result).toContain('# Command Help Reference');
       expect(result).toContain('## Beads Commands (bd)');
@@ -191,7 +194,7 @@ Commands:
       helpMap.set(tool1, helpNode1);
       helpMap.set(tool2, helpNode2);
 
-      const result = generateMarkdown(helpMap);
+      const result = generateMarkdown(helpMap, packageVersion);
 
       expect(result).toContain('## filmbuff Commands (filmbuff)');
       expect(result).toContain('## Beads Commands (bd)');
@@ -201,7 +204,7 @@ Commands:
     it('should handle empty help map', () => {
       const helpMap = new Map<Tool, HelpNode>();
 
-      const result = generateMarkdown(helpMap);
+      const result = generateMarkdown(helpMap, packageVersion);
 
       expect(result).toContain('# Command Help Reference');
       expect(result).toContain('**Tools**: ');
@@ -213,10 +216,10 @@ Commands:
       const helpNode: HelpNode = { command: 'test', help: 'Test tool', children: [] };
       helpMap.set(tool, helpNode);
 
-      const result = generateMarkdown(helpMap);
+      const result = generateMarkdown(helpMap, packageVersion);
 
       expect(result).toContain('**Generated**:');
-      expect(result).toContain('**Version**: 1.0.0');
+      expect(result).toContain(`**Version**: ${packageVersion}`);
     });
 
     it('should format nested subcommands correctly', () => {
@@ -242,7 +245,7 @@ Commands:
 
       helpMap.set(tool, helpNode);
 
-      const result = generateMarkdown(helpMap);
+      const result = generateMarkdown(helpMap, packageVersion);
 
       expect(result).toContain('### test --help');
       expect(result).toContain('#### test sub1 --help');

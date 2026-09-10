@@ -4,7 +4,7 @@ import * as path from 'path';
 import { ModuleLoader } from '../core/module-loader';
 import { VersionManager } from '../core/version-manager';
 import { CompatibilityChecker } from '../core/compatibility-checker';
-import { compareSemanticVersions, discoverModules, findProjectRoot } from '../utils/module-system';
+import { compareSemanticVersions, discoverModules, findModule, findProjectRoot } from '../utils/module-system';
 
 export interface UpgradeCommandOptions {
   force?: boolean;
@@ -15,16 +15,16 @@ export interface UpgradeCommandOptions {
 export async function upgradeCommand(moduleName: string, options: UpgradeCommandOptions = {}): Promise<void> {
   try {
     const { force = false, json = false, dryRun = false } = options;
-    const modules = discoverModules();
-    const module = modules.find(m => m.fullName === moduleName || m.metadata.name === moduleName);
+    const module = findModule(moduleName);
 
     if (!module) {
-      if (json) {
-        console.log(JSON.stringify({ error: `Module not found: ${moduleName}` }, null, 2));
-      } else {
+      if (!json) {
+        const modules = discoverModules();
         console.error(chalk.red(`✗ Module not found: ${moduleName}`));
         console.log(chalk.gray('\nAvailable modules:'));
         modules.forEach(m => console.log(chalk.gray(`  - ${m.fullName}`)));
+      } else {
+        console.log(JSON.stringify({ error: `Module not found: ${moduleName}` }, null, 2));
       }
       process.exit(1);
     }
@@ -101,6 +101,11 @@ export async function upgradeCommand(moduleName: string, options: UpgradeCommand
         }
       }
 
+      if (compatResult.details.augment) {
+        const augment = compatResult.details.augment;
+        console.log(`  ${chalk.gray('Augment:')} ${augment.current} ${augment.compatible ? chalk.green('✓') : chalk.red('✗')} (requires ${augment.required}+)`);
+      }
+
       if (compatResult.warnings.length > 0) {
         console.log(chalk.yellow('\n  Compatibility Warnings:'));
         compatResult.warnings.forEach(w => console.log(chalk.yellow(`    - ${w}`)));
@@ -140,17 +145,39 @@ export async function upgradeCommand(moduleName: string, options: UpgradeCommand
     if (fs.existsSync(configPath)) {
       try {
         const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-        if (Array.isArray(config.modules)) {
-          const moduleIndex = config.modules.findIndex((m: any) => m.name === moduleName);
-          if (moduleIndex >= 0) {
-            config.modules[moduleIndex].version = latestVersion;
-            config.modules[moduleIndex].upgradedAt = new Date().toISOString();
-            fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
-            upgraded = true;
-          }
+        if (!Array.isArray(config.modules)) {
+          throw new Error('Invalid config format: expected .augment/extensions.json to contain a modules array');
         }
-      } catch {
-        // Ignore config update failures and still report the upgrade outcome.
+
+        const moduleIndex = config.modules.findIndex((m: any) => m.name === module.fullName);
+        if (moduleIndex >= 0) {
+          config.modules[moduleIndex].version = latestVersion;
+          config.modules[moduleIndex].upgradedAt = new Date().toISOString();
+          fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+          upgraded = true;
+        }
+      } catch (error) {
+        const configSyncFailureMessage = 'Upgrade completed, but .augment/extensions.json could not be updated. Fix the config and rerun the command.';
+
+        if (json) {
+          console.log(JSON.stringify({
+            success: false,
+            error: configSyncFailureMessage,
+            details: error instanceof Error ? error.message : String(error),
+            module: moduleName,
+            previousVersion: currentVersion,
+            newVersion: latestVersion,
+            breaking: latestResult.metadata.breaking,
+            deprecated: latestResult.metadata.deprecated,
+            configUpdated: false
+          }, null, 2));
+        } else {
+          console.error(chalk.red(`✗ ${configSyncFailureMessage}`));
+          console.error(chalk.gray(`  ${error instanceof Error ? error.message : String(error)}`));
+        }
+
+        process.exit(1);
+        return;
       }
     }
 

@@ -8,6 +8,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
+import { readPackageVersion } from './version';
 
 const execAsync = promisify(exec);
 
@@ -202,7 +203,7 @@ export async function extractAllHelp(repoRoot: string): Promise<Map<Tool, HelpNo
 /**
  * Generate Markdown output from help nodes
  */
-export function generateMarkdown(helpMap: Map<Tool, HelpNode>): string {
+export function generateMarkdown(helpMap: Map<Tool, HelpNode>, version: string): string {
   const timestamp = new Date().toISOString();
   const toolNames = Array.from(helpMap.keys()).map(t => t.name).sort().join(', ');
 
@@ -210,7 +211,7 @@ export function generateMarkdown(helpMap: Map<Tool, HelpNode>): string {
   markdown += `Auto-generated command-line help for Augment workflow tools.\n\n`;
   markdown += `**Generated**: ${timestamp}\n`;
   markdown += `**Tools**: ${toolNames}\n`;
-  markdown += `**Version**: 1.0.0\n\n`;
+  markdown += `**Version**: ${version}\n\n`;
   markdown += `---\n\n`;
 
   // Sort tools alphabetically
@@ -265,7 +266,8 @@ export async function extractCommandHelp(repoRoot: string, outputPath?: string):
 
   // Generate Markdown
   console.log('\n📝 Generating Markdown output...');
-  const markdown = generateMarkdown(helpMap);
+  const version = readPackageVersion();
+  const markdown = generateMarkdown(helpMap, version);
 
   // Write to file if output path provided
   if (outputPath) {

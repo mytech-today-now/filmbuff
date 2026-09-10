@@ -46,15 +46,14 @@ ai-powered Library Integration
     • gpt-3.5-turbo
 
   Video Providers:
-    • lumaai: dream-machine-v2, dream-machine-v1
-    • runway: gen-3-alpha, gen-3-turbo
+    • lumaai: ray-2, ray-2-turbo
     • pika: pika/pika-2.5/text-to-video, pika/pika-2.5/image-to-video, pika/pikaframes/image-to-video, pika/pikadditions/video-to-video, pika/pikaswaps/video-to-video, pika/pikaffects/image-to-video, pika/pikaffects/video-to-video
 ```
 
 ### 4 — Run a command
 
 ```bash
-filmbuff generate-shot-list script.fountain --output shots.jsonl
+filmbuff generate-shot-list --input script.fountain --output shots.jsonl
 filmbuff generate-video --input shots.jsonl --output ./videos
 ```
 
@@ -122,7 +121,7 @@ status`. FilmBuff does not use the deprecated `pika.me/dev` Developer API.
 
 ```bash
 # Via environment variable (all commands)
-AI_MOCK=true filmbuff generate-shot-list script.fountain --output shots.jsonl
+AI_MOCK=true filmbuff generate-shot-list --input script.fountain --output shots.jsonl
 AI_MOCK=true filmbuff generate-video --input shots.jsonl --output ./videos
 
 # Via flag (generate-video only)
@@ -151,7 +150,7 @@ PIKA_API_KEY=your-key filmbuff generate-video \
   --provider-options '{"resolution":"1080p","duration_s":5,"seed":42}'
 
 # One-step pipeline (shot list + video in a single command)
-filmbuff generate-shot-list script.fountain --output shots.jsonl --generate-video \
+filmbuff generate-shot-list --input script.fountain --output shots.jsonl --generate-video \
   --video-output ./videos --mock
 ```
 
@@ -191,7 +190,7 @@ export const FILMBUFF_DEFAULTS = {
 filmbuff ai status
 
 # Test the full pipeline with no credentials
-AI_MOCK=true filmbuff generate-shot-list script.fountain --output shots.jsonl
+AI_MOCK=true filmbuff generate-shot-list --input script.fountain --output shots.jsonl
 AI_MOCK=true filmbuff generate-video --input shots.jsonl
 ```
 
@@ -217,4 +216,3 @@ The following commands were removed and now print migration guidance + exit 1:
 
 *For the complete CLI reference, see [docs/CLI_REFERENCE.md](../../docs/CLI_REFERENCE.md).*
 *For provider credential setup, see [docs/PROVIDER_SETUP.md](../../docs/PROVIDER_SETUP.md).*
-

@@ -148,7 +148,6 @@ export default [
     languageOptions: {
       parser: tsParser,
       parserOptions: {
-        project: './cli/tsconfig.json',
         ecmaVersion: 'latest',
         sourceType: 'module',
       },
@@ -160,4 +159,3 @@ export default [
     },
   },
 ];
-

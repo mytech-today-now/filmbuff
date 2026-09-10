@@ -1,0 +1,1769 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FilmBuff Pre-Mortem Report - 2026 09 09 15 56 19</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4eddf;
+      --bg-accent: #efe2cb;
+      --panel: rgba(255, 255, 255, 0.84);
+      --panel-strong: #fff9f1;
+      --border: #d8c6ab;
+      --border-strong: #c7b08d;
+      --text: #221d17;
+      --muted: #5d4e3f;
+      --muted-2: #7b6c59;
+      --shadow: 0 18px 46px rgba(72, 49, 21, 0.11);
+      --core: #18412d;
+      --additional: #5f4a1e;
+      --p1: #9f1f24;
+      --p2: #ce7421;
+      --p3: #86671d;
+      --critical: #7e1820;
+      --high: #a63d1d;
+      --medium: #3f6b2c;
+      --low: #4d6782;
+      --almost-certain: #5a2d13;
+      --likely: #7d4c13;
+      --possible: #335f2d;
+      --unlikely: #4b5f7d;
+      --rare: #6b516f;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 40%),
+        radial-gradient(circle at top right, rgba(219, 193, 151, 0.4), transparent 35%),
+        linear-gradient(180deg, var(--bg), #f9f4ec 42%, #f1e7d8 100%);
+      font-family: Georgia, 'Times New Roman', serif;
+      line-height: 1.65;
+    }
+    h1, h2, h3, dt, th, .label, .pill, .stat-value { font-family: 'Aptos', 'Segoe UI', sans-serif; }
+    a { color: #274e74; }
+    main.report { max-width: 1240px; margin: 0 auto; padding: 28px 20px 60px; }
+    .report-header, .section, .issue-card { border: 1px solid var(--border); background: var(--panel); box-shadow: var(--shadow); backdrop-filter: blur(6px); }
+    .report-header { border-radius: 28px; padding: 28px; }
+    .kicker { margin: 0 0 10px; color: var(--muted-2); text-transform: uppercase; letter-spacing: 0.18em; font-size: 0.74rem; font-weight: 700; }
+    h1 { margin: 0; font-size: clamp(2rem, 4vw, 3.45rem); line-height: 1.05; letter-spacing: -0.02em; }
+    .subtitle { max-width: 80ch; margin: 14px 0 0; color: var(--muted); font-size: 1.05rem; }
+    .meta-grid, .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+    .meta-grid { margin-top: 22px; }
+    .summary-grid { margin-top: 18px; }
+    dl.meta-grid { margin: 22px 0 0; }
+    dt, dd { margin: 0; }
+    .meta-card, .summary-card { border: 1px solid var(--border); border-radius: 18px; background: rgba(255, 255, 255, 0.8); padding: 14px 15px; }
+    .label { color: var(--muted-2); font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; }
+    .value { margin-top: 6px; font-size: 0.98rem; }
+    .summary-card .stat-value { display: block; font-size: 1.8rem; font-weight: 700; color: var(--text); line-height: 1; }
+    .summary-card .stat-label { display: block; margin-top: 8px; color: var(--muted); font-size: 0.94rem; }
+    .section { margin-top: 22px; border-radius: 24px; padding: 22px; }
+    .section h2 { margin: 0 0 12px; font-size: 1.45rem; line-height: 1.15; }
+    .section p { margin: 0 0 12px; }
+    .section p:last-child { margin-bottom: 0; }
+    .section ul, .section ol { margin: 0; padding-left: 20px; }
+    .section li + li { margin-top: 6px; }
+    .section code, .issue-field code, .footer-note code { font-family: 'Cascadia Mono', 'Consolas', monospace; font-size: 0.96em; }
+    .table-shell { overflow-x: auto; border: 1px solid var(--border); border-radius: 18px; background: rgba(255, 255, 255, 0.9); }
+    table { width: 100%; border-collapse: collapse; min-width: 1080px; }
+    caption { caption-side: top; padding: 12px 14px; text-align: left; font-weight: 700; color: var(--muted); }
+    th, td { padding: 12px 12px; border-bottom: 1px solid #e9dcc8; text-align: left; vertical-align: top; }
+    th { background: #f7efe1; color: #3b3126; font-size: 0.76rem; letter-spacing: 0.12em; text-transform: uppercase; white-space: nowrap; }
+    tr:nth-child(even) td { background: #fcf8f1; }
+    .pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 10px; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; white-space: nowrap; border: 1px solid transparent; }
+    .kind-core { background: rgba(24, 65, 45, 0.12); color: var(--core); border-color: rgba(24, 65, 45, 0.22); }
+    .kind-additional { background: rgba(95, 74, 30, 0.12); color: var(--additional); border-color: rgba(95, 74, 30, 0.22); }
+    .p1 { background: rgba(159, 31, 36, 0.12); color: var(--p1); border-color: rgba(159, 31, 36, 0.24); }
+    .p2 { background: rgba(206, 116, 33, 0.14); color: var(--p2); border-color: rgba(206, 116, 33, 0.22); }
+    .p3 { background: rgba(134, 103, 29, 0.14); color: var(--p3); border-color: rgba(134, 103, 29, 0.22); }
+    .critical { background: rgba(126, 24, 32, 0.12); color: var(--critical); border-color: rgba(126, 24, 32, 0.24); }
+    .high { background: rgba(166, 61, 29, 0.12); color: var(--high); border-color: rgba(166, 61, 29, 0.24); }
+    .medium { background: rgba(63, 107, 44, 0.12); color: var(--medium); border-color: rgba(63, 107, 44, 0.24); }
+    .low { background: rgba(77, 103, 130, 0.12); color: var(--low); border-color: rgba(77, 103, 130, 0.24); }
+    .likelihood.almost-certain { background: rgba(90, 45, 19, 0.12); color: var(--almost-certain); border-color: rgba(90, 45, 19, 0.22); }
+    .likelihood.likely { background: rgba(125, 76, 19, 0.12); color: var(--likely); border-color: rgba(125, 76, 19, 0.22); }
+    .likelihood.possible { background: rgba(51, 95, 45, 0.12); color: var(--possible); border-color: rgba(51, 95, 45, 0.22); }
+    .likelihood.unlikely { background: rgba(75, 95, 125, 0.12); color: var(--unlikely); border-color: rgba(75, 95, 125, 0.22); }
+    .likelihood.rare { background: rgba(107, 81, 111, 0.12); color: var(--rare); border-color: rgba(107, 81, 111, 0.22); }
+    .issue-card { margin-top: 22px; border-radius: 24px; padding: 22px; break-inside: avoid; page-break-inside: avoid; background: linear-gradient(180deg, rgba(255, 255, 255, 0.93), rgba(250, 244, 235, 0.84)); }
+    .issue-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+    .issue-index { margin: 0 0 4px; color: var(--muted-2); text-transform: uppercase; letter-spacing: 0.16em; font-size: 0.74rem; font-weight: 700; }
+    .issue-title { margin: 0; font-size: 1.38rem; line-height: 1.18; }
+    .issue-badges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .issue-field { margin-top: 14px; border: 1px solid var(--border); border-radius: 18px; background: rgba(255, 255, 255, 0.88); padding: 16px; }
+    .issue-field h3 { margin: 0 0 10px; color: var(--muted-2); text-transform: uppercase; letter-spacing: 0.14em; font-size: 0.74rem; }
+    .issue-field p { margin: 0; }
+    .issue-field ul { margin: 0; padding-left: 20px; }
+    .issue-field li + li { margin-top: 6px; }
+    .prompt-block { margin: 0; padding: 16px; border-radius: 16px; border: 1px solid #e9dcc8; background: #fffdf8; white-space: pre-wrap; word-break: break-word; overflow-x: auto; font-family: 'Cascadia Mono', 'Consolas', monospace; font-size: 0.92rem; line-height: 1.55; }
+    .confidence-high { color: #1b6a38; }
+    .confidence-medium { color: #7c5a12; }
+    .confidence-low { color: #8c2f2f; }
+    .validation-note { color: var(--muted); font-size: 0.95rem; }
+    footer { margin-top: 24px; color: var(--muted); font-size: 0.92rem; }
+    @media (max-width: 760px) { main.report { padding-inline: 14px; } .report-header, .section, .issue-card { padding: 18px; } .issue-badges { justify-content: flex-start; } }
+    @media print { body { background: #fff; } main.report { max-width: none; padding: 0; } .report-header, .section, .issue-card { box-shadow: none; background: #fff; } .issue-card, .section { break-inside: avoid; page-break-inside: avoid; } a { color: inherit; text-decoration: none; } }
+  </style>
+</head>
+<body>
+  <main class="report">
+    <header class="report-header">
+      <p class="kicker">FilmBuff AI pre-mortem</p>
+      <h1>Pre-Mortem Report for FilmBuff</h1>
+      <p class="subtitle">This static report turns the strongest repo-grounded failure modes into a prioritized risk register. It was generated on branch <strong>main</strong> at commit <strong>785d502</strong> for <strong>mytech-today-now/filmbuff</strong>, and it includes the commands and reproductions used to validate the surrounding code paths.</p>
+      <dl class="meta-grid" aria-label="Report metadata">
+        <div class="meta-card"><dt class="label">Generated</dt><dd class="value">2026 09 09 15 56 19</dd></div>
+        <div class="meta-card"><dt class="label">Repository</dt><dd class="value">mytech-today-now/filmbuff</dd></div>
+        <div class="meta-card"><dt class="label">Root</dt><dd class="value">C:/GitHub/filmbuff-project/filmbuff</dd></div>
+        <div class="meta-card"><dt class="label">Branch</dt><dd class="value">main</dd></div>
+        <div class="meta-card"><dt class="label">Commit</dt><dd class="value">785d502</dd></div>
+        <div class="meta-card"><dt class="label">Output</dt><dd class="value">ai-prompts/pre-mortem-2026-09-09-15-56-19.html</dd></div>
+      </dl>
+      <div class="summary-grid" aria-label="Summary metrics">
+        <div class="summary-card"><span class="stat-value">16</span><span class="stat-label">total risks</span></div>
+        <div class="summary-card"><span class="stat-value">10</span><span class="stat-label">core issues</span></div>
+        <div class="summary-card"><span class="stat-value">6</span><span class="stat-label">additional issues</span></div>
+        <div class="summary-card"><span class="stat-value">102</span><span class="stat-label">focused tests passed</span></div>
+        <div class="summary-card"><span class="stat-value">3</span><span class="stat-label">testable assumptions</span></div>
+      </div>
+    </header>
+
+    <section class="section" id="executive-summary">
+      <h2>Executive Summary</h2>
+      <p>The most urgent risks cluster around command honesty and data freshness. Several paths can hide unreadable input, stale cache state, or partial-success outcomes as if they were clean success.</p>
+      <p>A second cluster sits in module identity and linked-state handling. The CLI sometimes uses canonical full names, sometimes exact matches, and sometimes raw config entries, which can make the same module look linked in one place and unlinked in another.</p>
+      <p>The remaining risks are lower in priority but still operationally important. They include parser ambiguity, module discovery stability, documentation drift, and a few testable assumptions that need one more reproduction before the behavior is changed.</p>
+    </section>
+
+    <section class="section" id="scope">
+      <h2>Review Scope and Methodology</h2>
+      <p class="validation-note">I resolved the project root from the live working tree, the git metadata, and the repository manifest, then inspected the command and utility paths that govern versioning, module discovery, cache freshness, shot-list generation, and status-file handling.</p>
+      <ul>
+        <li><code>cli/src/commands/video/status.ts</code>, <code>cli/src/lib/shot-list-reader.ts</code>, and <code>cli/src/lib/status-file-manager.ts</code></li>
+        <li><code>cli/src/core/version-manager.ts</code>, <code>cli/src/utils/ai-summary.ts</code>, and <code>cli/src/core/compatibility-checker.ts</code></li>
+        <li><code>cli/src/commands/upgrade.ts</code>, <code>cli/src/commands/version-info.ts</code>, <code>cli/src/commands/list.ts</code>, <code>cli/src/commands/show.ts</code>, and <code>cli/src/commands/gui.ts</code></li>
+        <li><code>cli/src/commands/generate-shot-list/generator/index.ts</code>, <code>cli/src/commands/generate-shot-list/parser/index.ts</code>, <code>cli/src/commands/generate-shot-list/help-text.ts</code>, and <code>cli/src/commands/generate-video.ts</code></li>
+        <li><code>cli/src/utils/module-system.ts</code> plus the existing unit and regression tests for those areas</li>
+      </ul>
+      <div class="section" style="margin-top:18px; padding:18px;">
+        <h3 style="margin:0 0 10px; font-size:1rem;">Diagnostics</h3>
+        <ul>
+          <li><code>`pnpm exec vitest run tests/unit/core/version-manager.test.ts tests/unit/utils/ai-summary.test.ts tests/unit/core/compatibility-checker.test.ts tests/unit/utils/module-discovery.test.ts`</code> passed 102 tests across 8 files in the combined focused vitest run.</li>
+          <li>Runtime reproduction 1: changing VERSION from 1.0.0 to 2.0.0 still returned <code>{"first":"1.0.0","second":"1.0.0","sameRef":true}</code>.</li>
+          <li>Runtime reproduction 2: changing only module.description still returned <code>source: cache</code> with unchanged content and <code>secondCacheHit: true</code>.</li>
+          <li>Vitest emitted the known warning about <code>vitest.config.ts</code> being loaded with <code>configLoader: native</code>; the suite still passed.</li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="input-note">
+      <h2>Input-Resolution Note</h2>
+      <p>The source request did not enumerate the mandatory 10 core issues, so I resolved them by repository inspection instead of inventing a placeholder list. The first 10 entries below are the highest-priority repository-grounded risks I found, and the final 6 are additional high-value issues or testable assumptions that remain worth fixing or confirming.</p>
+    </section>
+
+    <section class="section" id="risk-table">
+      <h2>Prioritized Risk Table</h2>
+      <div class="table-shell">
+        <table>
+          <caption>All 16 issues in priority order, matched one-to-one with the issue articles below.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Rank</th>
+              <th scope="col">Issue</th>
+              <th scope="col">Kind</th>
+              <th scope="col">Priority</th>
+              <th scope="col">Severity</th>
+              <th scope="col">Likelihood</th>
+              <th scope="col">Impacted area</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Video status hides unreadable shot-list failures</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p1">P1</span></td><td><span class="pill high">High</span></td><td><span class="pill likelihood likely">Likely</span></td><td><code>cli/src/commands/video/status.ts and cli/src/lib/shot-list-reader.ts</code></td></tr>
+            <tr><td>2</td><td>Version metadata cache can remain stale until TTL expiry</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p1">P1</span></td><td><span class="pill high">High</span></td><td><span class="pill likelihood likely">Likely</span></td><td><code>cli/src/core/version-manager.ts</code></td></tr>
+            <tr><td>3</td><td>AI summary cache can survive description edits</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p1">P1</span></td><td><span class="pill high">High</span></td><td><span class="pill likelihood likely">Likely</span></td><td><code>cli/src/utils/ai-summary.ts</code></td></tr>
+            <tr><td>4</td><td>Upgrade reports success even when config sync fails</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p1">P1</span></td><td><span class="pill high">High</span></td><td><span class="pill likelihood possible">Possible</span></td><td><code>cli/src/commands/upgrade.ts and .augment/extensions.json</code></td></tr>
+            <tr><td>5</td><td>Shot-list metadata always says fountain</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p2">P2</span></td><td><span class="pill high">High</span></td><td><span class="pill likelihood almost-certain">Almost certain</span></td><td><code>cli/src/commands/generate-shot-list/generator/index.ts</code></td></tr>
+            <tr><td>6</td><td>Version commands bypass canonical module resolution</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p2">P2</span></td><td><span class="pill high">High</span></td><td><span class="pill likelihood likely">Likely</span></td><td><code>cli/src/commands/version-info.ts, cli/src/commands/upgrade.ts, and cli/src/utils/module-system.ts</code></td></tr>
+            <tr><td>7</td><td>Read-only linked-module views misread legacy link entries</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p2">P2</span></td><td><span class="pill high">High</span></td><td><span class="pill likelihood likely">Likely</span></td><td><code>cli/src/commands/list.ts and cli/src/commands/show.ts</code></td></tr>
+            <tr><td>8</td><td>Linked-module views treat malformed extensions config as no links</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p2">P2</span></td><td><span class="pill high">High</span></td><td><span class="pill likelihood possible">Possible</span></td><td><code>cli/src/commands/list.ts and cli/src/commands/show.ts</code></td></tr>
+            <tr><td>9</td><td>generate-video skips malformed JSONL lines instead of failing</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p2">P2</span></td><td><span class="pill high">High</span></td><td><span class="pill likelihood possible">Possible</span></td><td><code>cli/src/commands/generate-video.ts</code></td></tr>
+            <tr><td>10</td><td>Parser heuristics can misclassify ambiguous inputs</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p3">P3</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill likelihood possible">Possible</span></td><td><code>cli/src/commands/generate-shot-list/parser/index.ts</code></td></tr>
+            <tr><td>11</td><td>Shot-list help text omits supported parser formats</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p3">P3</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill likelihood almost-certain">Almost certain</span></td><td><code>cli/src/commands/generate-shot-list/help-text.ts</code></td></tr>
+            <tr><td>12</td><td>Module discovery order is not normalized</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p3">P3</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill likelihood likely">Likely</span></td><td><code>cli/src/utils/module-system.ts</code></td></tr>
+            <tr><td>13</td><td>Compatibility checker rejects every module that declares augmentMinVersion</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p3">P3</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill likelihood unlikely">Unlikely</span></td><td><code>cli/src/core/compatibility-checker.ts</code></td></tr>
+            <tr><td>14</td><td>Status-file lock stealing can collide with slow writers</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p3">P3</span></td><td><span class="pill high">High</span></td><td><span class="pill likelihood unlikely">Unlikely</span></td><td><code>cli/src/lib/status-file-manager.ts</code></td></tr>
+            <tr><td>15</td><td>--shots parsing accepts malformed tokens as valid ids</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p3">P3</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill likelihood likely">Likely</span></td><td><code>cli/src/commands/generate-video.ts</code></td></tr>
+            <tr><td>16</td><td>GUI link editor can drop alias and legacy selection state on save</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p3">P3</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill likelihood possible">Possible</span></td><td><code>cli/src/commands/gui.ts</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    
+    <article id="issue-01" class="issue-card" data-issue-kind="core" data-issue-number="01" aria-labelledby="issue-01-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 01</p>
+          <h2 class="issue-title" id="issue-01-title">Video status hides unreadable shot-list failures</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p1">P1</span>
+          <span class="pill high">High</span>
+          <span class="pill likelihood likely">Likely</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Video status hides unreadable shot-list failures</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-core">Core</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p1">P1</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill high">High</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood likely">Likely</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/commands/video/status.ts and cli/src/lib/shot-list-reader.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>The command catches any readAll error and replaces the data with an empty array, so corrupt or unreadable shot-list data looks like a clean empty response.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`videoStatusCommand` does `try { shots = await readAll(projectPath); } catch { shots = []; }` in `cli/src/commands/video/status.ts:64-67`.</li><li>`readAll` throws on unreadable or malformed JSONL input in `cli/src/lib/shot-list-reader.ts:65-72`.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>Operators lose the signal needed to repair a broken project state and may keep working against a corrupt status file.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Propagate a structured error or explicit unreadable state instead of returning an empty shot list.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Video status hides unreadable shot-list failures.
+
+## Context
+- Issue number: Issue 01
+- Issue kind: Core
+- Priority: P1
+- Severity: High
+- Likelihood: Likely
+- Affected area: cli/src/commands/video/status.ts and cli/src/lib/shot-list-reader.ts
+- Failure mode: The command catches any readAll error and replaces the data with an empty array, so corrupt or unreadable shot-list data looks like a clean empty response.
+- Evidence or rationale: `videoStatusCommand` does `try { shots = await readAll(projectPath); } catch { shots = []; }` in `cli/src/commands/video/status.ts:64-67`. `readAll` throws on unreadable or malformed JSONL input in `cli/src/lib/shot-list-reader.ts:65-72`.
+- Why this matters: Operators lose the signal needed to repair a broken project state and may keep working against a corrupt status file.
+- Recommended mitigation: Propagate a structured error or explicit unreadable state instead of returning an empty shot list.
+
+## First Files to Inspect
+- cli/src/commands/video/status.ts
+- cli/src/lib/shot-list-reader.ts
+- tests/unit/commands/video-status.test.ts
+- tests/unit/lib/shot-list-reader.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep the happy path for a valid, readable status file.
+- Keep the current not-found exit behavior for a missing status file.
+
+## Implementation Strategy
+- Prefer: A small branch that distinguishes ENOENT from parse or read failures while keeping the current success path unchanged.
+- Avoid: Do not add a new status store, new file format, or second empty-state path.
+- Expected errors: Missing, unreadable, or invalid JSONL input should produce an explicit error with the current not-found behavior left intact.
+- Unexpected failures: Any unexpected exception should fail loudly, keep the original message in JSON mode, and never collapse into an empty table.
+- Graceful fallback: If the file is present but unreadable, skip the normal status table and surface a structured error state.
+- User-facing fallback text: Unable to read the shot list. Fix 08-shot-list.jsonl before checking video status.
+- State preservation: Do not mutate the status file, watchdog output, or derived counts when readAll fails.
+- Rollback or recovery: Revert the command branch and its tests together if the explicit error path regresses the normal status view.
+
+## Regression Tests
+- Unit: temp project with a corrupt 08-shot-list.jsonl. Setup a bad JSONL line, invoke videoStatusCommand, and expect an explicit read failure instead of shots = []. Assertions: the command reports the error and does not render a normal empty table.
+- Unit: temp project with a missing shot list. Setup no 08-shot-list.jsonl, invoke the command, and confirm the current not-found behavior still returns exit code 2 with the same user message.
+
+## Additional Baseline Tests
+- Unit: temp project with a valid shot list and matching status file. Invoke the command and assert the table and counts still render normally.
+- Negative: filter to a state that does not exist and verify the command still returns a deterministic empty filtered view without altering the underlying file.
+
+## Acceptance Criteria
+- A corrupt or unreadable shot list is never treated as a normal empty project state.
+- The current success path and missing-file behavior remain intact.
+- The command returns a clear human message and a structured JSON error when applicable.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/commands/video-status.test.ts`
+- `pnpm exec vitest run tests/unit/lib/shot-list-reader.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: temp project with a corrupt 08-shot-list.jsonl. Setup a bad JSONL line, invoke videoStatusCommand, and expect an explicit read failure instead of shots = []. Assertions: the command reports the error and does not render a normal empty table.</li><li>Unit: temp project with a missing shot list. Setup no 08-shot-list.jsonl, invoke the command, and confirm the current not-found behavior still returns exit code 2 with the same user message.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: temp project with a valid shot list and matching status file. Invoke the command and assert the table and counts still render normally.</li><li>Negative: filter to a state that does not exist and verify the command still returns a deterministic empty filtered view without altering the underlying file.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>A corrupt or unreadable shot list is never treated as a normal empty project state.</li><li>The current success path and missing-file behavior remain intact.</li><li>The command returns a clear human message and a structured JSON error when applicable.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>High</p></section>
+    </article>
+
+    <article id="issue-02" class="issue-card" data-issue-kind="core" data-issue-number="02" aria-labelledby="issue-02-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 02</p>
+          <h2 class="issue-title" id="issue-02-title">Version metadata cache can remain stale until TTL expiry</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p1">P1</span>
+          <span class="pill high">High</span>
+          <span class="pill likelihood likely">Likely</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Version metadata cache can remain stale until TTL expiry</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-core">Core</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p1">P1</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill high">High</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood likely">Likely</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/core/version-manager.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>getVersion returns cached metadata without checking on-disk freshness, so external edits to VERSION or metadata.json can stay invisible until the TTL expires.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>The cache short-circuit happens at `cli/src/core/version-manager.ts:43-48`, before any file freshness check.</li><li>A runtime reproduction changed VERSION from 1.0.0 to 2.0.0 and the second call still returned `{&quot;first&quot;:&quot;1.0.0&quot;,&quot;second&quot;:&quot;1.0.0&quot;,&quot;sameRef&quot;:true}`.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>Version commands and upgrade decisions can be based on stale metadata, which is especially risky when the file changes outside the current process.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Compare the cached entry to a file freshness marker, such as mtime or a hash, before returning it.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Version metadata cache can remain stale until TTL expiry.
+
+## Context
+- Issue number: Issue 02
+- Issue kind: Core
+- Priority: P1
+- Severity: High
+- Likelihood: Likely
+- Affected area: cli/src/core/version-manager.ts
+- Failure mode: getVersion returns cached metadata without checking on-disk freshness, so external edits to VERSION or metadata.json can stay invisible until the TTL expires.
+- Evidence or rationale: The cache short-circuit happens at `cli/src/core/version-manager.ts:43-48`, before any file freshness check. A runtime reproduction changed VERSION from 1.0.0 to 2.0.0 and the second call still returned `{&quot;first&quot;:&quot;1.0.0&quot;,&quot;second&quot;:&quot;1.0.0&quot;,&quot;sameRef&quot;:true}`.
+- Why this matters: Version commands and upgrade decisions can be based on stale metadata, which is especially risky when the file changes outside the current process.
+- Recommended mitigation: Compare the cached entry to a file freshness marker, such as mtime or a hash, before returning it.
+
+## First Files to Inspect
+- cli/src/core/version-manager.ts
+- tests/unit/core/version-manager.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep same-instance caching when the file has not changed.
+- Keep setVersion invalidation behavior for writes made through the class.
+
+## Implementation Strategy
+- Prefer: A freshness check layered on top of the current cache instead of a broader cache redesign.
+- Avoid: Do not replace the cache with a new store or change the public API.
+- Expected errors: Missing VERSION files and invalid semantic versions should continue to return null exactly as today.
+- Unexpected failures: Any file read or freshness probe failure should fail safely and never return stale metadata as if it were current.
+- Graceful fallback: If freshness cannot be confirmed, reload from disk instead of returning the cached value.
+- User-facing fallback text: Version metadata could not be confirmed from cache. Reloading from disk.
+- State preservation: Keep the same return shape and preserve explicit cache invalidation after setVersion.
+- Rollback or recovery: If the freshness check causes regressions, revert only the cache reuse path and keep the same-instance invalidation tests.
+
+## Regression Tests
+- Unit: create a temp module, cache VERSION 1.0.0, rewrite the file to 2.0.0, and call getVersion again. Expected: the second call returns 2.0.0 without waiting for TTL. Assertions: cache freshness is checked and the new value is visible.
+- Unit: call setVersion on the same instance and confirm the cache is still invalidated immediately. Assertions: the public API keeps its current write-through behavior.
+
+## Additional Baseline Tests
+- Unit: two consecutive getVersion calls with no file changes still return the cached object.
+- Unit: missing VERSION and invalid semver continue to return null.
+
+## Acceptance Criteria
+- External edits to VERSION or metadata.json become visible before the TTL expires.
+- Same-process writes still invalidate the cache as they do today.
+- The cache never returns a stale version as if it were current.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/core/version-manager.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: create a temp module, cache VERSION 1.0.0, rewrite the file to 2.0.0, and call getVersion again. Expected: the second call returns 2.0.0 without waiting for TTL. Assertions: cache freshness is checked and the new value is visible.</li><li>Unit: call setVersion on the same instance and confirm the cache is still invalidated immediately. Assertions: the public API keeps its current write-through behavior.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: two consecutive getVersion calls with no file changes still return the cached object.</li><li>Unit: missing VERSION and invalid semver continue to return null.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>External edits to VERSION or metadata.json become visible before the TTL expires.</li><li>Same-process writes still invalidate the cache as they do today.</li><li>The cache never returns a stale version as if it were current.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>High</p></section>
+    </article>
+
+    <article id="issue-03" class="issue-card" data-issue-kind="core" data-issue-number="03" aria-labelledby="issue-03-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 03</p>
+          <h2 class="issue-title" id="issue-03-title">AI summary cache can survive description edits</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p1">P1</span>
+          <span class="pill high">High</span>
+          <span class="pill likelihood likely">Likely</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>AI summary cache can survive description edits</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-core">Core</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p1">P1</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill high">High</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood likely">Likely</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/utils/ai-summary.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>The cache key does not include module.metadata.description, so description edits can reuse a stale AI summary even though the visible copy changed.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`createCacheKey` hashes fullName, version, type, path, format, includeContent, rules, examples, and characterCount, but not description, in `cli/src/utils/ai-summary.ts:325-336`.</li><li>A runtime reproduction changed the description and the second call still returned `source: cache` with identical content and `secondCacheHit: true`.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>AI prompts, previews, and generated summaries can present outdated language and undermine trust in the module metadata.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Include description, or a compact freshness fingerprint that covers the module metadata, in the cache key.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: AI summary cache can survive description edits.
+
+## Context
+- Issue number: Issue 03
+- Issue kind: Core
+- Priority: P1
+- Severity: High
+- Likelihood: Likely
+- Affected area: cli/src/utils/ai-summary.ts
+- Failure mode: The cache key does not include module.metadata.description, so description edits can reuse a stale AI summary even though the visible copy changed.
+- Evidence or rationale: `createCacheKey` hashes fullName, version, type, path, format, includeContent, rules, examples, and characterCount, but not description, in `cli/src/utils/ai-summary.ts:325-336`. A runtime reproduction changed the description and the second call still returned `source: cache` with identical content and `secondCacheHit: true`.
+- Why this matters: AI prompts, previews, and generated summaries can present outdated language and undermine trust in the module metadata.
+- Recommended mitigation: Include description, or a compact freshness fingerprint that covers the module metadata, in the cache key.
+
+## First Files to Inspect
+- cli/src/utils/ai-summary.ts
+- tests/unit/utils/ai-summary.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep cache hits for unchanged modules.
+- Keep the existing safeValue fallback behavior for partial metadata.
+
+## Implementation Strategy
+- Prefer: Extend the cache key with the smallest metadata fingerprint that invalidates on description changes.
+- Avoid: Do not remove caching entirely or broaden the key so much that unchanged modules stop hitting cache.
+- Expected errors: Missing fields should still fall back safely, and cache expiry should still behave exactly as before.
+- Unexpected failures: Any cache read or write failure should trigger regeneration, not a false cache hit.
+- Graceful fallback: If cache freshness is uncertain, regenerate the summary instead of reusing the old entry.
+- User-facing fallback text: Summary cache freshness could not be confirmed. Regenerating the module summary.
+- State preservation: Preserve the cache directory layout, TTL behavior, and fallback summary shape.
+- Rollback or recovery: If the new key invalidates too aggressively, revert only the added fingerprint and keep the rest of the cache path intact.
+
+## Regression Tests
+- Unit: edit only module.metadata.description and verify generateAISummary returns a regenerated result, not the old cache entry. Assertions: the content changes and cacheHit reflects the fresh path.
+- Unit: leave all metadata unchanged and verify the cache still hits exactly once on a second call.
+
+## Additional Baseline Tests
+- Unit: includeContent toggles still produce distinct summaries.
+- Unit: expired cache entries are still removed and regenerated.
+
+## Acceptance Criteria
+- Description edits no longer reuse stale AI summary content.
+- Unchanged modules still hit cache as they do today.
+- The fallback and cache expiry behavior remain intact.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/utils/ai-summary.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: edit only module.metadata.description and verify generateAISummary returns a regenerated result, not the old cache entry. Assertions: the content changes and cacheHit reflects the fresh path.</li><li>Unit: leave all metadata unchanged and verify the cache still hits exactly once on a second call.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: includeContent toggles still produce distinct summaries.</li><li>Unit: expired cache entries are still removed and regenerated.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>Description edits no longer reuse stale AI summary content.</li><li>Unchanged modules still hit cache as they do today.</li><li>The fallback and cache expiry behavior remain intact.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>High</p></section>
+    </article>
+
+    <article id="issue-04" class="issue-card" data-issue-kind="core" data-issue-number="04" aria-labelledby="issue-04-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 04</p>
+          <h2 class="issue-title" id="issue-04-title">Upgrade reports success even when config sync fails</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p1">P1</span>
+          <span class="pill high">High</span>
+          <span class="pill likelihood possible">Possible</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Upgrade reports success even when config sync fails</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-core">Core</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p1">P1</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill high">High</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood possible">Possible</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/commands/upgrade.ts and .augment/extensions.json</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>The config update block swallows every error, so a failed parse or write can still end in a success-looking upgrade message.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`upgradeCommand` wraps the config update in a bare catch and explicitly ignores failures in `cli/src/commands/upgrade.ts:137-154`.</li><li>The human path still prints `Successfully upgraded` even if the config sync never happened.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>Users can believe the project config was updated when it was not, which creates a partial-success state that is hard to diagnose.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Surface the config write failure, or return an explicit partial-success result that the caller cannot confuse with success.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Upgrade reports success even when config sync fails.
+
+## Context
+- Issue number: Issue 04
+- Issue kind: Core
+- Priority: P1
+- Severity: High
+- Likelihood: Possible
+- Affected area: cli/src/commands/upgrade.ts and .augment/extensions.json
+- Failure mode: The config update block swallows every error, so a failed parse or write can still end in a success-looking upgrade message.
+- Evidence or rationale: `upgradeCommand` wraps the config update in a bare catch and explicitly ignores failures in `cli/src/commands/upgrade.ts:137-154`. The human path still prints `Successfully upgraded` even if the config sync never happened.
+- Why this matters: Users can believe the project config was updated when it was not, which creates a partial-success state that is hard to diagnose.
+- Recommended mitigation: Surface the config write failure, or return an explicit partial-success result that the caller cannot confuse with success.
+
+## First Files to Inspect
+- cli/src/commands/upgrade.ts
+- tests/unit/commands/upgrade.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep dry-run behavior unchanged.
+- Keep the existing latest-version and not-found checks unchanged.
+
+## Implementation Strategy
+- Prefer: A narrow error path around the config write, with a clear user message and a non-success result when sync fails.
+- Avoid: Do not swallow parse or write exceptions, and do not hide them behind a generic success banner.
+- Expected errors: Malformed or unwritable .augment/extensions.json should produce an actionable failure and not a success-looking result.
+- Unexpected failures: Any unexpected config exception should stop the success path and preserve the original error details.
+- Graceful fallback: If the config cannot be updated, leave project state unchanged and tell the user exactly what to fix.
+- User-facing fallback text: Upgrade completed, but .augment/extensions.json could not be updated. Fix the config and rerun the command.
+- State preservation: Preserve version comparison, module lookup, and dry-run semantics.
+- Rollback or recovery: If the stricter error path is too disruptive, keep the clear failure and add an explicit partial-success code instead of a silent catch.
+
+## Regression Tests
+- Unit: writable config path succeeds and still updates the config entry.
+- Unit: malformed or unwritable config path fails with a clear error and no success banner.
+
+## Additional Baseline Tests
+- Unit: dry-run keeps reporting no changes.
+- Unit: already-latest version remains a no-op.
+
+## Acceptance Criteria
+- The command never reports a clean success when config sync failed.
+- Dry-run and already-latest behavior remain unchanged.
+- The user receives a precise recovery message for config failures.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/commands/upgrade.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: writable config path succeeds and still updates the config entry.</li><li>Unit: malformed or unwritable config path fails with a clear error and no success banner.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: dry-run keeps reporting no changes.</li><li>Unit: already-latest version remains a no-op.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>The command never reports a clean success when config sync failed.</li><li>Dry-run and already-latest behavior remain unchanged.</li><li>The user receives a precise recovery message for config failures.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>High</p></section>
+    </article>
+
+    <article id="issue-05" class="issue-card" data-issue-kind="core" data-issue-number="05" aria-labelledby="issue-05-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 05</p>
+          <h2 class="issue-title" id="issue-05-title">Shot-list metadata always says fountain</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p2">P2</span>
+          <span class="pill high">High</span>
+          <span class="pill likelihood almost-certain">Almost certain</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Shot-list metadata always says fountain</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-core">Core</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p2">P2</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill high">High</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood almost-certain">Almost certain</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/commands/generate-shot-list/generator/index.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>The generator hardcodes metadata.sourceFormat to fountain in both return paths, so every non-Fountain input lies about its source format.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`sourceFormat: &#39;fountain&#39; // TODO: Get from screenplay metadata` appears twice in `cli/src/commands/generate-shot-list/generator/index.ts:267-289`.</li><li>The generator already handles multiple input parsers, so the hardcoded metadata is stale by construction.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>Downstream tools and audit trails lose traceability when generated shot-list metadata claims the wrong source format.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Thread the detected parser format through the generator and emit the actual source format in metadata.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Shot-list metadata always says fountain.
+
+## Context
+- Issue number: Issue 05
+- Issue kind: Core
+- Priority: P2
+- Severity: High
+- Likelihood: Almost certain
+- Affected area: cli/src/commands/generate-shot-list/generator/index.ts
+- Failure mode: The generator hardcodes metadata.sourceFormat to fountain in both return paths, so every non-Fountain input lies about its source format.
+- Evidence or rationale: `sourceFormat: &#39;fountain&#39; // TODO: Get from screenplay metadata` appears twice in `cli/src/commands/generate-shot-list/generator/index.ts:267-289`. The generator already handles multiple input parsers, so the hardcoded metadata is stale by construction.
+- Why this matters: Downstream tools and audit trails lose traceability when generated shot-list metadata claims the wrong source format.
+- Recommended mitigation: Thread the detected parser format through the generator and emit the actual source format in metadata.
+
+## First Files to Inspect
+- cli/src/commands/generate-shot-list/generator/index.ts
+- cli/src/commands/generate-shot-list/parser/index.ts
+- tests/unit/commands/generate-shot-list-generator.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep the existing normalization, validation, and shot counting logic.
+- Keep the metadata object shape stable for downstream callers.
+
+## Implementation Strategy
+- Prefer: Pass the source format through the existing generator path instead of introducing a new abstraction.
+- Avoid: Do not invent a second metadata store or change the file format to solve one field.
+- Expected errors: If the format cannot be determined, use a clear unknown fallback instead of claiming Fountain.
+- Unexpected failures: Any parser or generator failure should preserve the current validation and not silently rewrite metadata.
+- Graceful fallback: When source format is unknown, emit an explicit unknown value and keep the rest of the shot list intact.
+- User-facing fallback text: Source format could not be confirmed. Marking the generated metadata as unknown.
+- State preservation: Preserve shot durations, validation warnings, and all non-format metadata.
+- Rollback or recovery: If a downstream consumer rejects the new format value, revert only the metadata wiring and keep the parser fix isolated.
+
+## Regression Tests
+- Unit: generate from Markdown, PDF, DOCX, RTF, and Final Draft inputs and assert metadata.sourceFormat matches the detected parser.
+- Unit: generate from Fountain input and assert the sourceFormat still reports fountain.
+
+## Additional Baseline Tests
+- Unit: duration normalization still produces the same totals.
+- Regression: existing docs and output-format tests still pass when the metadata field changes.
+
+## Acceptance Criteria
+- Generated metadata matches the actual input format for every supported parser.
+- Fountain remains Fountain and no other format is mislabeled.
+- The rest of the shot list generation behavior stays unchanged.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/commands/generate-shot-list-generator.test.ts`
+- `pnpm exec vitest run tests/regression/generate-shot-list-docs.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: generate from Markdown, PDF, DOCX, RTF, and Final Draft inputs and assert metadata.sourceFormat matches the detected parser.</li><li>Unit: generate from Fountain input and assert the sourceFormat still reports fountain.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: duration normalization still produces the same totals.</li><li>Regression: existing docs and output-format tests still pass when the metadata field changes.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>Generated metadata matches the actual input format for every supported parser.</li><li>Fountain remains Fountain and no other format is mislabeled.</li><li>The rest of the shot list generation behavior stays unchanged.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>High</p></section>
+    </article>
+
+    <article id="issue-06" class="issue-card" data-issue-kind="core" data-issue-number="06" aria-labelledby="issue-06-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 06</p>
+          <h2 class="issue-title" id="issue-06-title">Version commands bypass canonical module resolution</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p2">P2</span>
+          <span class="pill high">High</span>
+          <span class="pill likelihood likely">Likely</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Version commands bypass canonical module resolution</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-core">Core</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p2">P2</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill high">High</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood likely">Likely</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/commands/version-info.ts, cli/src/commands/upgrade.ts, and cli/src/utils/module-system.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>version-info and upgrade use direct modules.find checks instead of the canonical helper, so aliases, suffixes, and other valid module names can be rejected even when other commands resolve them.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`versionInfoCommand` and `upgradeCommand` both use `modules.find(m =&gt; m.fullName === moduleName || m.metadata.name === moduleName)` at `cli/src/commands/version-info.ts:18-20` and `cli/src/commands/upgrade.ts:18-20`.</li><li>`module-system.ts:873-897` already exposes `findModule`, which resolves direct paths, full names, suffixes, and aliases.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>Users can inspect or upgrade a module in one command and still get a not-found error in another command that should share the same identity rules.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Route these commands through the canonical module-resolution helper instead of duplicating exact-match logic.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Version commands bypass canonical module resolution.
+
+## Context
+- Issue number: Issue 06
+- Issue kind: Core
+- Priority: P2
+- Severity: High
+- Likelihood: Likely
+- Affected area: cli/src/commands/version-info.ts, cli/src/commands/upgrade.ts, and cli/src/utils/module-system.ts
+- Failure mode: version-info and upgrade use direct modules.find checks instead of the canonical helper, so aliases, suffixes, and other valid module names can be rejected even when other commands resolve them.
+- Evidence or rationale: `versionInfoCommand` and `upgradeCommand` both use `modules.find(m =&gt; m.fullName === moduleName || m.metadata.name === moduleName)` at `cli/src/commands/version-info.ts:18-20` and `cli/src/commands/upgrade.ts:18-20`. `module-system.ts:873-897` already exposes `findModule`, which resolves direct paths, full names, suffixes, and aliases.
+- Why this matters: Users can inspect or upgrade a module in one command and still get a not-found error in another command that should share the same identity rules.
+- Recommended mitigation: Route these commands through the canonical module-resolution helper instead of duplicating exact-match logic.
+
+## First Files to Inspect
+- cli/src/commands/version-info.ts
+- cli/src/commands/upgrade.ts
+- cli/src/utils/module-system.ts
+- tests/unit/commands/version-info.test.ts
+- tests/unit/commands/upgrade.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep the current not-found messaging when a module is truly absent.
+- Keep JSON and human output shapes unchanged for canonical names.
+
+## Implementation Strategy
+- Prefer: A helper-based lookup path with the same disambiguation behavior that the rest of the CLI already uses.
+- Avoid: Do not duplicate another exact-match lookup branch or change the displayed metadata fields.
+- Expected errors: If resolution is still ambiguous, keep the current not-found or candidate listing behavior rather than guessing.
+- Unexpected failures: Any lookup failure should preserve the current error shape and never silently pick the wrong module.
+- Graceful fallback: Show the canonical candidates and ask the user to rerun with the resolved name.
+- User-facing fallback text: Module not found. Use a canonical name or a fully resolved path.
+- State preservation: Preserve version, changelog, and compatibility output for modules that already resolve correctly.
+- Rollback or recovery: If the helper-based lookup exposes an ambiguity regression, revert to exact-match only after the test expectations are updated.
+
+## Regression Tests
+- Unit: canonical fullName still resolves.
+- Unit: alias or suffix input resolves to the same module instead of failing.
+
+## Additional Baseline Tests
+- Unit: missing module still reports the same not-found message.
+- Unit: JSON output still preserves the same payload shape for resolved modules.
+
+## Acceptance Criteria
+- Names accepted by other module commands resolve here too.
+- Canonical names keep the existing output shape and not-found behavior.
+- The command no longer depends on duplicated exact-match logic.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/commands/version-info.test.ts tests/unit/commands/upgrade.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: canonical fullName still resolves.</li><li>Unit: alias or suffix input resolves to the same module instead of failing.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: missing module still reports the same not-found message.</li><li>Unit: JSON output still preserves the same payload shape for resolved modules.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>Names accepted by other module commands resolve here too.</li><li>Canonical names keep the existing output shape and not-found behavior.</li><li>The command no longer depends on duplicated exact-match logic.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>High</p></section>
+    </article>
+
+    <article id="issue-07" class="issue-card" data-issue-kind="core" data-issue-number="07" aria-labelledby="issue-07-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 07</p>
+          <h2 class="issue-title" id="issue-07-title">Read-only linked-module views misread legacy link entries</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p2">P2</span>
+          <span class="pill high">High</span>
+          <span class="pill likelihood likely">Likely</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Read-only linked-module views misread legacy link entries</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-core">Core</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p2">P2</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill high">High</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood likely">Likely</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/commands/list.ts and cli/src/commands/show.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>The linked-state display compares exact full names against the raw config entries, so alias or legacy link names can render as unlinked even when they are actually linked.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`list.ts:118-125` uses `linkedModules.some(m =&gt; m.name === module.fullName)` to compute linked state.</li><li>`show.ts:1699-1710` uses the same exact comparison, and getLinkedModules returns the parsed config rows without canonicalization.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>Users can trust a false linked-state display and then unlink or relink the wrong module based on incomplete information.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Canonicalize linked entries before comparing them, or resolve the stored names through the same helper the rest of the CLI uses.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Read-only linked-module views misread legacy link entries.
+
+## Context
+- Issue number: Issue 07
+- Issue kind: Core
+- Priority: P2
+- Severity: High
+- Likelihood: Likely
+- Affected area: cli/src/commands/list.ts and cli/src/commands/show.ts
+- Failure mode: The linked-state display compares exact full names against the raw config entries, so alias or legacy link names can render as unlinked even when they are actually linked.
+- Evidence or rationale: `list.ts:118-125` uses `linkedModules.some(m =&gt; m.name === module.fullName)` to compute linked state. `show.ts:1699-1710` uses the same exact comparison, and getLinkedModules returns the parsed config rows without canonicalization.
+- Why this matters: Users can trust a false linked-state display and then unlink or relink the wrong module based on incomplete information.
+- Recommended mitigation: Canonicalize linked entries before comparing them, or resolve the stored names through the same helper the rest of the CLI uses.
+
+## First Files to Inspect
+- cli/src/commands/list.ts
+- cli/src/commands/show.ts
+- cli/src/utils/module-system.ts
+- tests/unit/modules/list.test.ts
+- tests/unit/modules/show.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep grouping, counts, and display formatting unchanged.
+- Keep JSON output stable for canonical link entries.
+
+## Implementation Strategy
+- Prefer: A small normalization step for linked entries instead of a separate linked-module store.
+- Avoid: Do not change module ordering or rework the list/show formatting.
+- Expected errors: If a link entry cannot be resolved, show it as unresolved rather than silently marking it unlinked.
+- Unexpected failures: Any lookup or normalization failure should keep the unresolved entry visible and never pretend the module is not linked.
+- Graceful fallback: Show a visible warning badge or note for unresolved legacy entries.
+- User-facing fallback text: Linked status may be incomplete until legacy names are normalized.
+- State preservation: Preserve the current human-readable and JSON shapes, including existing counts.
+- Rollback or recovery: If normalization changes too much, revert only the display comparison and keep the warning path.
+
+## Regression Tests
+- Unit: canonical linked entries still render as linked in both list and show.
+- Unit: alias or legacy entries resolve to the canonical module and still render as linked.
+
+## Additional Baseline Tests
+- Unit: unlinked modules remain unlinked.
+- Unit: category grouping and sorting stay unchanged.
+
+## Acceptance Criteria
+- Linked state is correct for canonical, alias, and legacy entries.
+- The read-only views no longer disagree about a module that is actually linked.
+- The current formatting and counts remain stable.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/modules/list.test.ts tests/unit/modules/show.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: canonical linked entries still render as linked in both list and show.</li><li>Unit: alias or legacy entries resolve to the canonical module and still render as linked.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: unlinked modules remain unlinked.</li><li>Unit: category grouping and sorting stay unchanged.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>Linked state is correct for canonical, alias, and legacy entries.</li><li>The read-only views no longer disagree about a module that is actually linked.</li><li>The current formatting and counts remain stable.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>High</p></section>
+    </article>
+
+    <article id="issue-08" class="issue-card" data-issue-kind="core" data-issue-number="08" aria-labelledby="issue-08-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 08</p>
+          <h2 class="issue-title" id="issue-08-title">Linked-module views treat malformed extensions config as no links</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p2">P2</span>
+          <span class="pill high">High</span>
+          <span class="pill likelihood possible">Possible</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Linked-module views treat malformed extensions config as no links</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-core">Core</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p2">P2</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill high">High</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood possible">Possible</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/commands/list.ts and cli/src/commands/show.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>The getLinkedModules helpers catch every parse error and return an empty array, so a corrupted .augment/extensions.json looks exactly like a project with no linked modules.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`list.ts:149-157` returns [] from a bare catch when parsing extensions.json fails.</li><li>`show.ts:1691-1693` does the same, so both read-only views hide config corruption instead of surfacing it.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>Configuration corruption becomes invisible, which makes the wrong repair action look correct and can hide a broader setup failure.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Surface the parse failure as an explicit configuration error or warning and keep the unresolved state visible.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Linked-module views treat malformed extensions config as no links.
+
+## Context
+- Issue number: Issue 08
+- Issue kind: Core
+- Priority: P2
+- Severity: High
+- Likelihood: Possible
+- Affected area: cli/src/commands/list.ts and cli/src/commands/show.ts
+- Failure mode: The getLinkedModules helpers catch every parse error and return an empty array, so a corrupted .augment/extensions.json looks exactly like a project with no linked modules.
+- Evidence or rationale: `list.ts:149-157` returns [] from a bare catch when parsing extensions.json fails. `show.ts:1691-1693` does the same, so both read-only views hide config corruption instead of surfacing it.
+- Why this matters: Configuration corruption becomes invisible, which makes the wrong repair action look correct and can hide a broader setup failure.
+- Recommended mitigation: Surface the parse failure as an explicit configuration error or warning and keep the unresolved state visible.
+
+## First Files to Inspect
+- cli/src/commands/list.ts
+- cli/src/commands/show.ts
+- cli/src/commands/gui.ts
+- tests/unit/modules/list.test.ts
+- tests/unit/modules/show.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep the valid-config path unchanged.
+- Keep empty-config behavior only when the config is genuinely empty and valid.
+
+## Implementation Strategy
+- Prefer: A visible warning or structured error in place of the silent empty-array fallback.
+- Avoid: Do not silently turn a parse failure into a normal empty-state response.
+- Expected errors: Invalid JSON, unreadable config, or missing keys should become explicit configuration failures.
+- Unexpected failures: Any normalization or read failure should keep the original failure visible and not mask corruption.
+- Graceful fallback: Render a warning banner or JSON error entry instead of the empty linked list.
+- User-facing fallback text: Linked modules could not be read because .augment/extensions.json is invalid.
+- State preservation: Preserve module counts and groupings when the config is valid.
+- Rollback or recovery: If the warning path is too noisy, revert only the display text, not the visibility of the error.
+
+## Regression Tests
+- Unit: malformed JSON in extensions.json surfaces a clear error instead of an empty linked list.
+- Unit: missing config file still behaves as a genuine no-links state and not as corruption.
+
+## Additional Baseline Tests
+- Unit: valid config still renders the linked modules normally.
+- Unit: empty but valid config still renders an empty linked list.
+
+## Acceptance Criteria
+- Corrupt config is never indistinguishable from a valid no-links state.
+- The valid-config behavior remains unchanged.
+- Users get a recovery hint when the config cannot be parsed.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/modules/list.test.ts tests/unit/modules/show.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: malformed JSON in extensions.json surfaces a clear error instead of an empty linked list.</li><li>Unit: missing config file still behaves as a genuine no-links state and not as corruption.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: valid config still renders the linked modules normally.</li><li>Unit: empty but valid config still renders an empty linked list.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>Corrupt config is never indistinguishable from a valid no-links state.</li><li>The valid-config behavior remains unchanged.</li><li>Users get a recovery hint when the config cannot be parsed.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>High</p></section>
+    </article>
+
+    <article id="issue-09" class="issue-card" data-issue-kind="core" data-issue-number="09" aria-labelledby="issue-09-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 09</p>
+          <h2 class="issue-title" id="issue-09-title">generate-video skips malformed JSONL lines instead of failing</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p2">P2</span>
+          <span class="pill high">High</span>
+          <span class="pill likelihood possible">Possible</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>generate-video skips malformed JSONL lines instead of failing</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-core">Core</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p2">P2</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill high">High</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood possible">Possible</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/commands/generate-video.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>readShotList warns on invalid JSON and keeps going, so a corrupted shot list can produce a partial manifest and still look like a successful run.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`readShotList` catches JSON.parse failures, logs a warning, and continues in `cli/src/commands/generate-video.ts:54-70`.</li><li>The command then continues to generation and manifest writing in `cli/src/commands/generate-video.ts:158-193`.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>Partial output from corrupt input is dangerous because the user may not notice that some shots were silently dropped.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Fail fast on malformed JSONL or require an explicit opt-in flag for partial parsing.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: generate-video skips malformed JSONL lines instead of failing.
+
+## Context
+- Issue number: Issue 09
+- Issue kind: Core
+- Priority: P2
+- Severity: High
+- Likelihood: Possible
+- Affected area: cli/src/commands/generate-video.ts
+- Failure mode: readShotList warns on invalid JSON and keeps going, so a corrupted shot list can produce a partial manifest and still look like a successful run.
+- Evidence or rationale: `readShotList` catches JSON.parse failures, logs a warning, and continues in `cli/src/commands/generate-video.ts:54-70`. The command then continues to generation and manifest writing in `cli/src/commands/generate-video.ts:158-193`.
+- Why this matters: Partial output from corrupt input is dangerous because the user may not notice that some shots were silently dropped.
+- Recommended mitigation: Fail fast on malformed JSONL or require an explicit opt-in flag for partial parsing.
+
+## First Files to Inspect
+- cli/src/commands/generate-video.ts
+- tests/unit/commands/generate-video.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep valid JSONL parsing and provider execution unchanged.
+- Keep the existing no-shots and mock-mode behavior unchanged.
+
+## Implementation Strategy
+- Prefer: A strict parse path that stops before generation if the input file is corrupt.
+- Avoid: Do not silently skip malformed lines and do not write a success-looking manifest from partial data.
+- Expected errors: Malformed JSONL should stop the command with a clear parse error and line hint.
+- Unexpected failures: Any unexpected read or parse failure should stop generation before the manifest is written.
+- Graceful fallback: Abort before provider calls and point the user to the bad line.
+- User-facing fallback text: The shot list contains malformed JSON. Fix the bad line before generating video.
+- State preservation: Preserve the output directory and manifest only on success, not after a parse failure.
+- Rollback or recovery: If strict parsing is too disruptive, add a documented opt-in flag rather than silent skipping.
+
+## Regression Tests
+- Unit: a JSONL file with one malformed line fails before generation and reports the bad line.
+- Unit: a valid JSONL file still generates the same manifest and honors --shots filtering.
+
+## Additional Baseline Tests
+- Unit: empty input still exits 0 with the existing no-shots message.
+- Unit: mock mode still completes without network calls.
+
+## Acceptance Criteria
+- Corrupt JSONL can no longer produce a successful-looking partial run.
+- Valid inputs and mock mode still behave exactly as they do today.
+- The user gets a concrete recovery hint for the bad line.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/commands/generate-video.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: a JSONL file with one malformed line fails before generation and reports the bad line.</li><li>Unit: a valid JSONL file still generates the same manifest and honors --shots filtering.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: empty input still exits 0 with the existing no-shots message.</li><li>Unit: mock mode still completes without network calls.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>Corrupt JSONL can no longer produce a successful-looking partial run.</li><li>Valid inputs and mock mode still behave exactly as they do today.</li><li>The user gets a concrete recovery hint for the bad line.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>High</p></section>
+    </article>
+
+    <article id="issue-10" class="issue-card" data-issue-kind="core" data-issue-number="10" aria-labelledby="issue-10-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 10</p>
+          <h2 class="issue-title" id="issue-10-title">Parser heuristics can misclassify ambiguous inputs</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p3">P3</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill likelihood possible">Possible</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Parser heuristics can misclassify ambiguous inputs</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-core">Core</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p3">P3</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill medium">Medium</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood possible">Possible</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/commands/generate-shot-list/parser/index.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>createParserAuto trusts the filename extension first, and low-confidence content detection falls back to plaintext, so a mismatched or ambiguous file can be routed to the wrong parser without a clear warning.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`createParserAuto` only consults content analysis when the extension is missing or unknown in `cli/src/commands/generate-shot-list/parser/index.ts:155-165`.</li><li>The content detector returns plaintext when the score is low, which makes ambiguity look like a valid classification instead of a warning. This is a Testable assumption that should be confirmed with a mixed-format fixture.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>A wrong parser can quietly produce a wrong shot list, which is harder to spot than a hard failure.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Surface ambiguity when extension and content disagree or when no parser clears a confidence threshold.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Parser heuristics can misclassify ambiguous inputs.
+
+## Context
+- Issue number: Issue 10
+- Issue kind: Core
+- Priority: P3
+- Severity: Medium
+- Likelihood: Possible
+- Affected area: cli/src/commands/generate-shot-list/parser/index.ts
+- Failure mode: createParserAuto trusts the filename extension first, and low-confidence content detection falls back to plaintext, so a mismatched or ambiguous file can be routed to the wrong parser without a clear warning.
+- Evidence or rationale: `createParserAuto` only consults content analysis when the extension is missing or unknown in `cli/src/commands/generate-shot-list/parser/index.ts:155-165`. The content detector returns plaintext when the score is low, which makes ambiguity look like a valid classification instead of a warning. This is a Testable assumption that should be confirmed with a mixed-format fixture.
+- Note: Testable assumption. Confirm or disprove the failure mode with the suggested reproduction before shipping the change.
+- Why this matters: A wrong parser can quietly produce a wrong shot list, which is harder to spot than a hard failure.
+- Recommended mitigation: Surface ambiguity when extension and content disagree or when no parser clears a confidence threshold.
+
+## First Files to Inspect
+- cli/src/commands/generate-shot-list/parser/index.ts
+- tests/unit/commands/generate-shot-list-parser.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep the fast path for clearly identified inputs.
+- Keep the supported parser set unchanged.
+
+## Implementation Strategy
+- Prefer: Keep the current resolver but add an explicit ambiguity signal instead of guessing plaintext.
+- Avoid: Do not introduce a heavy MIME detector or a broad parser refactor.
+- Expected errors: If the file cannot be classified confidently, the command should warn or fail explicitly instead of guessing.
+- Unexpected failures: Any parser mismatch should stay visible so the user can rerun with an explicit format.
+- Graceful fallback: Ask for an explicit format or clearer filename instead of silently picking plaintext.
+- User-facing fallback text: Format could not be detected confidently. Specify the input format explicitly.
+- State preservation: Preserve the current parser choice for clear Fountain, Markdown, TXT, PDF, DOCX, RTF, and Final Draft inputs.
+- Rollback or recovery: If strict ambiguity handling is too noisy, keep the warning but relax the hard failure.
+
+## Regression Tests
+- Unit: a mismatched extension and content fixture triggers the ambiguity path instead of a silent plain-text fallback.
+- Unit: a low-confidence content-only fixture does not silently become plaintext without a warning.
+
+## Additional Baseline Tests
+- Unit: clear Fountain, Markdown, TXT, PDF, DOCX, RTF, and Final Draft inputs still resolve correctly.
+- Unit: existing parser factory selection remains unchanged for known extensions.
+
+## Acceptance Criteria
+- Ambiguous inputs no longer silently drift into the wrong parser.
+- Clearly identified inputs continue to resolve as they do today.
+- The user gets a clear recovery hint when the parser cannot decide.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/commands/generate-shot-list-parser.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: a mismatched extension and content fixture triggers the ambiguity path instead of a silent plain-text fallback.</li><li>Unit: a low-confidence content-only fixture does not silently become plaintext without a warning.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: clear Fountain, Markdown, TXT, PDF, DOCX, RTF, and Final Draft inputs still resolve correctly.</li><li>Unit: existing parser factory selection remains unchanged for known extensions.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>Ambiguous inputs no longer silently drift into the wrong parser.</li><li>Clearly identified inputs continue to resolve as they do today.</li><li>The user gets a clear recovery hint when the parser cannot decide.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>Medium</p></section>
+    </article>
+
+    <article id="issue-11" class="issue-card" data-issue-kind="additional" data-issue-number="11" aria-labelledby="issue-11-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 11</p>
+          <h2 class="issue-title" id="issue-11-title">Shot-list help text omits supported parser formats</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p3">P3</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill likelihood almost-certain">Almost certain</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Shot-list help text omits supported parser formats</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-additional">Additional</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p3">P3</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill medium">Medium</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood almost-certain">Almost certain</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/commands/generate-shot-list/help-text.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>The help text advertises only Fountain, Markdown, and Plain Text input even though the parser also supports Final Draft, PDF, DOCX, and RTF.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`cli/src/commands/generate-shot-list/help-text.ts:28-32` says only Fountain, Markdown, and Plain Text are supported for input.</li><li>The same file already lists output formats and the parser supports more input formats than the help text admits, while `tests/regression/generate-shot-list-docs.test.ts` only checks the required --input syntax.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>Users may assume supported formats are unavailable or attempt the wrong conversion path because the docs do not match the parser.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Update the help text so it enumerates every supported input parser or clearly labels any unsupported format as unsupported.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Shot-list help text omits supported parser formats.
+
+## Context
+- Issue number: Issue 11
+- Issue kind: Additional
+- Priority: P3
+- Severity: Medium
+- Likelihood: Almost certain
+- Affected area: cli/src/commands/generate-shot-list/help-text.ts
+- Failure mode: The help text advertises only Fountain, Markdown, and Plain Text input even though the parser also supports Final Draft, PDF, DOCX, and RTF.
+- Evidence or rationale: `cli/src/commands/generate-shot-list/help-text.ts:28-32` says only Fountain, Markdown, and Plain Text are supported for input. The same file already lists output formats and the parser supports more input formats than the help text admits, while `tests/regression/generate-shot-list-docs.test.ts` only checks the required --input syntax.
+- Why this matters: Users may assume supported formats are unavailable or attempt the wrong conversion path because the docs do not match the parser.
+- Recommended mitigation: Update the help text so it enumerates every supported input parser or clearly labels any unsupported format as unsupported.
+
+## First Files to Inspect
+- cli/src/commands/generate-shot-list/help-text.ts
+- tests/regression/generate-shot-list-docs.test.ts
+- cli/src/commands/generate-shot-list/parser/index.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep the flag-based synopsis and examples unchanged.
+- Keep the output format section and the current command syntax intact.
+
+## Implementation Strategy
+- Prefer: A copy update that aligns the help copy with the parser reality.
+- Avoid: Do not hide the mismatch by weakening the docs test.
+- Expected errors: If a format is not actually supported, the help text should say so directly instead of omitting it.
+- Unexpected failures: Any docs change should keep the existing syntax examples and not break the current command text.
+- Graceful fallback: Label unsupported formats explicitly rather than dropping them from the help text.
+- User-facing fallback text: Format support is limited to the parsers listed in the help text.
+- State preservation: Preserve the synopsis, examples, and output format section structure.
+- Rollback or recovery: Revert the help copy only if the parser support really changes.
+
+## Regression Tests
+- Docs regression: the help text should mention every supported input format and still show the required --input syntax.
+- Docs regression: the existing flag-syntax assertions should still pass after the copy update.
+
+## Additional Baseline Tests
+- README quick-start still uses the same `--input` form.
+- AI providers guide still uses the same `--input` form.
+
+## Acceptance Criteria
+- Help text matches parser reality.
+- The existing docs regression still passes.
+- The command syntax examples remain unchanged.
+
+## Commands To Run
+- `pnpm exec vitest run tests/regression/generate-shot-list-docs.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Docs regression: the help text should mention every supported input format and still show the required --input syntax.</li><li>Docs regression: the existing flag-syntax assertions should still pass after the copy update.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>README quick-start still uses the same `--input` form.</li><li>AI providers guide still uses the same `--input` form.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>Help text matches parser reality.</li><li>The existing docs regression still passes.</li><li>The command syntax examples remain unchanged.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>High</p></section>
+    </article>
+
+    <article id="issue-12" class="issue-card" data-issue-kind="additional" data-issue-number="12" aria-labelledby="issue-12-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 12</p>
+          <h2 class="issue-title" id="issue-12-title">Module discovery order is not normalized</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p3">P3</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill likelihood likely">Likely</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Module discovery order is not normalized</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-additional">Additional</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p3">P3</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill medium">Medium</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood likely">Likely</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/utils/module-system.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>discoverModules and discoverCollections return filesystem enumeration order without a final sort, so repeated runs can emit a different order across platforms or directory layouts.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`discoverModules` collects module paths from `findModuleJsonFiles` and returns them as-is in `cli/src/utils/module-system.ts:778-800`.</li><li>`discoverCollections` also reads directory names and pushes results without a stable sort, and the current tests assert discovery but not order.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>Unstable ordering makes diffs noisy and can produce confusing list, search, and suggestion output on different machines.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Sort discovered modules and collections by canonical full name before returning them.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Module discovery order is not normalized.
+
+## Context
+- Issue number: Issue 12
+- Issue kind: Additional
+- Priority: P3
+- Severity: Medium
+- Likelihood: Likely
+- Affected area: cli/src/utils/module-system.ts
+- Failure mode: discoverModules and discoverCollections return filesystem enumeration order without a final sort, so repeated runs can emit a different order across platforms or directory layouts.
+- Evidence or rationale: `discoverModules` collects module paths from `findModuleJsonFiles` and returns them as-is in `cli/src/utils/module-system.ts:778-800`. `discoverCollections` also reads directory names and pushes results without a stable sort, and the current tests assert discovery but not order.
+- Why this matters: Unstable ordering makes diffs noisy and can produce confusing list, search, and suggestion output on different machines.
+- Recommended mitigation: Sort discovered modules and collections by canonical full name before returning them.
+
+## First Files to Inspect
+- cli/src/utils/module-system.ts
+- tests/unit/utils/module-discovery.test.ts
+- tests/unit/commands/module-discovery-routing.test.ts
+- tests/unit/modules/submodule-discovery.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep module detection, recursion, and collection resolution unchanged.
+- Keep the public lookup behavior unchanged while stabilizing the order.
+
+## Implementation Strategy
+- Prefer: A stable alphabetical sort by canonical fullName after discovery.
+- Avoid: Do not change what counts as a module or a collection.
+- Expected errors: If a path fails to load, skip it without perturbing the stable order.
+- Unexpected failures: Any sort failure should not change the discovered module set or crash the command.
+- Graceful fallback: Fall back to a deterministic canonical-name sort.
+- User-facing fallback text: Module order is being normalized for stable output.
+- State preservation: Preserve search behavior and suggestions.
+- Rollback or recovery: If the sort reveals hidden assumptions, revert the output order only after dependent tests are updated.
+
+## Regression Tests
+- Unit: repeated discovery on the same tree returns the same order every time.
+- Unit: nested module and collection ordering remain stable across platforms.
+
+## Additional Baseline Tests
+- Unit: the same module set is still discovered.
+- Unit: public lookup helpers still resolve the same modules and collections.
+
+## Acceptance Criteria
+- The same tree yields the same order across repeated runs.
+- The ordering is stable on every supported platform.
+- Discovery still returns the same module and collection set.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/utils/module-discovery.test.ts tests/unit/commands/module-discovery-routing.test.ts tests/unit/modules/submodule-discovery.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: repeated discovery on the same tree returns the same order every time.</li><li>Unit: nested module and collection ordering remain stable across platforms.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: the same module set is still discovered.</li><li>Unit: public lookup helpers still resolve the same modules and collections.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>The same tree yields the same order across repeated runs.</li><li>The ordering is stable on every supported platform.</li><li>Discovery still returns the same module and collection set.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>Medium</p></section>
+    </article>
+
+    <article id="issue-13" class="issue-card" data-issue-kind="additional" data-issue-number="13" aria-labelledby="issue-13-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 13</p>
+          <h2 class="issue-title" id="issue-13-title">Compatibility checker rejects every module that declares augmentMinVersion</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p3">P3</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill likelihood unlikely">Unlikely</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Compatibility checker rejects every module that declares augmentMinVersion</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-additional">Additional</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p3">P3</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill medium">Medium</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood unlikely">Unlikely</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/core/compatibility-checker.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>Any module that sets augmentMinVersion is automatically marked incompatible because Augment version detection is still TODO, so the current code blocks those modules by design.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`compatibility-checker.ts:109-120` always sets compatible to false and pushes an error when augmentMinVersion exists.</li><li>`tests/unit/core/compatibility-checker.test.ts` explicitly asserts the current fail-closed message, so this is a Testable assumption that should be confirmed against real module metadata before changing it.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>If shipped modules actually depend on augmentMinVersion, the CLI will block them even when the rest of the environment is compatible.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Confirm whether any shipped module depends on augmentMinVersion. If so, implement version detection or remove the unsupported metadata.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Compatibility checker rejects every module that declares augmentMinVersion.
+
+## Context
+- Issue number: Issue 13
+- Issue kind: Additional
+- Priority: P3
+- Severity: Medium
+- Likelihood: Unlikely
+- Affected area: cli/src/core/compatibility-checker.ts
+- Failure mode: Any module that sets augmentMinVersion is automatically marked incompatible because Augment version detection is still TODO, so the current code blocks those modules by design.
+- Evidence or rationale: `compatibility-checker.ts:109-120` always sets compatible to false and pushes an error when augmentMinVersion exists. `tests/unit/core/compatibility-checker.test.ts` explicitly asserts the current fail-closed message, so this is a Testable assumption that should be confirmed against real module metadata before changing it.
+- Note: Testable assumption. Confirm or disprove the failure mode with the suggested reproduction before shipping the change.
+- Why this matters: If shipped modules actually depend on augmentMinVersion, the CLI will block them even when the rest of the environment is compatible.
+- Recommended mitigation: Confirm whether any shipped module depends on augmentMinVersion. If so, implement version detection or remove the unsupported metadata.
+
+## First Files to Inspect
+- cli/src/core/compatibility-checker.ts
+- tests/unit/core/compatibility-checker.test.ts
+- cli/src/commands/version-info.ts
+- cli/src/commands/upgrade.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep Node and TypeScript checks unchanged.
+- Keep the current deprecation and breaking-change warnings intact.
+
+## Implementation Strategy
+- Prefer: Treat this as an explicit product decision, not a hidden assumption.
+- Avoid: Do not change the compatibility contract without updating the tests and docs that describe it.
+- Expected errors: If Augment detection stays unavailable, the blocking reason should remain exact and visible.
+- Unexpected failures: Any new detector should fail safe and not silently mark incompatible modules as compatible.
+- Graceful fallback: Keep the clear fail-closed error until detection exists and is tested.
+- User-facing fallback text: Compatibility cannot be verified because Augment version detection is unavailable.
+- State preservation: Preserve all current Node and TypeScript behavior.
+- Rollback or recovery: Keep the fail-closed branch if a new detector is unreliable.
+
+## Regression Tests
+- Unit: metadata with augmentMinVersion still emits the same blocking message.
+- Unit: metadata without the compatibility block still passes the other checks.
+
+## Additional Baseline Tests
+- Unit: deprecation reporting still works.
+- Unit: breaking-change warnings still work alongside node and TypeScript checks.
+
+## Acceptance Criteria
+- The team either documents fail-closed as intentional or implements version detection.
+- The existing Node and TypeScript checks remain unchanged.
+- The current blocking message remains exact if the detector is still missing.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/core/compatibility-checker.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: metadata with augmentMinVersion still emits the same blocking message.</li><li>Unit: metadata without the compatibility block still passes the other checks.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: deprecation reporting still works.</li><li>Unit: breaking-change warnings still work alongside node and TypeScript checks.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>The team either documents fail-closed as intentional or implements version detection.</li><li>The existing Node and TypeScript checks remain unchanged.</li><li>The current blocking message remains exact if the detector is still missing.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>Medium</p></section>
+    </article>
+
+    <article id="issue-14" class="issue-card" data-issue-kind="additional" data-issue-number="14" aria-labelledby="issue-14-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 14</p>
+          <h2 class="issue-title" id="issue-14-title">Status-file lock stealing can collide with slow writers</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p3">P3</span>
+          <span class="pill high">High</span>
+          <span class="pill likelihood unlikely">Unlikely</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>Status-file lock stealing can collide with slow writers</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-additional">Additional</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p3">P3</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill high">High</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood unlikely">Unlikely</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/lib/status-file-manager.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>After the 10 second timeout, acquireLock overwrites the lock file without checking ownership or staleness, so a long-running writer can be interrupted by a blind lock steal.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`acquireLock` waits until the deadline and then calls `fsPromises.writeFile(lockPath, &#39;&#39;)` in `cli/src/lib/status-file-manager.ts:35-49`.</li><li>`appendRecords` assumes the lock is exclusive and appends under that lock in `cli/src/lib/status-file-manager.ts:114-128`.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>Concurrent writes can interleave or appear successful even when the lock was not truly stale, which risks corrupting the append-only status log.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Validate that the lock is truly stale before stealing it, or fail with a clear busy error if ownership is uncertain.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: Status-file lock stealing can collide with slow writers.
+
+## Context
+- Issue number: Issue 14
+- Issue kind: Additional
+- Priority: P3
+- Severity: High
+- Likelihood: Unlikely
+- Affected area: cli/src/lib/status-file-manager.ts
+- Failure mode: After the 10 second timeout, acquireLock overwrites the lock file without checking ownership or staleness, so a long-running writer can be interrupted by a blind lock steal.
+- Evidence or rationale: `acquireLock` waits until the deadline and then calls `fsPromises.writeFile(lockPath, &#39;&#39;)` in `cli/src/lib/status-file-manager.ts:35-49`. `appendRecords` assumes the lock is exclusive and appends under that lock in `cli/src/lib/status-file-manager.ts:114-128`.
+- Note: Testable assumption. Confirm or disprove the failure mode with the suggested reproduction before shipping the change.
+- Why this matters: Concurrent writes can interleave or appear successful even when the lock was not truly stale, which risks corrupting the append-only status log.
+- Recommended mitigation: Validate that the lock is truly stale before stealing it, or fail with a clear busy error if ownership is uncertain.
+
+## First Files to Inspect
+- cli/src/lib/status-file-manager.ts
+- tests/unit/lib/status-file-manager.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep atomic append behavior and the current lock file name.
+- Keep uncontended appends and renames working exactly as they do today.
+
+## Implementation Strategy
+- Prefer: A visible retryable lock error or an ownership check rather than a blind overwrite.
+- Avoid: Do not weaken the atomic append contract or switch to a copy-delete lock workaround.
+- Expected errors: A long-running or crashed writer should surface a retryable busy error, not a silent lock steal.
+- Unexpected failures: Any ownership or stale-lock check should fail safe and never allow overlapping writes.
+- Graceful fallback: Tell the user that the status file is busy and to retry after the lock clears.
+- User-facing fallback text: The status file is busy. Retry after the lock clears.
+- State preservation: Preserve append semantics and the current retry behavior for uncontended writes.
+- Rollback or recovery: If ownership checks are flaky, revert to the current strategy but keep the visible busy warning.
+
+## Regression Tests
+- Unit: a simulated long-held lock forces a retryable busy result instead of a blind overwrite.
+- Unit: a truly stale lock can be reclaimed without corrupting the append-only file.
+
+## Additional Baseline Tests
+- Unit: uncontended append and rename still work.
+- Unit: release cleanup still ignores ENOENT exactly as today.
+
+## Acceptance Criteria
+- The code either proves the lock is stale or refuses to write.
+- The busy-path message is visible and retryable.
+- Append semantics remain atomic in the uncontended case.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/lib/status-file-manager.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: a simulated long-held lock forces a retryable busy result instead of a blind overwrite.</li><li>Unit: a truly stale lock can be reclaimed without corrupting the append-only file.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: uncontended append and rename still work.</li><li>Unit: release cleanup still ignores ENOENT exactly as today.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>The code either proves the lock is stale or refuses to write.</li><li>The busy-path message is visible and retryable.</li><li>Append semantics remain atomic in the uncontended case.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>Medium</p></section>
+    </article>
+
+    <article id="issue-15" class="issue-card" data-issue-kind="additional" data-issue-number="15" aria-labelledby="issue-15-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 15</p>
+          <h2 class="issue-title" id="issue-15-title">--shots parsing accepts malformed tokens as valid ids</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p3">P3</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill likelihood likely">Likely</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>--shots parsing accepts malformed tokens as valid ids</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-additional">Additional</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p3">P3</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill medium">Medium</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood likely">Likely</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/commands/generate-video.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>parseShotFilter uses parseInt plus a NaN filter, so malformed tokens such as 2a become 2 and can silently broaden the selected shot set.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`parseShotFilter` parses each token with `parseInt` and only filters on `!isNaN` in `cli/src/commands/generate-video.ts:73-77`.</li><li>That behavior can turn an invalid selector into a different valid shot number instead of rejecting it.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>A typo in --shots can send the command to the wrong subset without warning, which is much harder to spot than a hard parse failure.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Validate tokens before coercion and reject or warn on non-canonical ids instead of silently accepting them.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: --shots parsing accepts malformed tokens as valid ids.
+
+## Context
+- Issue number: Issue 15
+- Issue kind: Additional
+- Priority: P3
+- Severity: Medium
+- Likelihood: Likely
+- Affected area: cli/src/commands/generate-video.ts
+- Failure mode: parseShotFilter uses parseInt plus a NaN filter, so malformed tokens such as 2a become 2 and can silently broaden the selected shot set.
+- Evidence or rationale: `parseShotFilter` parses each token with `parseInt` and only filters on `!isNaN` in `cli/src/commands/generate-video.ts:73-77`. That behavior can turn an invalid selector into a different valid shot number instead of rejecting it.
+- Why this matters: A typo in --shots can send the command to the wrong subset without warning, which is much harder to spot than a hard parse failure.
+- Recommended mitigation: Validate tokens before coercion and reject or warn on non-canonical ids instead of silently accepting them.
+
+## First Files to Inspect
+- cli/src/commands/generate-video.ts
+- tests/unit/commands/generate-video.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep comma-separated filtering for valid numbers.
+- Keep the no-filter path and current shot ordering unless the selector changes it deliberately.
+
+## Implementation Strategy
+- Prefer: A strict parse path with a clear CLI error for malformed selectors.
+- Avoid: Do not silently coerce malformed shot ids into a different number.
+- Expected errors: Malformed shot selectors should stop generation before any provider calls.
+- Unexpected failures: Any selector parse failure should remain visible and not become a successful-looking subset.
+- Graceful fallback: Ask the user to rerun with a cleaned --shots list.
+- User-facing fallback text: The shot selector contains an invalid token. Fix the list and rerun the command.
+- State preservation: Preserve the original valid shot order if the user reruns with a corrected selector.
+- Rollback or recovery: If strict parsing is too disruptive, add warnings rather than silent coercion.
+
+## Regression Tests
+- Unit: a mixed valid/invalid --shots list rejects the invalid token instead of widening it.
+- Unit: whitespace handling and a valid numeric list still filter deterministically.
+
+## Additional Baseline Tests
+- Unit: an empty --shots value still behaves like no filter.
+- Unit: a valid numeric list still selects the same shots as before.
+
+## Acceptance Criteria
+- Malformed shot tokens never produce a wrong subset without warning.
+- Valid numeric shot filters still work exactly as before.
+- The command emits a clear recovery hint for bad selectors.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/commands/generate-video.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: a mixed valid/invalid --shots list rejects the invalid token instead of widening it.</li><li>Unit: whitespace handling and a valid numeric list still filter deterministically.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: an empty --shots value still behaves like no filter.</li><li>Unit: a valid numeric list still selects the same shots as before.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>Malformed shot tokens never produce a wrong subset without warning.</li><li>Valid numeric shot filters still work exactly as before.</li><li>The command emits a clear recovery hint for bad selectors.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>Medium</p></section>
+    </article>
+
+    <article id="issue-16" class="issue-card" data-issue-kind="additional" data-issue-number="16" aria-labelledby="issue-16-title">
+      <header class="issue-head">
+        <div>
+          <p class="issue-index">Issue 16</p>
+          <h2 class="issue-title" id="issue-16-title">GUI link editor can drop alias and legacy selection state on save</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p3">P3</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill likelihood possible">Possible</span>
+        </div>
+      </header>
+      <section class="issue-field" data-field="title"><h3>Title</h3><p>GUI link editor can drop alias and legacy selection state on save</p></section>
+      <section class="issue-field" data-field="kind"><h3>Kind</h3><p><span class="pill kind-additional">Additional</span></p></section>
+      <section class="issue-field" data-field="priority"><h3>Priority</h3><p><span class="pill p3">P3</span></p></section>
+      <section class="issue-field" data-field="severity"><h3>Severity</h3><p><span class="pill medium">Medium</span></p></section>
+      <section class="issue-field" data-field="likelihood"><h3>Likelihood</h3><p><span class="pill likelihood possible">Possible</span></p></section>
+      <section class="issue-field" data-field="impacted-area"><h3>Impacted area</h3><p><code>cli/src/commands/gui.ts</code></p></section>
+      <section class="issue-field" data-field="failure-mode"><h3>Failure mode</h3><p>The interactive link editor marks items with exact fullName membership and computes toUnlink with exact fullName comparisons, so legacy or alias entries can appear unselected and be dropped when the user confirms the dialog.</p></section>
+      <section class="issue-field" data-field="evidence"><h3>Evidence or rationale</h3><ul><li>`gui.ts:386-409` uses `checked: linkedModules.includes(e.fullName)` and later filters unlink candidates with `entries.some(e =&gt; e.fullName === n)`.</li><li>That means the UI only preserves canonical full names unless the config is normalized first.</li></ul></section>
+      <section class="issue-field" data-field="why"><h3>Why this matters</h3><p>A user can trust the UI, press Enter, and accidentally lose a linked module that was stored under a legacy name.</p></section>
+      <section class="issue-field" data-field="mitigation"><h3>Recommended mitigation</h3><p>Canonicalize stored link entries before rendering, and keep unresolved links visible as read-only instead of silently clearing them.</p></section>
+      <section class="issue-field" data-field="implementation-prompt"><h3>Implementation Prompt</h3><pre class="prompt-block"><code>You are a senior software engineer, debugging specialist, and test-automation engineer working in the current project.
+Resolve the project root yourself before making changes.
+
+## Objective
+Investigate, fix, and verify the issue titled: GUI link editor can drop alias and legacy selection state on save.
+
+## Context
+- Issue number: Issue 16
+- Issue kind: Additional
+- Priority: P3
+- Severity: Medium
+- Likelihood: Possible
+- Affected area: cli/src/commands/gui.ts
+- Failure mode: The interactive link editor marks items with exact fullName membership and computes toUnlink with exact fullName comparisons, so legacy or alias entries can appear unselected and be dropped when the user confirms the dialog.
+- Evidence or rationale: `gui.ts:386-409` uses `checked: linkedModules.includes(e.fullName)` and later filters unlink candidates with `entries.some(e =&gt; e.fullName === n)`. That means the UI only preserves canonical full names unless the config is normalized first.
+- Why this matters: A user can trust the UI, press Enter, and accidentally lose a linked module that was stored under a legacy name.
+- Recommended mitigation: Canonicalize stored link entries before rendering, and keep unresolved links visible as read-only instead of silently clearing them.
+
+## First Files to Inspect
+- cli/src/commands/gui.ts
+- cli/src/commands/list.ts
+- cli/src/commands/show.ts
+- tests/unit/commands/gui-linking.test.ts
+
+## Required Work
+1. Resolve the project root yourself and keep the change scoped to the files above.
+2. Reproduce or confirm the issue from the listed evidence before editing.
+3. Make the smallest repository-consistent change that fixes the behavior.
+4. Preserve any behavior listed under Behavior To Preserve.
+5. Avoid speculative abstractions, broad refactors, and unrelated cleanups.
+6. Treat expected error paths explicitly and keep the documented fallback available.
+7. If an unexpected failure occurs, stop, capture the failure, and report it clearly.
+8. Add or update the tests listed below, then run the supported commands.
+9. Keep accessibility, user state, and recovery behavior intact when the issue affects a user-facing flow.
+10. Return a concise final report with changed files, tests, outcomes, unresolved risks, and any testable assumptions.
+
+## Behavior To Preserve
+- Keep keyboard navigation, checkbox behavior, and the current link/unlink flow.
+- Keep the return path to the menu and the existing user selections intact.
+
+## Implementation Strategy
+- Prefer: A small canonicalization step with a warning for unresolved links, not a redesign of the menu system.
+- Avoid: Do not introduce a second persistence layer or a broader UI refactor.
+- Expected errors: If a link cannot be canonicalized, show a warning and leave it untouched.
+- Unexpected failures: Any normalization failure should preserve the original selection state instead of dropping it.
+- Graceful fallback: Keep unresolved entries visible as read-only with an explanation rather than omitting them.
+- User-facing fallback text: Some linked entries could not be normalized. They were left unchanged.
+- State preservation: Preserve selection order, in-dialog choices, and the return path to the menu.
+- Rollback or recovery: If canonicalization changes too many selections, revert only the display normalization and keep the warning.
+
+## Regression Tests
+- Unit: an exact canonical link still toggles and saves correctly.
+- Unit: alias and legacy link entries remain visible and are not silently dropped when the dialog is confirmed.
+
+## Additional Baseline Tests
+- Unit: keyboard-only navigation still works in the link editor.
+- Unit: visible focus and checkbox selection remain stable during save and cancel paths.
+
+## Acceptance Criteria
+- The GUI never silently drops a link because it was stored under a legacy name.
+- Canonical links still toggle and persist correctly.
+- Keyboard and screen-reader usability remain intact.
+
+## Commands To Run
+- `pnpm exec vitest run tests/unit/commands/gui-linking.test.ts`
+
+## Final Report
+Return concise findings, decisions, changed files, test evidence, unresolved risks, and any testable assumptions. Do not expose private chain-of-thought.</code></pre></section>
+      <section class="issue-field" data-field="regression-tests"><h3>Regression tests</h3><ul><li>Unit: an exact canonical link still toggles and saves correctly.</li><li>Unit: alias and legacy link entries remain visible and are not silently dropped when the dialog is confirmed.</li></ul></section>
+      <section class="issue-field" data-field="baseline-tests"><h3>Additional baseline tests</h3><ul><li>Unit: keyboard-only navigation still works in the link editor.</li><li>Unit: visible focus and checkbox selection remain stable during save and cancel paths.</li></ul></section>
+      <section class="issue-field" data-field="acceptance-criteria"><h3>Acceptance criteria</h3><ul><li>The GUI never silently drops a link because it was stored under a legacy name.</li><li>Canonical links still toggle and persist correctly.</li><li>Keyboard and screen-reader usability remain intact.</li></ul></section>
+      <section class="issue-field" data-field="confidence"><h3>Confidence</h3><p>Medium</p></section>
+    </article>
+
+    <section class="section" id="scope-notes">
+      <h2>Scope Notes and Limitations</h2>
+      <ul>
+        <li>The report is static and self-contained. It does not load external fonts, scripts, images, analytics, or other runtime dependencies.</li>
+        <li>The first 10 issues were selected through repository inspection because the source prompt did not provide a concrete 10-item list.</li>
+        <li>Three items are marked <code>Testable assumption</code> and should be confirmed with the suggested reproductions before any behavior change is finalized.</li>
+        <li>The focused validation suite passed 102 tests across 8 files, but issue-specific remediation tests still need to be added by the fixing agent.</li>
+        <li>No source code was modified to produce this report, and the output remains readable with CSS disabled and in print preview.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p>Repository identity: <strong>mytech-today-now/filmbuff</strong> | Branch: <strong>main</strong> | Generated: <strong>2026 09 09 15 56 19</strong> | Output path: <code>ai-prompts/pre-mortem-2026-09-09-15-56-19.html</code></p>
+      <p class="footer-note">Report scope: 16 repository-grounded issue sections, with 10 core issues selected by inspection and 6 additional high-value issues or testable assumptions.</p>
+    </footer>
+  </main>
+</body>
+</html>

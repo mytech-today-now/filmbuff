@@ -64,6 +64,16 @@ class ShotListParseError extends Error {
   }
 }
 
+class ShotSelectorParseError extends Error {
+  readonly token: string;
+
+  constructor(token: string) {
+    super('The shot selector contains an invalid token. Fix the list and rerun the command.');
+    this.name = 'ShotSelectorParseError';
+    this.token = token;
+  }
+}
+
 /** Parse a JSONL file and return all non-empty JSON lines as ShotEntry objects. */
 async function readShotList(filePath: string): Promise<ShotEntry[]> {
   const entries: ShotEntry[] = [];
@@ -87,8 +97,19 @@ async function readShotList(filePath: string): Promise<ShotEntry[]> {
 
 /** Parse the --shots flag into a Set<number>. */
 function parseShotFilter(shotsFlag?: string): Set<number> | null {
-  if (!shotsFlag) return null;
-  const nums = shotsFlag.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+  if (shotsFlag === undefined) return null;
+  const trimmedFlag = shotsFlag.trim();
+  if (!trimmedFlag) return null;
+
+  const nums: number[] = [];
+  for (const rawToken of trimmedFlag.split(',')) {
+    const token = rawToken.trim();
+    if (!/^\d+$/.test(token)) {
+      throw new ShotSelectorParseError(token || rawToken);
+    }
+    nums.push(Number(token));
+  }
+
   return nums.length > 0 ? new Set(nums) : null;
 }
 
@@ -140,6 +161,9 @@ function handleAiPoweredError(err: unknown): boolean {
     return true;
   } else if (name === 'ShotListParseError') {
     console.error(chalk.red(`✗ ${msg}`));
+  } else if (name === 'ShotSelectorParseError') {
+    const token = (err as any).token ? ` Offending token: ${(err as any).token}.` : '';
+    console.error(chalk.red(`✗ ${msg}${token}`));
   } else {
     console.error(chalk.red(`✗ Video generation failed: ${msg}`));
   }
@@ -178,13 +202,14 @@ export async function generateVideoCommand(options: GenerateVideoOptions): Promi
 
   try {
     const providerOptions = parseProviderOptions(options.providerOptions);
+    const shotFilter = parseShotFilter(options.shots);
+
     // 1. Read shot list
     console.log(chalk.gray('📖 Reading shot list...'));
     let shots = await readShotList(options.input);
     console.log(chalk.green(`✓ Loaded ${shots.length} shot(s)`));
 
     // 2. Filter to --shots subset
-    const shotFilter = parseShotFilter(options.shots);
     if (shotFilter) {
       shots = shots.filter(s => shotFilter.has(s.shotNumber));
       console.log(chalk.gray(`   Filtered to ${shots.length} shot(s) matching: ${options.shots}`));

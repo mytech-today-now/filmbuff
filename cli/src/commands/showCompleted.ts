@@ -1,3 +1,5 @@
+import * as fs from 'fs';
+import * as path from 'path';
 import chalk from 'chalk';
 import {
   getAllCompletedTasks,
@@ -7,6 +9,7 @@ import {
   sortTasks,
   CompletedTask
 } from '../utils/beadsCompletedChecker';
+import { findProjectRoot } from '../utils/module-system';
 
 interface ShowCompletedOptions {
   since?: string;
@@ -15,7 +18,7 @@ interface ShowCompletedOptions {
   verbose?: boolean;
   quiet?: boolean;
   limit?: number;
-  search?: string;
+  completedSearch?: string;
   labels?: string;
   type?: string;
   priority?: number;
@@ -130,9 +133,9 @@ function formatTaskBdStyle(task: CompletedTask, verbose: boolean = false): strin
  * Show completed command handler
  */
 export function showCompletedCommand(options: ShowCompletedOptions): void {
-  const completedPath = 'scripts/completed.jsonl';
-  const beadsDir = '.beads';
-  const fs = require('fs');
+  const projectRoot = findProjectRoot() ?? process.cwd();
+  const completedPath = path.join(projectRoot, 'scripts', 'completed.jsonl');
+  const beadsDir = path.join(projectRoot, '.beads');
 
   // Check if Beads is initialized
   if (!fs.existsSync(beadsDir)) {
@@ -178,12 +181,12 @@ export function showCompletedCommand(options: ShowCompletedOptions): void {
     }
   }
 
-  // Filter by search term if specified
-  if (options.search) {
-    tasks = filterTasksBySearch(tasks, options.search);
+  // Filter by completed-task search term if specified
+  if (options.completedSearch) {
+    tasks = filterTasksBySearch(tasks, options.completedSearch);
 
     if (tasks.length === 0) {
-      console.log(chalk.yellow(`No completed tasks found matching "${options.search}".`));
+      console.log(chalk.yellow(`No completed tasks found matching "${options.completedSearch}".`));
       return;
     }
   }

@@ -114,7 +114,9 @@ function buildShotPrompt(shot: ShotListEntry, extraNotes?: string): string {
   return lines.join('\n');
 }
 
-function providerOptionsFor(opts: SingleShotOptions): Record<string, unknown> {
+type SingleShotCoreOptions = Omit<SingleShotOptions, 'outputPath'>;
+
+function providerOptionsFor(opts: Pick<SingleShotCoreOptions, 'shot' | 'providerOptions'>): Record<string, unknown> {
   return {
     ...(opts.shot.providerOptions ?? {}),
     ...(opts.providerOptions ?? {}),
@@ -125,7 +127,7 @@ function isPikaProvider(provider: string): boolean {
   return provider === 'pika' || provider === 'pika-2';
 }
 
-function effectiveModel(opts: SingleShotOptions): string | undefined {
+function effectiveModel(opts: Pick<SingleShotCoreOptions, 'provider' | 'model' | 'shot'>): string | undefined {
   return opts.model ?? opts.shot.model ?? (isPikaProvider(opts.provider)
     ? PIKA_VIDEO_PROVIDER.defaultModel
     : undefined);
@@ -175,27 +177,16 @@ function generatedJobId(provider: string, shotId: string): string {
   return `${provider}_shot_${shotId}_${Date.now()}`;
 }
 
-// ---------------------------------------------------------------------------
-// API functions
-// ---------------------------------------------------------------------------
-
-/**
- * Submit a single shot and poll until the provider returns its video.
- *
- * Pika uses the repository's typed REST adapter. Other configured providers
- * use the existing ai-powered client integration. This keeps the bridge
- * functional even when the installed ai-powered package does not yet expose
- * the newer per-shot exports.
- */
-export async function generateSingleShot(
-  opts: SingleShotOptions,
+async function runSingleShot(
+  opts: SingleShotCoreOptions,
+  outputPath?: string,
 ): Promise<SingleShotResult> {
   if (process.env['FILMBUFF_MOCK_PROVIDER'] === '1') {
     const mockJobId = `mock_job_${opts.shot.shot_id}_${Date.now()}`;
     return {
       jobId:            mockJobId,
       status:           'complete',
-      clipPath:         opts.outputPath,
+      clipPath:         outputPath,
       durationSeconds:  opts.shot.duration_seconds ?? 5,
       resolution:       '1920x1080',
       creditsCharged:   PROVIDER_DEFAULT_CREDITS[opts.provider] ?? 5,
@@ -213,11 +204,15 @@ export async function generateSingleShot(
       providerOptions,
       { timeoutMs: opts.timeoutMs },
     );
-    await writeVideoData(pikaResult.contentUrl, opts.outputPath);
+
+    if (outputPath) {
+      await writeVideoData(pikaResult.contentUrl, outputPath);
+    }
+
     return {
       jobId:           pikaResult.requestId,
       status:          'complete',
-      clipPath:        opts.outputPath,
+      clipPath:        outputPath,
       durationSeconds: opts.shot.duration_seconds,
       creditsCharged:  PROVIDER_DEFAULT_CREDITS[opts.provider] ?? 4,
     };
@@ -233,26 +228,41 @@ export async function generateSingleShot(
     ...(Object.keys(providerOptions).length > 0 ? { providerOptions } : {}),
   } as Parameters<typeof client.generateVideo>[1]);
 
-  await writeVideoData(result.data, opts.outputPath);
+  if (outputPath) {
+    await writeVideoData(result.data, outputPath);
+  }
+
   return {
     jobId:           generatedJobId(opts.provider, opts.shot.shot_id),
     status:          'complete',
-    clipPath:        opts.outputPath,
+    clipPath:        outputPath,
     durationSeconds: result.durationSeconds ?? opts.shot.duration_seconds,
     creditsCharged:  PROVIDER_DEFAULT_CREDITS[opts.provider],
   };
+}
+
+// ---------------------------------------------------------------------------
+// API functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Submit a single shot and poll until the provider returns its video.
+ *
+ * Pika uses the repository's typed REST adapter. Other configured providers
+ * use the existing ai-powered client integration. This keeps the bridge
+ * functional even when the installed ai-powered package does not yet expose
+ * the newer per-shot exports.
+ */
+export async function generateSingleShot(
+  opts: SingleShotOptions,
+): Promise<SingleShotResult> {
+  return runSingleShot(opts, opts.outputPath);
 }
 
 /** Submit a single shot without waiting for completion. */
 export async function submitSingleShot(
   opts: Omit<SingleShotOptions, 'outputPath' | 'timeoutMs'>,
 ): Promise<{ jobId: string }> {
-  if (process.env['FILMBUFF_MOCK_PROVIDER'] === '1') {
-    return { jobId: `mock_job_${opts.shot.shot_id}_${Date.now()}` };
-  }
-
-  throw new Error(
-    'submitSingleShot is not available through the provider adapters yet. ' +
-    'Use generateSingleShot for per-shot generation.',
-  );
+  const result = await runSingleShot(opts);
+  return { jobId: result.jobId };
 }

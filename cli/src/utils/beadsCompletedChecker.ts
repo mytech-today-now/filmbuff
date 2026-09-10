@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { findProjectRoot } from './module-system';
 
 export interface BeadsTask {
   id: string;
@@ -42,15 +43,26 @@ export interface CompletedTask extends BeadsTask {
   close_reason?: string;
 }
 
+function resolveCompletedPath(completedPath: string = 'scripts/completed.jsonl'): string {
+  if (path.isAbsolute(completedPath)) {
+    return completedPath;
+  }
+
+  const projectRoot = findProjectRoot() ?? process.cwd();
+  return path.join(projectRoot, completedPath);
+}
+
 /**
  * Check if a task exists in completed.jsonl
  */
 export function isTaskCompleted(taskId: string, completedPath: string = 'scripts/completed.jsonl'): boolean {
-  if (!fs.existsSync(completedPath)) {
+  const resolvedPath = resolveCompletedPath(completedPath);
+
+  if (!fs.existsSync(resolvedPath)) {
     return false;
   }
 
-  const content = fs.readFileSync(completedPath, 'utf-8');
+  const content = fs.readFileSync(resolvedPath, 'utf-8');
   const lines = content.trim().split('\n').filter(line => line.trim());
 
   for (const line of lines) {
@@ -72,11 +84,13 @@ export function isTaskCompleted(taskId: string, completedPath: string = 'scripts
  * Get a completed task by ID from completed.jsonl
  */
 export function getCompletedTask(taskId: string, completedPath: string = 'scripts/completed.jsonl'): CompletedTask | null {
-  if (!fs.existsSync(completedPath)) {
+  const resolvedPath = resolveCompletedPath(completedPath);
+
+  if (!fs.existsSync(resolvedPath)) {
     return null;
   }
 
-  const content = fs.readFileSync(completedPath, 'utf-8');
+  const content = fs.readFileSync(resolvedPath, 'utf-8');
   const lines = content.trim().split('\n').filter(line => line.trim());
 
   // Find the last occurrence of the task (most recent update)
@@ -101,11 +115,13 @@ export function getCompletedTask(taskId: string, completedPath: string = 'script
  * Get all completed tasks from completed.jsonl
  */
 export function getAllCompletedTasks(completedPath: string = 'scripts/completed.jsonl'): CompletedTask[] {
-  if (!fs.existsSync(completedPath)) {
+  const resolvedPath = resolveCompletedPath(completedPath);
+
+  if (!fs.existsSync(resolvedPath)) {
     return [];
   }
 
-  const content = fs.readFileSync(completedPath, 'utf-8');
+  const content = fs.readFileSync(resolvedPath, 'utf-8');
   const lines = content.trim().split('\n').filter(line => line.trim());
 
   const tasksMap = new Map<string, CompletedTask>();
@@ -119,7 +135,7 @@ export function getAllCompletedTasks(completedPath: string = 'scripts/completed.
       }
     } catch (error) {
       // Skip invalid JSON lines
-      console.warn(`Warning: Skipping invalid JSON line in ${completedPath}`);
+      console.warn(`Warning: Skipping invalid JSON line in ${resolvedPath}`);
       continue;
     }
   }

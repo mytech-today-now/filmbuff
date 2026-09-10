@@ -25,8 +25,8 @@
         },
         "sourceFormat": {
           "type": "string",
-          "enum": ["fountain", "markdown", "plaintext"],
-          "description": "Source screenplay format"
+          "enum": ["fountain", "markdown", "plaintext", "finaldraft", "pdf", "docx", "rtf", "unknown"],
+          "description": "Source screenplay format, or unknown when unavailable"
         },
         "maxCharacters": {
           "type": "integer",

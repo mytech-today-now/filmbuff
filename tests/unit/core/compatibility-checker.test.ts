@@ -115,6 +115,22 @@ describe('CompatibilityChecker', () => {
       );
     });
 
+    it('should detect the real project Augment version for a shipped module', () => {
+      const modulePath = path.join(process.cwd(), 'filmbuff', 'writing-standards', 'screenplay');
+      const expectedAugmentVersion = fs.readFileSync(path.join(process.cwd(), 'VERSION'), 'utf-8').trim();
+
+      const result = checker.checkCompatibility(modulePath);
+
+      expect(result.compatible).toBe(true);
+      expect(result.details.augment).toEqual({
+        required: '1.0.0',
+        current: expectedAugmentVersion,
+        compatible: true,
+        message: undefined
+      });
+      expect(result.errors).toHaveLength(0);
+    });
+
     it('should handle multiple compatibility checks', () => {
       fs.writeFileSync(path.join(testDir, 'metadata.json'), JSON.stringify({
         compatibility: {

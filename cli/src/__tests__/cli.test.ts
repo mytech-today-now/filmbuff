@@ -10,6 +10,7 @@ jest.mock('../commands/init');
 jest.mock('../commands/list');
 jest.mock('../commands/show');
 jest.mock('../commands/link');
+jest.mock('../commands/pin');
 jest.mock('../commands/update');
 jest.mock('../commands/search');
 jest.mock('../commands/sync');
@@ -343,6 +344,23 @@ describe('CLI Command Parsing', () => {
       expect(mockAction).toHaveBeenCalled();
       expect(mockAction.mock.calls[0][1]).toBe('php-standards');
       expect(mockAction.mock.calls[0][3].search).toBe('PSR-12');
+      expect(mockAction.mock.calls[0][3].completedSearch).toBeUndefined();
+    });
+
+    it('should parse show completed command with --completed-search option', () => {
+      const mockAction = jest.fn();
+      program
+        .command('show <module>')
+        .option('--search <term>', 'Search within module content')
+        .option('--completed-search <term>', 'Search completed tasks by title, description, or close reason')
+        .action(mockAction);
+
+      program.parse(['node', 'augx', 'show', 'completed', '--completed-search', 'needle']);
+
+      expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('completed');
+      expect(mockAction.mock.calls[0][1].completedSearch).toBe('needle');
+      expect(mockAction.mock.calls[0][1].search).toBeUndefined();
     });
   });
 
@@ -372,6 +390,22 @@ describe('CLI Command Parsing', () => {
       expect(mockAction).toHaveBeenCalled();
       expect(mockAction.mock.calls[0][0]).toBe('typescript-standards');
       expect(mockAction.mock.calls[0][1].version).toBe('1.2.3');
+    });
+  });
+
+  describe('pin command', () => {
+    it('should parse pin command with module and version arguments', () => {
+      const mockAction = jest.fn();
+      program
+        .command('pin <module> <version>')
+        .description('Pin module to specific version')
+        .action(mockAction);
+
+      program.parse(['node', 'augx', 'pin', 'typescript-standards', '1.2.3']);
+
+      expect(mockAction).toHaveBeenCalled();
+      expect(mockAction.mock.calls[0][0]).toBe('typescript-standards');
+      expect(mockAction.mock.calls[0][1]).toBe('1.2.3');
     });
   });
 

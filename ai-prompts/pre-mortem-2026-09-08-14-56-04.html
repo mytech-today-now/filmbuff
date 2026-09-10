@@ -1,0 +1,1268 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FilmBuff Pre-Mortem Report - 2026-09-08 14:56:04</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f3ecdf;
+      --bg-accent: #efe2cc;
+      --panel: rgba(255, 255, 255, 0.76);
+      --panel-strong: #fff8ef;
+      --border: #d8c7af;
+      --border-strong: #c7b08d;
+      --text: #221d17;
+      --muted: #625444;
+      --muted-2: #7c6c57;
+      --shadow: 0 18px 46px rgba(72, 49, 21, 0.11);
+      --core: #18412d;
+      --additional: #5f4a1e;
+      --p1: #9f1f24;
+      --p2: #ce7421;
+      --p3: #86671d;
+      --critical: #7e1820;
+      --high: #a63d1d;
+      --medium: #3f6b2c;
+      --low: #4d6782;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 40%),
+        radial-gradient(circle at top right, rgba(219, 193, 151, 0.42), transparent 35%),
+        linear-gradient(180deg, var(--bg), #f9f4ec 42%, #f1e7d8 100%);
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.65;
+    }
+
+    h1, h2, h3, dt, th, .label, .pill, .stat-value {
+      font-family: "Aptos", "Segoe UI", sans-serif;
+    }
+
+    a { color: #274e74; }
+
+    main.report {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+    .report-header,
+    .section,
+    .issue-card {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px);
+    }
+
+    .report-header {
+      border-radius: 28px;
+      padding: 28px;
+    }
+
+    .kicker {
+      margin: 0 0 10px;
+      color: var(--muted-2);
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 4vw, 3.45rem);
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+    }
+
+    .subtitle {
+      max-width: 74ch;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+
+    .meta-grid,
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(165px, 1fr));
+      gap: 12px;
+    }
+
+    .meta-grid { margin-top: 22px; }
+    .summary-grid { margin: 18px 0 0; }
+
+    .meta-card,
+    .summary-card {
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.78);
+      padding: 14px 15px;
+    }
+
+    .label {
+      color: var(--muted-2);
+      font-size: 0.72rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+
+    .value {
+      margin-top: 6px;
+      font-size: 0.98rem;
+    }
+
+    .summary-card .stat-value {
+      display: block;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .summary-card .stat-label {
+      display: block;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }
+
+    .section {
+      margin-top: 22px;
+      border-radius: 24px;
+      padding: 22px;
+    }
+
+    .section h2 {
+      margin: 0 0 12px;
+      font-size: 1.45rem;
+      line-height: 1.15;
+    }
+
+    .section p { margin: 0 0 12px; }
+    .section p:last-child { margin-bottom: 0; }
+
+    .section ul,
+    .section ol {
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    .section li + li { margin-top: 6px; }
+
+    .table-shell {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1060px;
+    }
+
+    th,
+    td {
+      padding: 12px 12px;
+      border-bottom: 1px solid #e9dcc8;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f7efe1;
+      color: #3b3126;
+      font-size: 0.76rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    tr:nth-child(even) td { background: #fcf8f1; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .kind-core { background: rgba(24, 65, 45, 0.12); color: var(--core); border: 1px solid rgba(24, 65, 45, 0.22); }
+    .kind-additional { background: rgba(95, 74, 30, 0.12); color: var(--additional); border: 1px solid rgba(95, 74, 30, 0.22); }
+    .p1 { background: rgba(159, 31, 36, 0.12); color: var(--p1); border: 1px solid rgba(159, 31, 36, 0.24); }
+    .p2 { background: rgba(206, 116, 33, 0.14); color: var(--p2); border: 1px solid rgba(206, 116, 33, 0.22); }
+    .p3 { background: rgba(134, 103, 29, 0.14); color: var(--p3); border: 1px solid rgba(134, 103, 29, 0.22); }
+    .critical { background: rgba(126, 24, 32, 0.12); color: var(--critical); border: 1px solid rgba(126, 24, 32, 0.24); }
+    .high { background: rgba(166, 61, 29, 0.12); color: var(--high); border: 1px solid rgba(166, 61, 29, 0.24); }
+    .medium { background: rgba(63, 107, 44, 0.12); color: var(--medium); border: 1px solid rgba(63, 107, 44, 0.24); }
+    .low { background: rgba(77, 103, 130, 0.12); color: var(--low); border: 1px solid rgba(77, 103, 130, 0.24); }
+
+    .issue-card {
+      margin-top: 22px;
+      border-radius: 24px;
+      padding: 22px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(250, 244, 235, 0.82));
+    }
+
+    .issue-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .issue-index {
+      margin: 0;
+      color: var(--muted-2);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
+    .issue-title {
+      margin: 4px 0 0;
+      font-size: 1.38rem;
+      line-height: 1.18;
+    }
+
+    .issue-badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .prompt-shell {
+      margin-top: 14px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.88);
+      padding: 16px;
+    }
+
+    .prompt-label {
+      margin: 0 0 10px;
+      color: var(--muted-2);
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
+    .prompt-block {
+      margin: 0;
+      padding: 16px;
+      border-radius: 16px;
+      border: 1px solid #e9dcc8;
+      background: #fffdf8;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-x: auto;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.92rem;
+      line-height: 1.55;
+    }
+
+    .confidence-high { color: #1b6a38; }
+    .confidence-medium { color: #7c5a12; }
+    .confidence-low { color: #8c2f2f; }
+
+    .validation-note {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    code, pre {
+      font-family: "Cascadia Mono", "Consolas", monospace;
+      font-size: 0.95em;
+    }
+
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      border-radius: 16px;
+      padding: 14px 16px;
+      background: #f4ebdc;
+      border: 1px solid #e0d1ba;
+    }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    @media (max-width: 720px) {
+      main.report { padding-inline: 14px; }
+      .report-header,
+      .section,
+      .issue-card { padding: 18px; }
+      .issue-badges { justify-content: flex-start; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      main.report { max-width: none; padding: 0; }
+      .report-header,
+      .section,
+      .issue-card {
+        box-shadow: none;
+        background: #fff;
+      }
+      .issue-card,
+      .section {
+        break-inside: avoid;
+        page-break-inside: avoid;
+      }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="report">
+    <header class="report-header">
+      <p class="kicker">FilmBuff AI pre-mortem</p>
+      <h1>Pre-Mortem Report for FilmBuff</h1>
+      <p class="subtitle">
+        This static report turns the strongest repo-grounded failure modes into a prioritized risk register.
+        It is anchored to source lines inspected on branch <strong>main</strong> at commit <strong>9add951</strong>,
+        and it includes the commands used to validate the surrounding code paths.
+      </p>
+
+      <div class="meta-grid" aria-label="Report metadata">
+        <div class="meta-card"><span class="label">Generated</span><span class="value">2026-09-08 14:56:04</span></div>
+        <div class="meta-card"><span class="label">Repository</span><span class="value">mytech-today-now/filmbuff</span></div>
+        <div class="meta-card"><span class="label">Root</span><span class="value">C:/GitHub/filmbuff-project/filmbuff</span></div>
+        <div class="meta-card"><span class="label">Branch</span><span class="value">main</span></div>
+        <div class="meta-card"><span class="label">Commit</span><span class="value">9add951</span></div>
+        <div class="meta-card"><span class="label">Output</span><span class="value">ai-prompts/pre-mortem-2026-09-08-14-56-04.html</span></div>
+      </div>
+
+      <div class="summary-grid" aria-label="Summary metrics">
+        <div class="summary-card"><span class="stat-value">16</span><span class="stat-label">total risks</span></div>
+        <div class="summary-card"><span class="stat-value">10</span><span class="stat-label">core issues</span></div>
+        <div class="summary-card"><span class="stat-value">6</span><span class="stat-label">additional issues</span></div>
+        <div class="summary-card"><span class="stat-value">66</span><span class="stat-label">tests passed in diagnostics</span></div>
+      </div>
+    </header>
+
+    <section class="section" id="executive-summary">
+      <h2>Executive Summary</h2>
+      <p>
+        The highest-risk cluster sits in video generation and status handling. Concurrency, lock recovery,
+        malformed input handling, and unreadable-file fallback behavior can all produce partial success while
+        hiding the actual fault.
+      </p>
+      <p>
+        The second cluster is around module identity, versioning, and cache freshness. The repo currently mixes
+        canonical full names, aliases, raw IDs, and stale cache assumptions, which can make the CLI look correct
+        while acting on the wrong entry or old metadata.
+      </p>
+    </section>
+
+    <section class="section" id="scope">
+      <h2>Review Scope and Methodology</h2>
+      <p class="validation-note">
+        I inspected the FilmBuff sources that govern generation, module discovery, version resolution, linked
+        module commands, cache behavior, and status-file IO. The main evidence set came from:
+      </p>
+      <ul>
+        <li><code>cli/src/commands/video/generate-all.ts</code></li>
+        <li><code>cli/src/lib/per-shot-api.ts</code></li>
+        <li><code>cli/src/core/compatibility-checker.ts</code></li>
+        <li><code>cli/src/core/version-resolver.ts</code> and <code>cli/src/core/version-manager.ts</code></li>
+        <li><code>cli/src/commands/update.ts</code>, <code>cli/src/commands/unlink.ts</code>, <code>cli/src/commands/upgrade.ts</code></li>
+        <li><code>cli/src/commands/list.ts</code>, <code>cli/src/commands/show.ts</code>, <code>cli/src/commands/gui.ts</code></li>
+        <li><code>cli/src/commands/generate-video.ts</code>, <code>cli/src/commands/generate-shot-list/generator/index.ts</code>, <code>cli/src/commands/generate-shot-list/help-text.ts</code>, <code>cli/src/commands/generate-shot-list/parser/index.ts</code></li>
+        <li><code>cli/src/utils/ai-summary.ts</code>, <code>cli/src/utils/module-system.ts</code>, <code>cli/src/lib/status-file-manager.ts</code>, <code>cli/src/commands/video/status.ts</code></li>
+      </ul>
+    </section>
+
+    <section class="section" id="input-note">
+      <h2>Input-Resolution Note</h2>
+      <p>
+        The report is grounded in source-level evidence, not just command names. For example, the shot-list help
+        text advertises only three input formats, while the parser actually supports more; that mismatch is a
+        documentation risk, not a guess. The same approach was used for versioning, linked-module identity,
+        cache keys, and status-file error handling.
+      </p>
+    </section>
+
+    <section class="section" id="validation">
+      <h2>Validation Procedure</h2>
+      <ol>
+        <li>Reviewed repository guidance and the existing pre-mortem style so the report matches project conventions.</li>
+        <li>Inspected the source files and recorded line ranges for each risk item before writing the report.</li>
+        <li>Ran a broader unit-pass command: <code>pnpm exec vitest run tests/unit/core/compatibility-checker.test.ts tests/unit/core/version-manager.test.ts tests/unit/core/version-resolver.test.ts tests/unit/utils/validate-versioning.test.ts</code>.</li>
+        <li>Ran a focused check on the compatibility branch: <code>pnpm exec vitest run tests/unit/core/compatibility-checker.test.ts</code>.</li>
+        <li>Verified the diagnostics passed 66 tests across 4 files in the broader run and 11 tests in the focused run.</li>
+        <li>Confirmed the report content is static and self-contained, with 16 issue sections and a matching 16-row risk table.</li>
+      </ol>
+    </section>
+
+    <section class="section" id="risk-table">
+      <h2>Prioritized Risk Table</h2>
+      <div class="table-shell">
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Issue</th>
+              <th>Kind</th>
+              <th>Priority</th>
+              <th>Severity</th>
+              <th>Likelihood</th>
+              <th>Impacted area</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>1</td><td>Concurrent generate-all jobs can keep spending after a credit exhaustion signal</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p1">P1</span></td><td><span class="pill critical">Critical</span></td><td><span class="pill medium">Medium</span></td><td><code>cli/src/commands/video/generate-all.ts</code></td></tr>
+            <tr><td>2</td><td>The per-shot API bridge still throws outside mock mode</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p1">P1</span></td><td><span class="pill high">High</span></td><td><span class="pill high">High</span></td><td><code>cli/src/lib/per-shot-api.ts</code></td></tr>
+            <tr><td>3</td><td>Augment compatibility checks always report compatible</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p1">P1</span></td><td><span class="pill high">High</span></td><td><span class="pill medium">Medium</span></td><td><code>cli/src/core/compatibility-checker.ts</code></td></tr>
+            <tr><td>4</td><td>Version management only sees one VERSION file</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p1">P1</span></td><td><span class="pill high">High</span></td><td><span class="pill medium">Medium</span></td><td><code>cli/src/core/version-resolver.ts</code></td></tr>
+            <tr><td>5</td><td>Mutation commands compare against raw module identifiers</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p2">P2</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill medium">Medium</span></td><td><code>cli/src/commands/update.ts</code>, <code>unlink.ts</code>, <code>upgrade.ts</code></td></tr>
+            <tr><td>6</td><td>Lock stealing can corrupt the video status file under contention</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p1">P1</span></td><td><span class="pill high">High</span></td><td><span class="pill medium">Medium</span></td><td><code>cli/src/lib/status-file-manager.ts</code></td></tr>
+            <tr><td>7</td><td>generate-video skips malformed JSONL lines instead of failing</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p2">P2</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill medium">Medium</span></td><td><code>cli/src/commands/generate-video.ts</code></td></tr>
+            <tr><td>8</td><td>Shot-list metadata always says fountain</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p2">P2</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill high">High</span></td><td><code>cli/src/commands/generate-shot-list/generator/index.ts</code></td></tr>
+            <tr><td>9</td><td>upgrade can report success while config sync silently fails</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p2">P2</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill medium">Medium</span></td><td><code>cli/src/commands/upgrade.ts</code></td></tr>
+            <tr><td>10</td><td>Read-only linked-module views miss alias and legacy entries</td><td><span class="pill kind-core">Core</span></td><td><span class="pill p2">P2</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill high">High</span></td><td><code>cli/src/commands/list.ts</code>, <code>show.ts</code>, <code>gui.ts</code></td></tr>
+            <tr><td>11</td><td>Shot-list help text omits supported parser formats</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p3">P3</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill high">High</span></td><td><code>cli/src/commands/generate-shot-list/help-text.ts</code></td></tr>
+            <tr><td>12</td><td>AI summary cache keys can stay stale after description edits</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p3">P3</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill medium">Medium</span></td><td><code>cli/src/utils/ai-summary.ts</code></td></tr>
+            <tr><td>13</td><td>Version metadata cache can remain stale until TTL expiry</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p3">P3</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill medium">Medium</span></td><td><code>cli/src/core/version-manager.ts</code></td></tr>
+            <tr><td>14</td><td>Module discovery order is not normalized</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p3">P3</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill high">High</span></td><td><code>cli/src/utils/module-system.ts</code></td></tr>
+            <tr><td>15</td><td>Parser heuristics can misclassify ambiguous inputs</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p3">P3</span></td><td><span class="pill medium">Medium</span></td><td><span class="pill medium">Medium</span></td><td><code>cli/src/commands/generate-shot-list/parser/index.ts</code></td></tr>
+            <tr><td>16</td><td>Video status hides unreadable shot-list failures</td><td><span class="pill kind-additional">Additional</span></td><td><span class="pill p2">P2</span></td><td><span class="pill high">High</span></td><td><span class="pill medium">Medium</span></td><td><code>cli/src/commands/video/status.ts</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <article id="issue-01" class="issue-card" data-issue-kind="core" data-priority="1" aria-labelledby="issue-01-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 01</p>
+          <h2 class="issue-title" id="issue-01-title">Concurrent generate-all jobs can keep spending after a credit exhaustion signal</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p1">P1</span>
+          <span class="pill critical">Critical</span>
+          <span class="pill medium">Medium</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Concurrent generate-all jobs can keep spending after a credit exhaustion signal.
+
+## Context
+- Issue number: Issue 01
+- Issue kind: core
+- Priority: P1
+- Severity: Critical
+- Affected area: batch execution and credit exhaustion handling
+- Failure mode: Batch work is launched with `Promise.all`, and the exhaustion flag is only set after a worker finishes, so later work in the same batch can still run.
+- Recommended mitigation: Add a cancellation-aware batch gate or process pending shots sequentially once an exhaustion response appears.
+- Acceptance criteria: No later batch item submits after exhaustion, exit code remains `3`, and credits spent reflect only completed work.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-02" class="issue-card" data-issue-kind="core" data-priority="1" aria-labelledby="issue-02-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 02</p>
+          <h2 class="issue-title" id="issue-02-title">The per-shot API bridge still throws outside mock mode</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p1">P1</span>
+          <span class="pill high">High</span>
+          <span class="pill high">High</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: The per-shot API bridge still throws outside mock mode.
+
+## Context
+- Issue number: Issue 02
+- Issue kind: core
+- Priority: P1
+- Severity: High
+- Affected area: per-shot provider bridge and fallback behavior
+- Failure mode: The bridge throws whenever `FILMBUFF_MOCK_PROVIDER` is not set, so any production path that reaches it has no real implementation to call.
+- Recommended mitigation: Wire the bridge to a real provider export or add a feature-detected fallback before the throw.
+- Acceptance criteria: Production code no longer hits an unconditional throw when the bridge is asked to generate a shot.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-03" class="issue-card" data-issue-kind="core" data-priority="1" aria-labelledby="issue-03-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 03</p>
+          <h2 class="issue-title" id="issue-03-title">Augment compatibility checks always report compatible</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p1">P1</span>
+          <span class="pill high">High</span>
+          <span class="pill medium">Medium</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Augment compatibility checks always report compatible.
+
+## Context
+- Issue number: Issue 03
+- Issue kind: core
+- Priority: P1
+- Severity: High
+- Affected area: Augment compatibility checking
+- Failure mode: When `augmentMinVersion` is present, the checker hardcodes `compatible: true` and `current: &#39;unknown&#39;`, so an unsupported runtime is treated as safe.
+- Recommended mitigation: Detect the real Augment version or downgrade the result to a clear warning or error until detection exists.
+- Acceptance criteria: The Augment branch no longer returns a false-positive compatible result.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-04" class="issue-card" data-issue-kind="core" data-priority="1" aria-labelledby="issue-04-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 04</p>
+          <h2 class="issue-title" id="issue-04-title">Version management only sees one VERSION file</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p1">P1</span>
+          <span class="pill high">High</span>
+          <span class="pill medium">Medium</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Version management only sees one VERSION file.
+
+## Context
+- Issue number: Issue 04
+- Issue kind: core
+- Priority: P1
+- Severity: High
+- Affected area: version discovery and resolver behavior
+- Failure mode: `getAvailableVersions` only reads a single top-level `VERSION` file, so versioned directories or multiple version layouts are invisible.
+- Recommended mitigation: Extend the resolver to discover supported version layouts or fail with a clear limitation message when the layout is not supported.
+- Acceptance criteria: Version discovery reflects the repo&#39;s real layout instead of only the root file.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-05" class="issue-card" data-issue-kind="core" data-priority="2" aria-labelledby="issue-05-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 05</p>
+          <h2 class="issue-title" id="issue-05-title">Mutation commands compare against raw module identifiers</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p2">P2</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill medium">Medium</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Mutation commands compare against raw module identifiers.
+
+## Context
+- Issue number: Issue 05
+- Issue kind: core
+- Priority: P2
+- Severity: Medium
+- Affected area: module mutation command canonicalization
+- Failure mode: Different commands look up linked modules using raw `moduleName`, `options.module`, or `module.id` values, so aliases, full names, and legacy names can diverge.
+- Recommended mitigation: Resolve the requested module once to a canonical full name, then use that canonical identifier for every write path.
+- Acceptance criteria: The same linked module is selected and updated regardless of whether the user passes alias, full name, or legacy identifier.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-06" class="issue-card" data-issue-kind="core" data-priority="1" aria-labelledby="issue-06-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 06</p>
+          <h2 class="issue-title" id="issue-06-title">Lock stealing can corrupt the video status file under contention</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p1">P1</span>
+          <span class="pill high">High</span>
+          <span class="pill medium">Medium</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Lock stealing can corrupt the video status file under contention.
+
+## Context
+- Issue number: Issue 06
+- Issue kind: core
+- Priority: P1
+- Severity: High
+- Affected area: video status lock acquisition under contention
+- Failure mode: After the 10 second timeout, lock acquisition writes an empty lock file instead of proving staleness, so a second writer can steal the lock while the first is still active.
+- Recommended mitigation: Replace the blind overwrite with an atomic stale-lock check, or include owner metadata and only steal when the lock is provably stale.
+- Acceptance criteria: Lock recovery never creates a window where two writers can both believe they own the lock.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-07" class="issue-card" data-issue-kind="core" data-priority="2" aria-labelledby="issue-07-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 07</p>
+          <h2 class="issue-title" id="issue-07-title">generate-video skips malformed JSONL lines instead of failing</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p2">P2</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill medium">Medium</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: `generate-video` skips malformed JSONL lines instead of failing.
+
+## Context
+- Issue number: Issue 07
+- Issue kind: core
+- Priority: P2
+- Severity: Medium
+- Affected area: generate-video JSONL ingestion and parse failures
+- Failure mode: The reader catches `JSON.parse` failures, warns, and continues, so a partially corrupt input file can produce a partial run without a hard stop.
+- Recommended mitigation: Fail fast on malformed lines unless the CLI explicitly supports partial ingestion and reports the skipped count as a first-class result.
+- Acceptance criteria: Corrupt shot lists no longer look like clean success.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-08" class="issue-card" data-issue-kind="core" data-priority="2" aria-labelledby="issue-08-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 08</p>
+          <h2 class="issue-title" id="issue-08-title">Shot-list metadata always says fountain</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p2">P2</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill high">High</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Shot-list metadata always says fountain.
+
+## Context
+- Issue number: Issue 08
+- Issue kind: core
+- Priority: P2
+- Severity: Medium
+- Affected area: shot-list metadata generation
+- Failure mode: The generator hardcodes `sourceFormat: &#39;fountain&#39;`, so non-Fountain inputs are mislabeled in downstream metadata.
+- Recommended mitigation: Propagate the detected input format into the generator payload instead of hardcoding Fountain.
+- Acceptance criteria: `sourceFormat` matches the actual input format for every supported parser path.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-09" class="issue-card" data-issue-kind="core" data-priority="2" aria-labelledby="issue-09-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 09</p>
+          <h2 class="issue-title" id="issue-09-title">upgrade can report success while config sync silently fails</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p2">P2</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill medium">Medium</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: `upgrade` can report success while config sync silently fails.
+
+## Context
+- Issue number: Issue 09
+- Issue kind: core
+- Priority: P2
+- Severity: Medium
+- Affected area: upgrade config synchronization
+- Failure mode: The config update path swallows parse and write errors, then the command continues to print a successful upgrade even when `extensions.json` was not updated.
+- Recommended mitigation: Surface a partial-success state or at least emit a clear warning when config sync fails.
+- Acceptance criteria: A failed config write is observable in both JSON and human output.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-10" class="issue-card" data-issue-kind="core" data-priority="2" aria-labelledby="issue-10-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 10</p>
+          <h2 class="issue-title" id="issue-10-title">Read-only linked-module views miss alias and legacy entries</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-core">Core</span>
+          <span class="pill p2">P2</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill high">High</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Read-only linked-module views miss alias and legacy entries.
+
+## Context
+- Issue number: Issue 10
+- Issue kind: core
+- Priority: P2
+- Severity: Medium
+- Affected area: linked-module read-only views and alias handling
+- Failure mode: The read-only views mark entries linked only when names match exactly, so older names, aliases, or full-name variations can show up as unlinked.
+- Recommended mitigation: Resolve linked entries through the same canonical module lookup used by the write commands before rendering status.
+- Acceptance criteria: Linked state is consistent across read-only views for alias, legacy, and canonical names.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-11" class="issue-card" data-issue-kind="additional" data-priority="3" aria-labelledby="issue-11-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 11</p>
+          <h2 class="issue-title" id="issue-11-title">Shot-list help text omits supported parser formats</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p3">P3</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill high">High</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Shot-list help text omits supported parser formats.
+
+## Context
+- Issue number: Issue 11
+- Issue kind: additional
+- Priority: P3
+- Severity: Medium
+- Affected area: shot-list help text and supported parser formats
+- Failure mode: The help text documents only Fountain, Markdown, and plain text, while the parser code also supports Final Draft, PDF, DOCX, and RTF.
+- Recommended mitigation: Keep the help text generated from the parser&#39;s supported-format list or update it whenever the parser surface changes.
+- Acceptance criteria: Help output and parser support describe the same accepted inputs.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-12" class="issue-card" data-issue-kind="additional" data-priority="3" aria-labelledby="issue-12-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 12</p>
+          <h2 class="issue-title" id="issue-12-title">AI summary cache keys can stay stale after description edits</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p3">P3</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill medium">Medium</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: AI summary cache keys can stay stale after description edits.
+
+## Context
+- Issue number: Issue 12
+- Issue kind: additional
+- Priority: P3
+- Severity: Medium
+- Affected area: AI summary cache key invalidation
+- Failure mode: The cache key includes name, version, type, path, rules, examples, and character count, but not the description text or file freshness, so summary content can survive a metadata change.
+- Recommended mitigation: Add description and a freshness fingerprint to the cache key, or invalidate cache entries when the module metadata changes.
+- Acceptance criteria: A description edit cannot reuse an older summary cache entry silently.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-13" class="issue-card" data-issue-kind="additional" data-priority="3" aria-labelledby="issue-13-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 13</p>
+          <h2 class="issue-title" id="issue-13-title">Version metadata cache can remain stale until TTL expiry</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p3">P3</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill medium">Medium</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Version metadata cache can remain stale until TTL expiry.
+
+## Context
+- Issue number: Issue 13
+- Issue kind: additional
+- Priority: P3
+- Severity: Medium
+- Affected area: version metadata cache invalidation
+- Failure mode: `getVersion` returns cached metadata for up to one hour unless `setVersion` was called through the same process, so external file edits are invisible until TTL expiry.
+- Recommended mitigation: Compare cached state against the file&#39;s freshness before returning it, or invalidate on detected file changes.
+- Acceptance criteria: Disk changes do not remain invisible for the full TTL.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-14" class="issue-card" data-issue-kind="additional" data-priority="3" aria-labelledby="issue-14-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 14</p>
+          <h2 class="issue-title" id="issue-14-title">Module discovery order is not normalized</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p3">P3</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill high">High</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Module discovery order is not normalized.
+
+## Context
+- Issue number: Issue 14
+- Issue kind: additional
+- Priority: P3
+- Severity: Medium
+- Affected area: module discovery ordering and normalization
+- Failure mode: Discovery routines depend on filesystem enumeration order and return results without a consistent normalization pass, so the module list can shift between runs or platforms.
+- Recommended mitigation: Normalize and sort discovered modules, collections, and nested results by canonical full name before returning them.
+- Acceptance criteria: Repeated discovery on the same tree returns the same order every time.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-15" class="issue-card" data-issue-kind="additional" data-priority="3" aria-labelledby="issue-15-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 15</p>
+          <h2 class="issue-title" id="issue-15-title">Parser heuristics can misclassify ambiguous inputs</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p3">P3</span>
+          <span class="pill medium">Medium</span>
+          <span class="pill medium">Medium</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Parser heuristics can misclassify ambiguous inputs.
+
+## Context
+- Issue number: Issue 15
+- Issue kind: additional
+- Priority: P3
+- Severity: Medium
+- Affected area: parser heuristics and ambiguous input classification
+- Failure mode: The parser first trusts the extension, then uses a lightweight content heuristic, and finally falls back to plaintext, so mixed or weakly marked files can be classified incorrectly instead of being flagged as ambiguous.
+- Recommended mitigation: Keep the current fast path, but surface ambiguity when extension and content cues disagree or when no format score clears a minimum confidence threshold.
+- Acceptance criteria: Ambiguous inputs no longer silently drift into the wrong parser without a clear signal.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <article id="issue-16" class="issue-card" data-issue-kind="additional" data-priority="2" aria-labelledby="issue-16-title">
+      <div class="issue-head">
+        <div>
+          <p class="issue-index">Issue 16</p>
+          <h2 class="issue-title" id="issue-16-title">Video status hides unreadable shot-list failures</h2>
+        </div>
+        <div class="issue-badges">
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill p2">P2</span>
+          <span class="pill high">High</span>
+          <span class="pill medium">Medium</span>
+        </div>
+      </div>
+      <div class="prompt-shell">
+        <p class="prompt-label">New Prompt</p>
+        <pre class="prompt-block"><code class="language-prompt">You are a senior software engineer, debugging specialist, and test-automation engineer working in the FilmBuff repository.
+
+## Objective
+Investigate, fix, and verify the issue titled: Video status hides unreadable shot-list failures.
+
+## Context
+- Issue number: Issue 16
+- Issue kind: additional
+- Priority: P2
+- Severity: High
+- Affected area: video status error handling for unreadable files
+- Failure mode: Any `readAll` exception is caught and converted into an empty shot list, so corrupt or unreadable status data looks like &quot;no shots&quot; instead of a failure.
+- Recommended mitigation: Surface a visible error state or a structured unreadable-status result instead of treating the file as empty.
+- Acceptance criteria: An unreadable shot list is never shown as a clean empty status response.
+
+## Required Work
+1. Read the repository guidance first, including `AGENTS.md`, `README.md`, and nearby source and test files.
+2. Inspect the affected code path and reproduce or confirm the problem when practical.
+3. Identify the root cause and any adjacent regressions.
+4. Implement the smallest safe fix that fully satisfies the acceptance criteria.
+5. Add or update tests for the main path, failure path, and any relevant edge cases.
+6. Run the narrowest relevant tests first, then broader verification if the change touches shared code.
+
+## Constraints
+- Preserve unrelated behavior.
+- Keep the implementation aligned with existing repository patterns.
+- Do not introduce unnecessary abstractions or dependencies.
+- Do not use em dashes in generated content or the final response.
+- State any assumption explicitly if the repository does not prove it.
+
+## Output
+Return a concise implementation summary, the tests you ran, a compact test matrix, and any remaining risks.</code></pre>
+      </div>
+    </article>
+
+    <footer>
+      <p>
+        Report note: this document is intentionally static and self-contained. It was written to be easy to audit,
+        print, and diff without needing any external script or runtime.
+      </p>
+    </footer>
+  </main>
+</body>
+</html>
