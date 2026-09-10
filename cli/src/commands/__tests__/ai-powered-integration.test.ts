@@ -83,6 +83,7 @@ describe('generate-video command — integration', () => {
   let inputFile: string;
   let exitSpy:   jest.SpiedFunction<typeof process.exit>;
   let stderrSpy: jest.SpiedFunction<typeof process.stderr.write>;
+  let consoleErrorSpy: jest.SpiedFunction<typeof console.error>;
 
   beforeEach(() => {
     tmpDir    = makeTmpDir();
@@ -91,6 +92,8 @@ describe('generate-video command — integration', () => {
     stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation(() => true);
     jest.spyOn(console, 'log').mockImplementation(() => {});
     jest.spyOn(console, 'warn').mockImplementation(() => {});
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    MockGenerator.mockClear();
 
     // Default mock: generateForShotList returns one result per shot in the batch
     MockGenerator.mockImplementation(() => ({
@@ -165,15 +168,23 @@ describe('generate-video command — integration', () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it('JSONL parse failure: skips bad lines and still exits 0 if valid shots remain', async () => {
+  it('JSONL parse failure: stops before generation and reports the bad line', async () => {
     const mixedPath = path.join(tmpDir, 'mixed.jsonl');
     fs.writeFileSync(mixedPath,
+      JSON.stringify({ shotNumber: 1, description: 'Good shot', videoControls: { duration: 4 } }) + '\n' +
       'NOT_JSON_AT_ALL\n' +
-      JSON.stringify({ shotNumber: 1, description: 'Good shot', videoControls: { duration: 4 } }) + '\n'
+      JSON.stringify({ shotNumber: 2, description: 'Another good shot', videoControls: { duration: 4 } }) + '\n'
     );
     const outputDir = path.join(tmpDir, 'out-mixed');
     await generateVideoCommand({ input: mixedPath, mock: true, output: outputDir });
-    expect(exitSpy).toHaveBeenCalledWith(0);
+
+    expect(exitSpy).toHaveBeenCalledWith(1);
+    expect(MockGenerator).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(outputDir, 'manifest.json'))).toBe(false);
+
+    const output = consoleErrorSpy.mock.calls.flat().join('');
+    expect(output).toContain('The shot list contains malformed JSON. Fix the bad line before generating video.');
+    expect(output).toContain('Line 2');
   });
 });
 

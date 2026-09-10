@@ -51,19 +51,34 @@ export interface GenerateVideoOptions {
 // Helpers
 // ---------------------------------------------------------------------------
 
+class ShotListParseError extends Error {
+  readonly lineNumber: number;
+
+  constructor(lineNumber: number, cause?: unknown) {
+    super(`The shot list contains malformed JSON. Fix the bad line before generating video. Line ${lineNumber}.`);
+    this.name = 'ShotListParseError';
+    this.lineNumber = lineNumber;
+    if (cause instanceof Error && cause.stack) {
+      this.stack = cause.stack;
+    }
+  }
+}
+
 /** Parse a JSONL file and return all non-empty JSON lines as ShotEntry objects. */
 async function readShotList(filePath: string): Promise<ShotEntry[]> {
   const entries: ShotEntry[] = [];
   const fileStream = fs.createReadStream(filePath, { encoding: 'utf-8' });
   const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+  let lineNumber = 0;
 
   for await (const line of rl) {
+    lineNumber += 1;
     const trimmed = line.trim();
     if (!trimmed) continue;
     try {
       entries.push(JSON.parse(trimmed) as ShotEntry);
-    } catch {
-      console.warn(chalk.yellow(`  Warning: skipped invalid JSON line: ${trimmed.slice(0, 80)}`));
+    } catch (error) {
+      throw new ShotListParseError(lineNumber, error);
     }
   }
 
@@ -93,7 +108,7 @@ export function parseProviderOptions(value?: string | Record<string, unknown>): 
 }
 
 /** Translate ai-powered typed errors to user-actionable messages. */
-function handleAiPoweredError(err: unknown): void {
+function handleAiPoweredError(err: unknown): boolean {
   const name = (err as any)?.name ?? '';
   const msg  = (err as any)?.message ?? String(err);
 
@@ -122,9 +137,14 @@ function handleAiPoweredError(err: unknown): void {
     const raw = (err as any).rawResponse;
     if (raw) console.error(chalk.gray(`  Raw response: ${JSON.stringify(raw).slice(0, 200)}`));
     process.exit(2);
+    return true;
+  } else if (name === 'ShotListParseError') {
+    console.error(chalk.red(`✗ ${msg}`));
   } else {
     console.error(chalk.red(`✗ Video generation failed: ${msg}`));
   }
+
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +158,7 @@ export async function generateVideoCommand(options: GenerateVideoOptions): Promi
   if (!fs.existsSync(options.input)) {
     console.error(chalk.red(`✗ Input file not found: ${options.input}`));
     process.exit(1);
+    return;
   }
 
   const provider    = options.provider    ?? 'lumaai';
@@ -172,6 +193,7 @@ export async function generateVideoCommand(options: GenerateVideoOptions): Promi
     if (shots.length === 0) {
       console.warn(chalk.yellow('⚠ No shots to process.'));
       process.exit(0);
+      return;
     }
 
     // 3. Generate videos
@@ -195,9 +217,11 @@ export async function generateVideoCommand(options: GenerateVideoOptions): Promi
     console.log(chalk.green(`✓ Manifest written to: ${manifestPath}`));
     console.log(chalk.green('\n✅ Video generation complete!\n'));
     process.exit(0);
+    return;
 
   } catch (err) {
-    handleAiPoweredError(err);
+    if (handleAiPoweredError(err)) return;
     process.exit(1);
+    return;
   }
 }
