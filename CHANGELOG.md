@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.2] - 2026-09-10
+
+### Fixed
+- **Shot-list parser docs** - Updated generate-shot-list help text to list Fountain, Markdown, Plain Text, Final Draft, PDF, DOCX, and RTF input support.
+
 ## [2.5.1] - 2026-03-06
 
 ### Added

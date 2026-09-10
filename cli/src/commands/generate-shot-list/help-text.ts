@@ -28,7 +28,8 @@ DESCRIPTION
 REQUIRED ARGUMENTS
   --input <file>
       Path to screenplay file
-      Supported formats: Fountain (.fountain), Markdown (.md), Plain Text (.txt)
+      Supported formats: Fountain (.fountain), Markdown (.md), Plain Text (.txt),
+      Final Draft (.fdx), PDF (.pdf), DOCX (.docx), and RTF (.rtf)
       
       Examples:
         --input screenplay.fountain
@@ -153,6 +154,10 @@ SUPPORTED FORMATS
     • Fountain (.fountain) - Industry-standard screenplay format
     • Markdown (.md) - Headings as scenes, paragraphs as action/dialogue
     • Plain Text (.txt) - Simple text with INT/EXT scene headings
+    • Final Draft (.fdx) - Final Draft XML screenplay files
+    • PDF (.pdf) - Extracted screenplay text from PDF documents
+    • DOCX (.docx) - Microsoft Word screenplay documents
+    • RTF (.rtf) - Rich Text Format screenplay documents
 
   Output Formats:
     • Markdown (md) - Structured shot list with tables

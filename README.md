@@ -2,7 +2,7 @@
 
 **AI-powered writing and screenplay tools — Creative Writing Edition**
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/mytech-today-now/filmbuff)
+[![Version](https://img.shields.io/badge/version-2.5.2-blue.svg)](https://github.com/mytech-today-now/filmbuff)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![npm](https://img.shields.io/badge/npm-%40mytechtoday%2Ffilmbuff-red.svg)](https://www.npmjs.com/package/@mytechtoday/filmbuff)
 
@@ -40,8 +40,10 @@ npm install -g @mytechtoday/filmbuff
 filmbuff --version
 filmbuff init
 filmbuff link writing-standards/screenplay
-filmbuff generate-shot-list script.fountain
+filmbuff generate-shot-list --input script.fountain
 ```
+
+The shot-list generator accepts Fountain, Markdown, Plain Text, Final Draft, PDF, DOCX, and RTF screenplay inputs.
 
 ## 📥 Installation
 
