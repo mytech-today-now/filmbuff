@@ -1,0 +1,1762 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FilmBuff Triage Fix Prompts, 2026-09-11</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f5efe4;
+      --paper-2: #efe3d0;
+      --card: rgba(255, 252, 247, 0.94);
+      --ink: #2c2419;
+      --muted: #635546;
+      --line: #d6c4ad;
+      --accent: #5c3e1a;
+      --accent-2: #1d4c50;
+      --shadow: 0 14px 36px rgba(57, 40, 20, 0.12);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 36%),
+        linear-gradient(180deg, #eadcc6 0%, #f8f2e7 22%, #efe1cb 100%);
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.6;
+    }
+
+    main {
+      width: min(1200px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .hero,
+    .toc,
+    .issue {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 28px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow,
+    .issue-kicker,
+    .meta {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+
+    h1, h2, h3 {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      margin-bottom: 12px;
+      color: #22170d;
+    }
+
+    .lead {
+      max-width: 78ch;
+      margin: 0;
+      font-size: 1.03rem;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid rgba(92, 62, 26, 0.18);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(240, 229, 209, 0.88));
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    .toc {
+      padding: 22px 22px 12px;
+      margin-bottom: 22px;
+    }
+
+    .toc h2 {
+      margin-bottom: 12px;
+      font-size: 1.35rem;
+    }
+
+    .toc ol {
+      margin: 0;
+      padding-left: 0;
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+    }
+
+    .toc a {
+      display: grid;
+      gap: 4px;
+      text-decoration: none;
+      color: inherit;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(214, 196, 173, 0.9);
+      background: rgba(255, 255, 255, 0.66);
+      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .toc a:hover,
+    .toc a:focus-visible {
+      transform: translateY(-1px);
+      border-color: rgba(92, 62, 26, 0.4);
+      box-shadow: 0 8px 20px rgba(57, 40, 20, 0.08);
+      outline: none;
+    }
+
+    .toc-number,
+    .toc-meta {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .issue {
+      padding: 22px;
+      margin-bottom: 22px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .issue-header {
+      margin-bottom: 16px;
+    }
+
+    .issue-header h2 {
+      margin: 6px 0 8px;
+      font-size: clamp(1.25rem, 2vw, 1.7rem);
+      color: #271b10;
+    }
+
+    .issue-summary {
+      margin: 0;
+      max-width: 90ch;
+      color: var(--muted);
+    }
+
+    .issue-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 14px;
+    }
+
+    .issue-field {
+      border-radius: 18px;
+      border: 1px solid rgba(214, 196, 173, 0.95);
+      background: rgba(255, 255, 255, 0.75);
+      padding: 14px;
+    }
+
+    .issue-field.wide {
+      grid-column: 1 / -1;
+    }
+
+    .issue-field h3 {
+      margin-bottom: 10px;
+      font-size: 1rem;
+      color: #302114;
+    }
+
+    details {
+      border-radius: 14px;
+      border: 1px solid rgba(92, 62, 26, 0.16);
+      background: rgba(250, 244, 234, 0.9);
+      padding: 10px 12px;
+    }
+
+    details + details {
+      margin-top: 10px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.92rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    pre {
+      margin: 12px 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #24180d;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid rgba(92, 62, 26, 0.12);
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    li + li {
+      margin-top: 6px;
+    }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.9rem;
+    }
+
+    .footer-card {
+      margin-top: 22px;
+      padding: 18px 20px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: rgba(255, 252, 247, 0.9);
+      box-shadow: var(--shadow);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <p class="eyebrow">FilmBuff triage output</p>
+      <h1>Triage Fix Prompts, 2026-09-11</h1>
+      <p class="lead">This document turns the 2026-09-10 pre-mortem issues into downstream implementation prompts. Each issue section includes the raw draft prompt, a refined prompt with explicit sections, and concise test and acceptance notes for the next coding agent.</p>
+      <div class="meta-row">
+        <span class="chip">Generated 2026-09-11T20:48:09.783Z</span>
+        <span class="chip">Source: ai-prompts/pre-mortem-2026-09-10-18-27-25.html</span>
+        <span class="chip">16 issue prompts</span>
+      </div>
+    </header>
+
+    <nav class="toc" aria-label="Table of contents">
+      <h2>Table of Contents</h2>
+      <ol>
+        
+  <li>
+    <a href="#issue-01">
+      <span class="toc-number">01</span>
+      <span class="toc-title">Compile viewer points at the wrong clip path</span>
+      <span class="toc-meta">High severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-02">
+      <span class="toc-number">02</span>
+      <span class="toc-title">Compile viewer writes unsanitized HTML</span>
+      <span class="toc-meta">Critical severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-03">
+      <span class="toc-number">03</span>
+      <span class="toc-title">Title-card ffmpeg command is shell-interpreted</span>
+      <span class="toc-meta">Critical severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-04">
+      <span class="toc-number">04</span>
+      <span class="toc-title">Concat list paths are not escaped</span>
+      <span class="toc-meta">High severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-05">
+      <span class="toc-number">05</span>
+      <span class="toc-title">Project agnostic validation misses source files</span>
+      <span class="toc-meta">High severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-06">
+      <span class="toc-number">06</span>
+      <span class="toc-title">Malformed completed.jsonl causes false negatives</span>
+      <span class="toc-meta">High severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-07">
+      <span class="toc-number">07</span>
+      <span class="toc-title">Completed task lists silently truncate on bad JSON</span>
+      <span class="toc-meta">High severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-08">
+      <span class="toc-number">08</span>
+      <span class="toc-title">Date filters accept invalid or timezone-shifted input</span>
+      <span class="toc-meta">Medium severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-09">
+      <span class="toc-number">09</span>
+      <span class="toc-title">Hyphenated subcommands are omitted from help</span>
+      <span class="toc-meta">Medium severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-10">
+      <span class="toc-number">10</span>
+      <span class="toc-title">Update skips legacy linked modules</span>
+      <span class="toc-meta">High severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-11">
+      <span class="toc-number">11</span>
+      <span class="toc-title">Pin preserves alias names instead of normalizing</span>
+      <span class="toc-meta">Medium severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-12">
+      <span class="toc-number">12</span>
+      <span class="toc-title">Upgrade only rewrites exact canonical names</span>
+      <span class="toc-meta">Medium severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-13">
+      <span class="toc-number">13</span>
+      <span class="toc-title">Reject and reopen report archive success on missing clips</span>
+      <span class="toc-meta">Medium severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-14">
+      <span class="toc-number">14</span>
+      <span class="toc-title">Reject and reopen are not transactional</span>
+      <span class="toc-meta">High severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-15">
+      <span class="toc-number">15</span>
+      <span class="toc-title">VS Code helper shells out with a concatenated command string</span>
+      <span class="toc-meta">High severity</span>
+    </a>
+  </li>
+  <li>
+    <a href="#issue-16">
+      <span class="toc-number">16</span>
+      <span class="toc-title">Version info JSON emits the requested alias instead of the canonical id</span>
+      <span class="toc-meta">Medium severity</span>
+    </a>
+  </li>
+      </ol>
+    </nav>
+
+    
+    <article class="issue" id="issue-01">
+      <header class="issue-header">
+        <p class="issue-kicker">01 · Core · High severity · Likely</p>
+        <h2>Compile viewer points at the wrong clip path</h2>
+        <p class="issue-summary">The generated viewer uses only the clip basename, but the zip stores clips inside a clips/ folder. The result is a review page that cannot load media once the archive is opened.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior full-stack engineer and test automation specialist.
+
+Objective
+Fix the FilmBuff video compile output so the generated HTML viewer opens the same clip files that the delivered archive contains.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/video/compile.ts
+- Known failure: the viewer uses path.basename(record.clip_path) while the zip stores clips under clips/.
+- Preserve the existing compile flow, archive layout, and non-video behavior.
+
+Required work
+1. Inspect the repository instructions and the surrounding video compile code.
+2. Confirm the path mismatch from the source, the HTML viewer, and the zip layout.
+3. Implement the smallest safe change that makes the viewer and archive agree.
+4. Add or update tests that prove the generated index page can load clips from the delivered package.
+5. Cover edge cases such as spaces in clip names and nested output directories.
+6. Run the narrowest relevant verification first, then broaden if needed.
+
+Acceptance criteria
+- Every video element in index.html resolves to an existing file in the output package.
+- The clip path used by the viewer matches the packaged archive layout.
+- Existing non-video behavior remains unchanged.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dashes in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior full-stack engineer and test automation specialist. Fix the clip path mismatch in the generated viewer with the smallest safe change, and keep the archive layout stable. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The generated viewer uses only the clip basename, but the zip stores clips inside a clips/ folder. The result is a review page that cannot load media once the archive is opened. cli/src/commands/video/compile.ts:147-188 sets clipFile to path.basename(record.clip_path), while the archive adds each file as clips/&lt;basename&gt;.. Opening index.html from the output folder or extracted zip loads the page, but the player elements point at paths that do not exist..
+
+Expected behavior
+The viewer should use the same archive-relative clip path that the delivered zip contains, so the extracted package opens cleanly.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Compare the viewer path construction in cli/src/commands/video/compile.ts with the archive layout and reproduce the mismatch on a fixture project.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Update the smallest path-building point so the viewer and archive share one canonical relative path, and avoid creating a second source of truth for clip locations.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Assert the generated index.html resolves every clip URL into the packaged archive, including a clip name with spaces and a nested output directory.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run the compile flow end to end on a sample project and verify the first and last clips load from the extracted viewer.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;No viewer URL points at a missing file, and the archive layout stays unchanged.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If a canonical relative-path helper already exists, reuse it and document any residual browser-level verification gap.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Assert the generated index.html resolves every clip URL into the packaged archive, including a clip name with spaces and a nested output directory.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run the compile flow end to end on a sample project and verify the first and last clips load from the extracted viewer.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>No viewer URL points at a missing file, and the archive layout stays unchanged.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If a canonical relative-path helper already exists, reuse it and document any residual browser-level verification gap.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-02">
+      <header class="issue-header">
+        <p class="issue-kicker">02 · Core · Critical severity · Likely</p>
+        <h2>Compile viewer writes unsanitized HTML</h2>
+        <p class="issue-summary">Scene names, shot ids, and clip names are interpolated directly into the HTML document. A malformed or hostile value can break the page or inject markup into the generated viewer.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior full-stack engineer and application security specialist.
+
+Objective
+Fix the generated video viewer so untrusted shot titles, scene names, and clip names cannot become HTML markup.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/video/compile.ts
+- Known failure: buildIndexHtml() interpolates shotId, scene, and clipFile directly into HTML without escaping.
+- Preserve the current viewer layout and compile behavior.
+
+Required work
+1. Inspect the repository instructions and the affected HTML generation code.
+2. Confirm which values are user controlled and where they enter the template.
+3. Escape or safely render every untrusted value before it reaches HTML.
+4. Add tests that use special characters, quotes, and markup-like input.
+5. Confirm normal titles still render correctly.
+6. Verify the output remains a valid static viewer.
+
+Acceptance criteria
+- The generated HTML contains escaped text only.
+- No user-controlled value can create active markup in the viewer.
+- Existing normal content still renders as expected.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior full-stack engineer and application security specialist. Escape every user-controlled value before it reaches the generated HTML viewer. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+Scene names, shot ids, and clip names are interpolated directly into the HTML document. A malformed or hostile value can break the page or inject markup into the generated viewer. buildIndexHtml() in cli/src/commands/video/compile.ts inserts shotId, scene, and clipFile into a template string with no escaping.. A title such as &lt;script&gt; or a clip name containing quotes can alter the DOM, distort the viewer, or open the door to HTML injection..
+
+Expected behavior
+All shot text, scene names, and clip names should render as literal text, not as markup.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Trace every value that reaches the HTML template in cli/src/commands/video/compile.ts and confirm which inputs are untrusted.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Add or reuse an escaping helper at the rendering boundary and apply it to every interpolated value instead of relying on ad hoc sanitization.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Assert special characters, quotes, and markup-like values are encoded safely, while normal titles still render.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Open the generated viewer in the existing browser or DOM-level integration harness and confirm the page stays valid with hostile text.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;No user-controlled value can inject active HTML into the viewer.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If attributes and text nodes need different escaping, keep the helper boundary explicit and note any unverified attribute behavior.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Assert special characters, quotes, and markup-like values are encoded safely, while normal titles still render.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Open the generated viewer in the existing browser or DOM-level integration harness and confirm the page stays valid with hostile text.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>No user-controlled value can inject active HTML into the viewer.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If attributes and text nodes need different escaping, keep the helper boundary explicit and note any unverified attribute behavior.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-03">
+      <header class="issue-header">
+        <p class="issue-kicker">03 · Core · Critical severity · Likely</p>
+        <h2>Title-card ffmpeg command is shell-interpreted</h2>
+        <p class="issue-summary">The scene title is embedded inside a shell command string and handed to exec. That means shell metacharacters can be interpreted instead of treated as literal text.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior backend engineer and security-focused automation specialist.
+
+Objective
+Remove the shell-injection risk from scene title card rendering in the video compile command.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/video/compile.ts
+- Known failure: the title-card ffmpeg command is built as a shell string and executed with exec().
+- Preserve the existing title-card feature and ffmpeg-based output.
+
+Required work
+1. Inspect how the command currently builds the title card and how ffmpeg is invoked elsewhere.
+2. Replace shell-string execution with a process-safe invocation strategy.
+3. Make sure scene text is handled as literal data, not shell syntax.
+4. Add regression tests for quotes, punctuation, and shell-like characters in scene names.
+5. Validate that ordinary scene titles still render correctly.
+
+Acceptance criteria
+- The title-card command no longer depends on shell parsing.
+- Scene text cannot alter the command structure.
+- Title cards still generate correctly for normal input.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior backend engineer and security-focused automation specialist. Remove the shell-injection risk from scene title-card rendering in the video compile command. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The scene title is embedded inside a shell command string and handed to exec. That means shell metacharacters can be interpreted instead of treated as literal text. cli/src/commands/video/compile.ts:137-142 builds titleCmd with shot.scene inside drawtext, then runs await exec(titleCmd).. A scene string containing shell syntax can break the title-card render or be interpreted by the shell before ffmpeg ever sees it..
+
+Expected behavior
+Scene text should reach ffmpeg as literal data, not as shell syntax.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect the title-card command construction and compare it with other ffmpeg invocations in the repo that avoid shell parsing.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Replace the shell string with a process-safe API, pass arguments separately, and make sure drawtext escaping is handled at the ffmpeg boundary.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Cover quotes, punctuation, and shell-like characters in scene names, and assert the command structure no longer depends on exec parsing.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Render a title card through the normal compile flow and confirm the output file is produced for a scene name with special characters.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;The title-card path no longer depends on shell interpretation.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If a helper already wraps process execution safely, reuse it and document any remaining ffmpeg filter-string edge cases.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Cover quotes, punctuation, and shell-like characters in scene names, and assert the command structure no longer depends on exec parsing.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Render a title card through the normal compile flow and confirm the output file is produced for a scene name with special characters.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>The title-card path no longer depends on shell interpretation.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If a helper already wraps process execution safely, reuse it and document any remaining ffmpeg filter-string edge cases.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-04">
+      <header class="issue-header">
+        <p class="issue-kicker">04 · Core · High severity · Likely</p>
+        <h2>Concat list paths are not escaped</h2>
+        <p class="issue-summary">The ffmpeg concat manifest is written with raw single quotes around each path. Any apostrophe inside a path or file name can break the manifest and stop the compile step.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior backend engineer and reliability specialist.
+
+Objective
+Make ffmpeg concat manifest generation safe for paths that contain apostrophes or other special characters.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/video/compile.ts
+- Known failure: concat lines are written as file &#39;path&#39; without escaping.
+- Preserve the existing combined.mp4 workflow and archive layout.
+
+Required work
+1. Inspect how concat.txt is generated and how ffmpeg consumes it.
+2. Escape paths according to ffmpeg concat rules or use a safe serializer.
+3. Add tests that cover apostrophes, spaces, and nested directories.
+4. Confirm the generated combined video still builds for normal projects.
+
+Acceptance criteria
+- Concat entries are parseable by ffmpeg for all tested path shapes.
+- Apostrophes in paths do not break compilation.
+- Existing supported paths continue to work.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior backend engineer and reliability specialist. Make ffmpeg concat manifest generation safe for paths that contain apostrophes or other special characters. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The ffmpeg concat manifest is written with raw single quotes around each path. Any apostrophe inside a path or file name can break the manifest and stop the compile step. cli/src/commands/video/compile.ts:142-151 writes file &#39;&lt;path&gt;&#39; lines directly for both the title card and each clip.. If a project path, clip path, or generated title-card path contains an apostrophe, ffmpeg can misparse the manifest and refuse to build combined.mp4..
+
+Expected behavior
+The concat manifest should be parseable by ffmpeg for every supported path shape.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect how concat.txt is generated and compare it with ffmpeg concat escaping rules.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Escape apostrophes and other special characters correctly, or switch to a helper that serializes concat entries safely.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Compile projects with apostrophes, spaces, unicode, and nested directories in paths, then assert the manifest and final video are produced.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run the full combined video compile workflow against a real fixture and confirm ffmpeg accepts the generated concat list.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;Apostrophes or other special characters do not break the manifest.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If the repo already has a safe file-list helper, prefer it and note any path-shape not covered by the fixture.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Compile projects with apostrophes, spaces, unicode, and nested directories in paths, then assert the manifest and final video are produced.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run the full combined video compile workflow against a real fixture and confirm ffmpeg accepts the generated concat list.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>Apostrophes or other special characters do not break the manifest.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If the repo already has a safe file-list helper, prefer it and note any path-shape not covered by the fixture.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-05">
+      <header class="issue-header">
+        <p class="issue-kicker">05 · Core · High severity · Likely</p>
+        <h2>Project agnostic validation misses source files</h2>
+        <p class="issue-summary">The validator only scans markdown and JSON files even though the module tree contains TypeScript source. That leaves a large blind spot for hardcoded paths and URLs in code files.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and repository tooling specialist.
+
+Objective
+Expand project agnostic validation so it catches hardcoded paths and URLs in module source files, not just markdown and JSON.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/utils/module-system.ts
+- Known failure: validateProjectAgnostic() only scans .md and .json files even though module trees contain .ts files.
+- Preserve the current validation categories and output format unless a change is required.
+
+Required work
+1. Inspect the validation flow and the module tree layout.
+2. Confirm which file types should be checked for this repository.
+3. Extend the scan safely without introducing false positives on generated or irrelevant files.
+4. Add tests that prove source files are scanned and that existing markdown and JSON behavior remains intact.
+
+Acceptance criteria
+- Source-bearing module files are included in validation.
+- Hardcoded paths and URLs in applicable code files are reported.
+- Existing markdown and JSON checks still pass unchanged.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and repository tooling specialist. Expand project agnostic validation so it catches hardcoded paths and URLs in module source files, not just markdown and JSON. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The validator only scans markdown and JSON files even though the module tree contains TypeScript source. That leaves a large blind spot for hardcoded paths and URLs in code files. cli/src/utils/module-system.ts:1249-1264 only calls scanFile() for .md and .json entries, while the repo has module TypeScript files under filmbuff/writing-standards/screenplay/.. Code-level references can slip through validation even when documentation and metadata look clean, so a module can ship with a hidden path or URL problem..
+
+Expected behavior
+Validation should scan source-bearing module files as well as markdown and JSON.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect the validation walker in cli/src/utils/module-system.ts and confirm which file types are currently excluded.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Expand the scan to the minimal file set that actually carries user-authored paths or URLs, without adding noise from generated artifacts.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Assert a bad path or URL in a .ts file is reported, while existing .md and .json behavior stays intact.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run the project agnostic validation command on a fixture module tree that includes source files and verify the violation appears in the real output.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;Source files can no longer bypass validation.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If some source trees are intentionally generated, keep them excluded and document the boundary.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Assert a bad path or URL in a .ts file is reported, while existing .md and .json behavior stays intact.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run the project agnostic validation command on a fixture module tree that includes source files and verify the violation appears in the real output.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>Source files can no longer bypass validation.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If some source trees are intentionally generated, keep them excluded and document the boundary.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-06">
+      <header class="issue-header">
+        <p class="issue-kicker">06 · Core · High severity · Medium likelihood</p>
+        <h2>Malformed completed.jsonl causes false negatives</h2>
+        <p class="issue-summary">Single-task lookup helpers read the completed history line by line and silently ignore JSON parse failures. A corrupted line can therefore look like the task never existed.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and data-integrity specialist.
+
+Objective
+Make completed-task lookups fail or report corruption explicitly when scripts/completed.jsonl contains malformed JSON.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/utils/beadsCompletedChecker.ts
+- Known failure: isTaskCompleted() and getCompletedTask() silently ignore parse failures.
+- Preserve the current query behavior for valid completed records.
+
+Required work
+1. Inspect the completed-task helpers and the file format expectations.
+2. Decide how parse failures should be surfaced to callers.
+3. Implement the smallest safe change that distinguishes missing data from corrupted data.
+4. Add tests for malformed lines, valid lines, and duplicate task ids.
+
+Acceptance criteria
+- A corrupted history file cannot look like a clean negative lookup.
+- Valid completed records still resolve correctly.
+- The caller can detect malformed input instead of silently losing history.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and data integrity specialist. Make completed-task lookups distinguish a missing record from a corrupted history file. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+Single-task lookup helpers read the completed history line by line and silently ignore JSON parse failures. A corrupted line can therefore look like the task never existed. cli/src/utils/beadsCompletedChecker.ts:58-105 catches parse errors in isTaskCompleted() and getCompletedTask() without surfacing a corruption signal to the caller.. If the only durable record for a completed task is malformed, the lookup path returns false or null instead of saying the history is damaged..
+
+Expected behavior
+Lookup helpers should distinguish a missing completed task from a corrupted history file.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect beadsCompletedChecker.ts and the completed history format to see how parse failures are currently swallowed.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Surface corruption explicitly, preserve valid records, and keep the valid lookup path unchanged.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Use a fixture with one malformed line and one valid record, then assert the helper reports corruption instead of returning a clean negative.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run the relevant CLI command against the corrupted fixture and confirm the user sees an explicit corruption signal.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;A bad line can never look like an ordinary not-found result.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If callers need an error object versus a thrown exception, choose the least disruptive form the existing command contract already supports.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Use a fixture with one malformed line and one valid record, then assert the helper reports corruption instead of returning a clean negative.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run the relevant CLI command against the corrupted fixture and confirm the user sees an explicit corruption signal.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>A bad line can never look like an ordinary not-found result.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If callers need an error object versus a thrown exception, choose the least disruptive form the existing command contract already supports.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-07">
+      <header class="issue-header">
+        <p class="issue-kicker">07 · Core · High severity · Likely</p>
+        <h2>Completed task lists silently truncate on bad JSON</h2>
+        <p class="issue-summary">The full completed-task listing path also swallows parse failures and keeps going. That means a damaged history can still produce a cheerful list that is missing work.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and data-quality specialist.
+
+Objective
+Prevent completed-task listings from silently dropping records when scripts/completed.jsonl contains bad JSON.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/utils/beadsCompletedChecker.ts
+- Known failure: getAllCompletedTasks() catches parse errors and continues without a corruption signal.
+- Preserve the current sort and de-duplication behavior for clean data.
+
+Required work
+1. Inspect the full completed-task listing flow and how the command presents results.
+2. Add a corruption-aware path so partial history cannot masquerade as complete history.
+3. Add regression tests for mixed valid and invalid lines.
+4. Confirm clean files still produce the same task list behavior.
+
+Acceptance criteria
+- A damaged completed history is reported explicitly.
+- Valid records are not lost without explanation.
+- Clean input still sorts and de-duplicates correctly.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and data-quality specialist. Prevent the completed-task list from silently dropping broken lines. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The full completed-task listing path also swallows parse failures and keeps going. That means a damaged history can still produce a cheerful list that is missing work. cli/src/utils/beadsCompletedChecker.ts:117-135 reads every line, catches parse errors, and only inserts successfully parsed tasks into the map.. A broken line can disappear from the final history without failing the command, so the user gets a partial report that looks complete..
+
+Expected behavior
+List output should report corrupted completed history instead of silently omitting bad JSON.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Trace the full completed-task listing path in beadsCompletedChecker.ts and the command that renders it to the user.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Add a corruption-aware path that preserves valid records while surfacing the damaged line.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Feed a mixed valid and invalid fixture and assert the list command reports corruption instead of appearing complete.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Exercise the actual completed-task listing command with the corrupted fixture and check the end-to-end output.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;History truncation is visible, not silent.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If the command must continue for partial data, make that behavior explicit in the output and tests.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Feed a mixed valid and invalid fixture and assert the list command reports corruption instead of appearing complete.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Exercise the actual completed-task listing command with the corrupted fixture and check the end-to-end output.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>History truncation is visible, not silent.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If the command must continue for partial data, make that behavior explicit in the output and tests.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-08">
+      <header class="issue-header">
+        <p class="issue-kicker">08 · Core · Medium severity · Medium likelihood</p>
+        <h2>Date filters accept invalid or timezone-shifted input</h2>
+        <p class="issue-summary">The date range filter relies on new Date() for both boundaries without validation or normalization. Invalid values behave like no filter, and date-only inputs can drift at the timezone edge.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and data validation specialist.
+
+Objective
+Make completed-task date filtering reject invalid inputs and behave consistently across timezones.
+
+Context
+- Repository: FilmBuff
+- Affected files: cli/src/utils/beadsCompletedChecker.ts and cli/src/commands/showCompleted.ts
+- Known failure: filterTasksByDateRange() uses new Date() directly on raw strings.
+- Preserve the existing completed-task listing behavior for valid filters.
+
+Required work
+1. Inspect the filter logic and the command options that feed it.
+2. Define the accepted date format and boundary semantics.
+3. Normalize or validate the inputs before filtering.
+4. Add tests for invalid dates, date-only filters, and near-midnight cases.
+
+Acceptance criteria
+- Invalid filter input is rejected or reported clearly.
+- The same logical day maps to the same output set.
+- Existing valid filters continue to work.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and data validation specialist. Make completed-task date filtering reject invalid inputs and behave consistently across timezones. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The date range filter relies on new Date() for both boundaries without validation or normalization. Invalid values behave like no filter, and date-only inputs can drift at the timezone edge. cli/src/utils/beadsCompletedChecker.ts:149-168 parses since and until directly with new Date(), while cli/src/commands/showCompleted.ts:175-176 passes the raw strings through unchanged.. Users can believe they filtered by a date range when the parser silently accepted an invalid string or interpreted a date at the wrong day boundary..
+
+Expected behavior
+Date filters should reject invalid input and treat the same logical day consistently across timezones.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect beadsCompletedChecker.ts and showCompleted.ts to see where raw date strings enter the filter.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Validate the accepted date format, normalize day boundaries deliberately, and stop relying on new Date parsing alone.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Cover invalid strings, date-only boundaries, and a task near midnight so timezone drift cannot regress.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run the CLI with since and until filters against a fixture completed history and confirm the filtered output matches the normalized date semantics.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;Invalid filters are rejected or reported clearly, and valid day filters are stable.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If the repo supports multiple date input formats, document the supported ones and keep the parser narrow.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Cover invalid strings, date-only boundaries, and a task near midnight so timezone drift cannot regress.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run the CLI with since and until filters against a fixture completed history and confirm the filtered output matches the normalized date semantics.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>Invalid filters are rejected or reported clearly, and valid day filters are stable.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If the repo supports multiple date input formats, document the supported ones and keep the parser narrow.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-09">
+      <header class="issue-header">
+        <p class="issue-kicker">09 · Core · Medium severity · Likely</p>
+        <h2>Hyphenated subcommands are omitted from help</h2>
+        <p class="issue-summary">The help extractor only matches \w+, so commands with hyphens are treated like unsupported tokens and never make it into the generated docs.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and CLI tooling specialist.
+
+Objective
+Fix help extraction so hyphenated subcommands are discovered and documented.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/utils/extractCommandHelp.ts
+- Known failure: the help parser only matches \w+, so commands like generate-video and mcp-server are missed.
+- Preserve the existing help generation format and recursion limits.
+
+Required work
+1. Inspect the parser patterns and the current help tests.
+2. Update command detection so hyphenated names are parsed correctly.
+3. Add regression tests for Commands and Usage sections that include hyphenated names.
+4. Keep the existing one-word command behavior intact.
+
+Acceptance criteria
+- Hyphenated subcommands are included in generated help.
+- Existing simple commands still parse as before.
+- The output remains stable and deduplicated.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and CLI tooling specialist. Fix help extraction so hyphenated subcommands are discovered and documented. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The help extractor only matches \w+, so commands with hyphens are treated like unsupported tokens and never make it into the generated docs. cli/src/utils/extractCommandHelp.ts:46-50 and 113-131 use \w+ in both the section parser and the line parser, which excludes names like mcp-server and generate-video.. The generated command reference can silently omit real CLI entries, especially the hyphenated commands that are common in this repo..
+
+Expected behavior
+The help extractor should include hyphenated command names in the generated docs.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect the parser regexes in extractCommandHelp.ts and compare them against real command names from the CLI.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Broaden the command matcher just enough to accept hyphenated subcommands without breaking existing simple commands.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Add tests for generate-video, mcp-server, and a plain one-word command, and assert all are discovered.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run the help generation flow on real command text and verify the generated reference includes the hyphenated entries.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;No real subcommand is dropped just because it contains a hyphen.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If the parser already has a distinct tokenization path for nested commands, keep the regex change minimal.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Add tests for generate-video, mcp-server, and a plain one-word command, and assert all are discovered.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run the help generation flow on real command text and verify the generated reference includes the hyphenated entries.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>No real subcommand is dropped just because it contains a hyphen.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If the parser already has a distinct tokenization path for nested commands, keep the regex change minimal.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-10">
+      <header class="issue-header">
+        <p class="issue-kicker">10 · Core · High severity · Likely</p>
+        <h2>Update skips legacy linked modules</h2>
+        <p class="issue-summary">The module updater filters by exact stored names and then treats any record whose name does not map to a local directory as externally managed. Legacy alias records can therefore be skipped instead of updated.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and module-management specialist.
+
+Objective
+Make module update handling work for legacy linked-module records as well as canonical names.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/update.ts
+- Known failure: the update command filters and rewrites config entries by exact stored name.
+- Preserve the current update workflow, CLI update flow, and config format where possible.
+
+Required work
+1. Inspect the update flow and how linked module names are resolved elsewhere.
+2. Confirm how legacy alias entries should map to canonical module ids.
+3. Canonicalize the update target before looking up and rewriting config entries.
+4. Add tests for canonical names, legacy aliases, and no-local-source cases.
+
+Acceptance criteria
+- Update can target both canonical and legacy-linked records.
+- The config entry that represents the module is rewritten correctly.
+- Existing canonical update behavior remains unchanged.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and module-management specialist. Make update handle legacy linked-module records as well as canonical names. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The module updater filters by exact stored names and then treats any record whose name does not map to a local directory as externally managed. Legacy alias records can therefore be skipped instead of updated. cli/src/commands/update.ts:49-55 filters with m.name === options.module, and updateModule() then joins linkedModule.name into the filesystem path before deciding whether the module has a local source.. If .augment/extensions.json still contains a legacy alias, the updater can say the module is externally managed or simply miss it entirely even though a local source exists..
+
+Expected behavior
+Update should find and rewrite legacy linked-module records as well as canonical names.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect cli/src/commands/update.ts and compare its lookup logic to the code paths that resolve linked modules elsewhere.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Canonicalize the target before filtering or rewriting config entries, and keep the no-local-source behavior explicit.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Cover canonical names, legacy aliases, and missing local-source cases in tests.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run update against a fixture .augment/extensions.json containing a legacy alias and confirm the correct record is rewritten.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;Legacy linked modules are not skipped or misclassified as externally managed.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If multiple aliases map to the same source, document the selection rule and keep it deterministic.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Cover canonical names, legacy aliases, and missing local-source cases in tests.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run update against a fixture .augment/extensions.json containing a legacy alias and confirm the correct record is rewritten.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>Legacy linked modules are not skipped or misclassified as externally managed.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If multiple aliases map to the same source, document the selection rule and keep it deterministic.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-11">
+      <header class="issue-header">
+        <p class="issue-kicker">11 · Additional · Medium severity · Medium likelihood</p>
+        <h2>Pin preserves alias names instead of normalizing</h2>
+        <p class="issue-summary">The pin command accepts alias-style matches, but when the matching record is an object it only updates the version field. The stored module name can remain stale and keep confusing later commands.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and module identity specialist.
+
+Objective
+Make pinning normalize alias-backed module records instead of preserving stale names.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/pin.ts
+- Known failure: the pin command can update version while leaving the stored name unchanged.
+- Preserve the existing pin workflow and version validation.
+
+Required work
+1. Inspect how pin resolves aliases and how the config entry is rewritten.
+2. Normalize object records to the canonical module id when pinning.
+3. Add tests for string records, object records, and already-pinned versions.
+4. Keep the canonical pin path stable.
+
+Acceptance criteria
+- Pin leaves the config in a canonical state.
+- Alias-backed records are rewritten to the canonical module id.
+- Existing valid pin behavior still passes.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and module identity specialist. Make pinning normalize alias-backed module records instead of preserving stale names. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The pin command accepts alias-style matches, but when the matching record is an object it only updates the version field. The stored module name can remain stale and keep confusing later commands. cli/src/commands/pin.ts:72-113 can match a legacy alias, but the object branch only edits version and leaves name unchanged.. After pinning, the config can still carry a legacy name that later commands resolve inconsistently, which makes the record harder to update or audit..
+
+Expected behavior
+Pin should leave the config in canonical form, not preserve a stale alias name.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect cli/src/commands/pin.ts and the alias resolution path that feeds it.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Normalize object records to the canonical module id when pinning and keep already-pinned records stable.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Test string records, object records, and already-pinned versions, then assert the stored name becomes canonical.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run the pin command against a fixture config with an alias and verify the rewritten manifest.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;Pin always leaves future commands with a canonical module id.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If the config schema needs a backward-compatible migration, keep it minimal and document the rewrite.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Test string records, object records, and already-pinned versions, then assert the stored name becomes canonical.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run the pin command against a fixture config with an alias and verify the rewritten manifest.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>Pin always leaves future commands with a canonical module id.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If the config schema needs a backward-compatible migration, keep it minimal and document the rewrite.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-12">
+      <header class="issue-header">
+        <p class="issue-kicker">12 · Additional · Medium severity · Likely</p>
+        <h2>Upgrade only rewrites exact canonical names</h2>
+        <p class="issue-summary">Upgrade updates .augment/extensions.json only when the stored name matches module.fullName exactly. If the config still uses an alias, the upgrade can report success while the manifest remains stale.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and release management specialist.
+
+Objective
+Make upgrade rewrite the correct linked-module record even when the stored name is not already canonical.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/upgrade.ts
+- Known failure: the config update path searches for an exact match on module.fullName.
+- Preserve the current upgrade detection and reporting behavior.
+
+Required work
+1. Inspect the upgrade flow and the config rewrite logic.
+2. Resolve linked entries through the canonical module id before rewriting.
+3. Add tests for legacy alias records, canonical records, and already-latest cases.
+4. Confirm the upgrade report still reflects the same version decisions.
+
+Acceptance criteria
+- Upgrade never leaves a resolved module with a stale stored name.
+- Alias-backed config entries are updated correctly.
+- Canonical upgrade behavior remains intact.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and release management specialist. Make upgrade rewrite the linked-module record even when the stored name is an alias. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+Upgrade updates .augment/extensions.json only when the stored name matches module.fullName exactly. If the config still uses an alias, the upgrade can report success while the manifest remains stale. cli/src/commands/upgrade.ts:147-156 searches for m.name === module.fullName and only writes back if that exact match succeeds.. The source module upgrades, but the linked config entry can stay on the old alias or name, so the manifest and local source drift apart..
+
+Expected behavior
+Upgrade should rewrite the linked-module record even when the stored name is an alias.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect cli/src/commands/upgrade.ts and the conditions that gate config rewrites.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Resolve the linked entry through the canonical module id before deciding whether to rewrite the manifest.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Cover alias-backed records, canonical records, and already-latest cases in tests.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run upgrade on a fixture manifest that still uses an alias and confirm the config and version both update.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;An upgrade never leaves a resolved module with a stale stored name.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If the lookup model already distinguishes source ids from display names, preserve that separation and only normalize the persisted field.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Cover alias-backed records, canonical records, and already-latest cases in tests.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run upgrade on a fixture manifest that still uses an alias and confirm the config and version both update.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>An upgrade never leaves a resolved module with a stale stored name.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If the lookup model already distinguishes source ids from display names, preserve that separation and only normalize the persisted field.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-13">
+      <header class="issue-header">
+        <p class="issue-kicker">13 · Additional · Medium severity · Medium likelihood</p>
+        <h2>Reject and reopen report archive success on missing clips</h2>
+        <p class="issue-summary">The clip renamer explicitly no-ops when the source file is absent, but the command still logs that the clip was archived. That turns a missing file into a false success story.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and reliability specialist.
+
+Objective
+Make reject and reopen report the real clip archive outcome instead of claiming success when no source clip exists.
+
+Context
+- Repository: FilmBuff
+- Affected files: cli/src/commands/video/reject.ts, cli/src/commands/video/reopen.ts, cli/src/lib/status-file-manager.ts
+- Known failure: renameClipForRetry() no-ops on missing source files, but the commands still log an archive destination.
+- Preserve the state transition semantics and the current audit trail shape where possible.
+
+Required work
+1. Inspect the helper contract and the command-level logging.
+2. Return a structured outcome that distinguishes moved, missing, and failed.
+3. Update the command output so it reflects the real filesystem result.
+4. Add tests for missing clips, normal moves, and already-archived attempts.
+
+Acceptance criteria
+- The commands never claim an archive happened unless a file was actually moved.
+- Missing source clips are reported explicitly.
+- Normal archive behavior still works.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and reliability specialist. Make reject and reopen report the real clip archive outcome instead of claiming success when no source clip exists. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The clip renamer explicitly no-ops when the source file is absent, but the command still logs that the clip was archived. That turns a missing file into a false success story. cli/src/lib/status-file-manager.ts:278-285 documents a no-op when the source does not exist, while cli/src/commands/video/reject.ts:75-80 and reopen.ts:60-89 always log an archived destination.. Operators believe the clip was moved into an attempt archive even when no file existed at the source path, which breaks audit trust..
+
+Expected behavior
+The commands should report whether a clip was moved, missing, or failed, instead of always claiming success.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect status-file-manager.ts and the reject/reopen command logging to see where the missing-file no-op is hidden.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Return a structured outcome from the helper and thread that result through the command output.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Test missing clips, normal moves, and already-archived attempts, and assert the user-facing message matches the real filesystem outcome.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run reject and reopen against a fixture record whose source clip is absent and confirm the command reports the missing source explicitly.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;No archive is claimed unless a file was actually moved.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If existing audit trails depend on the old wording, keep the state record stable and only tighten the success message.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Test missing clips, normal moves, and already-archived attempts, and assert the user-facing message matches the real filesystem outcome.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run reject and reopen against a fixture record whose source clip is absent and confirm the command reports the missing source explicitly.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>No archive is claimed unless a file was actually moved.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If existing audit trails depend on the old wording, keep the state record stable and only tighten the success message.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-14">
+      <header class="issue-header">
+        <p class="issue-kicker">14 · Additional · High severity · Medium likelihood</p>
+        <h2>Reject and reopen are not transactional</h2>
+        <p class="issue-summary">Both commands append the state transition before attempting the clip rename. If the filesystem move fails, the history file already says the transition happened and the clip remains in place.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and transactional workflow specialist.
+
+Objective
+Make reject and reopen behave atomically so the state log does not advance when the clip move fails.
+
+Context
+- Repository: FilmBuff
+- Affected files: cli/src/commands/video/reject.ts and cli/src/commands/video/reopen.ts
+- Known failure: appendRecords() runs before renameClipForRetry(), which can leave state and filesystem out of sync.
+- Preserve the existing status transitions and user-facing command intent.
+
+Required work
+1. Inspect the order of operations and the error handling in both commands.
+2. Reorder or wrap the operations so the state change only persists after the filesystem step succeeds.
+3. Add regression tests that simulate rename failure and confirm no partial transition remains.
+4. Keep the normal archive and reopen paths working.
+
+Acceptance criteria
+- State changes are atomic from the caller perspective.
+- A filesystem failure does not leave a misleading completed transition behind.
+- Existing successful flows still work.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and transactional workflow specialist. Make reject and reopen behave atomically so the state log does not advance when the clip move fails. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+Both commands append the state transition before attempting the clip rename. If the filesystem move fails, the history file already says the transition happened and the clip remains in place. cli/src/commands/video/reject.ts:67-80 and reopen.ts:85-89 call appendRecords() before renameClipForRetry() has a chance to complete or fail.. A permissions error, lock, or disk issue can leave the status log and the filesystem describing two different realities..
+
+Expected behavior
+The state transition should only be recorded after the clip move succeeds.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect the order of operations in reject.ts and reopen.ts and confirm how failures currently leave state and filesystem out of sync.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Reorder the operations or add rollback handling so a failed rename never leaves a partial transition behind.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Simulate a rename failure and assert that no state transition is persisted unless the filesystem step succeeds.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Exercise the full workflow in a temp fixture workspace and verify the log and filesystem stay in sync under both success and failure.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;State and filesystem remain consistent for both reject and reopen.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If atomicity requires a small helper extraction, keep it narrowly scoped and document the failure path.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Simulate a rename failure and assert that no state transition is persisted unless the filesystem step succeeds.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Exercise the full workflow in a temp fixture workspace and verify the log and filesystem stay in sync under both success and failure.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>State and filesystem remain consistent for both reject and reopen.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If atomicity requires a small helper extraction, keep it narrowly scoped and document the failure path.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-15">
+      <header class="issue-header">
+        <p class="issue-kicker">15 · Additional · High severity · Likely</p>
+        <h2>VS Code helper shells out with a concatenated command string</h2>
+        <p class="issue-summary">The editor launcher assembles code plus all arguments into one shell string. That makes the helper fragile for paths with spaces and unsafe for any shell metacharacters that sneak into the argument list.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and desktop tooling specialist.
+
+Objective
+Remove the command-string shelling risk from the VS Code file opener.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/utils/vscode-editor.ts
+- Known failure: openInVSCode() concatenates arguments into one execSync() command string.
+- Preserve the current behavior for preview mode, reuse window, and version checks.
+
+Required work
+1. Inspect the editor helper and how arguments are assembled.
+2. Replace shell-string execution with a process-safe API that preserves the argument array.
+3. Add tests for paths with spaces, apostrophes, and other special characters.
+4. Verify the normal open, preview, and focus behaviors still work.
+
+Acceptance criteria
+- The helper opens the exact requested file path without shell parsing the path.
+- Supported editor modes continue to work.
+- No path splitting occurs for spaces or punctuation.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and desktop tooling specialist. Remove the command-string shelling risk from the VS Code file opener. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The editor launcher assembles code plus all arguments into one shell string. That makes the helper fragile for paths with spaces and unsafe for any shell metacharacters that sneak into the argument list. cli/src/utils/vscode-editor.ts:57-75 builds args, then calls execSync(`code ${args.join(&#39; &#39;)}`) instead of a process API that keeps the argument vector intact.. A file path with a space, quote, or other shell character can be split, mangled, or reinterpreted before VS Code receives it..
+
+Expected behavior
+The editor opener should receive the exact file path as an argument, not through shell parsing.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect cli/src/utils/vscode-editor.ts and compare it with any other process-safe command wrappers in the repo.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Replace execSync command-string concatenation with a process API that preserves the argv array and the existing mode flags.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Cover paths with spaces, apostrophes, and ampersands, and assert the helper passes them through unchanged.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run the editor helper against a temp file or a mocked process boundary and confirm the requested path is the one sent to VS Code.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;No supported path shape is mangled by shell splitting.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If a real VS Code launch is not stable in CI, keep the process-level test and document that limitation.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Cover paths with spaces, apostrophes, and ampersands, and assert the helper passes them through unchanged.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run the editor helper against a temp file or a mocked process boundary and confirm the requested path is the one sent to VS Code.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>No supported path shape is mangled by shell splitting.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If a real VS Code launch is not stable in CI, keep the process-level test and document that limitation.</li></ul></section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-16">
+      <header class="issue-header">
+        <p class="issue-kicker">16 · Additional · Medium severity · Medium likelihood</p>
+        <h2>Version info JSON emits the requested alias instead of the canonical id</h2>
+        <p class="issue-summary">The command resolves the module correctly, but the JSON payload still uses the raw input string in the module field. That makes the machine-readable output unstable whenever callers use an alias.</p>
+      </header>
+      <div class="issue-grid">
+        <section class="issue-field wide">
+          <h3>Raw draft prompt</h3>
+          <details>
+            <summary>Show raw draft prompt</summary>
+            <pre><code>You are a senior software engineer and API-contract specialist.
+
+Objective
+Make the JSON output from version info stable by reporting the canonical module id instead of the raw request string.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/version-info.ts
+- Known failure: the JSON payload uses moduleName even after the module is resolved.
+- Preserve the human-readable output and the existing version and compatibility checks.
+
+Required work
+1. Inspect the JSON payload and the resolved module object.
+2. Emit the canonical module id in machine-readable output.
+3. Keep the original request string only if it is needed as a separate field.
+4. Add tests for canonical lookups, alias lookups, and not-found cases.
+
+Acceptance criteria
+- JSON output is stable across alias and canonical lookups.
+- Automation can rely on the reported module id.
+- Existing human-readable behavior remains unchanged.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field wide">
+          <h3>Refined prompt</h3>
+          <details open>
+            <summary>Show refined prompt</summary>
+            <pre><code>Role and mission
+You are senior software engineer and API-contract specialist. Make the JSON output from version info stable by reporting the canonical module id instead of the raw request string. Read the repository instructions, inspect the affected code, and confirm the failure before editing when practical.
+
+Issue summary
+The command resolves the module correctly, but the JSON payload still uses the raw input string in the module field. That makes the machine-readable output unstable whenever callers use an alias. cli/src/commands/version-info.ts:60-74 writes module: moduleName even though the command already resolved module through findModule().. Automation can key caches, reports, or follow-up actions off a legacy alias instead of the canonical module id that the resolver actually used..
+
+Expected behavior
+The JSON output should report the canonical module id that the resolver actually selected.
+
+Root cause investigation guidance
+&lt;ul&gt;&lt;li&gt;Inspect the repository instructions and the nearest tests or fixtures before editing.&lt;/li&gt;&lt;li&gt;Trace the affected control flow to the exact boundary where the defect appears.&lt;/li&gt;&lt;li&gt;Inspect cli/src/commands/version-info.ts and the resolved module object to see where the raw request string leaks into machine-readable output.&lt;/li&gt;&lt;/ul&gt;
+
+Concrete implementation steps
+&lt;ul&gt;&lt;li&gt;Make the smallest safe change that fixes the behavior at the source.&lt;/li&gt;&lt;li&gt;Preserve unrelated behavior, reuse existing helpers when possible, and avoid speculative refactors.&lt;/li&gt;&lt;li&gt;Write the canonical id into the JSON payload, and keep any raw input only in a separate field if it is still needed.&lt;/li&gt;&lt;/ul&gt;
+
+Regression test requirements
+&lt;ul&gt;&lt;li&gt;Add focused tests that fail on the current defect and pass after the fix.&lt;/li&gt;&lt;li&gt;Call the command with a canonical name and an alias, and assert the JSON output reports the same canonical module id in both cases.&lt;/li&gt;&lt;li&gt;Cover at least one positive path, one negative path, and one relevant boundary case.&lt;/li&gt;&lt;/ul&gt;
+
+E2E test requirements
+&lt;ul&gt;&lt;li&gt;Exercise the full workflow with the repository&amp;#39;s existing higher-level harness.&lt;/li&gt;&lt;li&gt;Run the JSON mode end to end and parse the output to confirm it stays stable for alias lookups.&lt;/li&gt;&lt;li&gt;Keep fixtures isolated and assert observable output, generated artifacts, or state changes.&lt;/li&gt;&lt;/ul&gt;
+
+Acceptance criteria
+&lt;ul&gt;&lt;li&gt;The original defect is fixed at the correct boundary.&lt;/li&gt;&lt;li&gt;Automation can key off one stable module id regardless of how the command was invoked.&lt;/li&gt;&lt;li&gt;Existing supported behavior remains intact.&lt;/li&gt;&lt;/ul&gt;
+
+Risks, assumptions, and fallback plan
+&lt;ul&gt;&lt;li&gt;Assume the repository&amp;#39;s existing harness and fixtures are the source of truth unless the code proves otherwise.&lt;/li&gt;&lt;li&gt;If downstream consumers already depend on the legacy field, add a separate compatibility field rather than changing the machine-readable contract in place.&lt;/li&gt;&lt;li&gt;If a detail cannot be confirmed locally, document the assumption and stop at the narrowest safe fix.&lt;/li&gt;&lt;/ul&gt;
+
+Do not use em dash characters in any generated content.</code></pre>
+          </details>
+        </section>
+        <section class="issue-field"><h3>Regression tests</h3><ul><li>Use the repository&#39;s existing unit or integration harness and make the test fail on the current bug.</li><li>Call the command with a canonical name and an alias, and assert the JSON output reports the same canonical module id in both cases.</li></ul></section>
+        <section class="issue-field"><h3>E2E tests</h3><ul><li>Run the highest-level existing harness for this subsystem, rather than inventing a new stack.</li><li>Run the JSON mode end to end and parse the output to confirm it stays stable for alias lookups.</li></ul></section>
+        <section class="issue-field"><h3>Acceptance criteria</h3><ul><li>The original defect is fixed at the source boundary, not just masked downstream.</li><li>Automation can key off one stable module id regardless of how the command was invoked.</li></ul></section>
+        <section class="issue-field"><h3>Assumptions or open questions</h3><ul><li>If a detail cannot be confirmed from the repository, keep the change minimal and record the assumption.</li><li>If downstream consumers already depend on the legacy field, add a separate compatibility field rather than changing the machine-readable contract in place.</li></ul></section>
+      </div>
+    </article>
+
+    <footer class="footer-card">
+      <p class="meta">Source note: the raw drafts were copied from the pre-mortem artifact, then normalized into structured prompts for downstream coding agents.</p>
+      <p class="meta">Generation timestamp: 2026-09-11T20:48:09.783Z</p>
+    </footer>
+  </main>
+</body>
+</html>
