@@ -51,13 +51,30 @@ function findFfmpeg(): string {
   return process.env['FILMBUFF_FFMPEG_PATH'] ?? 'ffmpeg';
 }
 
+const HTML_ESCAPE_MAP: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+/** Escape untrusted values before inserting them into HTML. */
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (char) => HTML_ESCAPE_MAP[char]);
+}
+
 /** Build a simple self-contained HTML5 video viewer for a list of clips. */
-function buildIndexHtml(clips: Array<{ shotId: string; scene?: string; clipFile: string }>): string {
-  const items = clips.map(c => `
+export function buildIndexHtml(clips: Array<{ shotId: string; scene?: string; clipFile: string }>): string {
+  const items = clips.map(c => {
+    const sceneLabel = c.scene ? ` — ${escapeHtml(c.scene)}` : '';
+
+    return `
     <div class="shot">
-      <h3>${c.shotId}${c.scene ? ` — ${c.scene}` : ''}</h3>
-      <video controls preload="metadata" src="${c.clipFile}" style="max-width:100%"></video>
-    </div>`).join('\n');
+      <h3>${escapeHtml(c.shotId)}${sceneLabel}</h3>
+      <video controls preload="metadata" src="${escapeHtml(c.clipFile)}" style="max-width:100%"></video>
+    </div>`;
+  }).join('\n');
 
   return `<!DOCTYPE html>
 <html lang="en">

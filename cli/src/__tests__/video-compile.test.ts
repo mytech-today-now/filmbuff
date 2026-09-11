@@ -76,14 +76,23 @@ jest.mock('archiver', () => {
 }, { virtual: true });
 
 interface CompileScenario {
-  clipNames: [string, string];
+  clipNames?: string[];
+  shots?: CompileShot[];
   outputDirParts?: string[];
+}
+
+interface CompileShot {
+  shotId: string;
+  scene?: string;
+  clipName: string;
+  shotType?: string;
 }
 
 interface CompileResult {
   projectDir: string;
   outputDir: string;
   extractedDir: string;
+  indexHtml: string;
   videoSrcs: string[];
   zipEntries: string[];
   envelope: {
@@ -169,6 +178,31 @@ async function linkClipFixture(targetPath: string): Promise<void> {
   }
 }
 
+function resolveShots(scenario: CompileScenario): CompileShot[] {
+  if (scenario.shots) {
+    return scenario.shots;
+  }
+
+  return (scenario.clipNames ?? []).map((clipName, index) => ({
+    shotId: `s00${index + 1}`,
+    scene: 'INT. EDIT SUITE - DAY',
+    shotType: index === 0 ? 'Wide' : 'Close-Up',
+    clipName,
+  }));
+}
+
+const HTML_ENTITY_MAP: Record<string, string> = {
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&#39;': '\'',
+};
+
+function decodeHtmlEntities(value: string): string {
+  return value.replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, (entity) => HTML_ENTITY_MAP[entity]);
+}
+
 async function extractZipToDir(zipBuffer: Buffer, destDir: string): Promise<{ zipEntries: string[] }> {
   const JSZip = require('jszip') as typeof import('jszip');
   const zip = await JSZip.loadAsync(zipBuffer);
@@ -186,40 +220,44 @@ async function extractZipToDir(zipBuffer: Buffer, destDir: string): Promise<{ zi
 }
 
 function extractVideoSrcs(indexHtml: string): string[] {
-  return [...indexHtml.matchAll(/<video[^>]*src="([^"]+)"/g)].map((match) => match[1]);
+  return [...indexHtml.matchAll(/<video[^>]*src="([^"]+)"/g)].map((match) => decodeHtmlEntities(match[1]));
 }
 
-async function createProject(scenario: CompileScenario): Promise<{ projectDir: string; outputDir: string }> {
+function extractHeadingTexts(indexHtml: string): string[] {
+  return [...indexHtml.matchAll(/<h3>([\s\S]*?)<\/h3>/g)].map((match) => decodeHtmlEntities(match[1]));
+}
+
+async function createProject(shots: CompileShot[], outputDirParts?: string[]): Promise<{ projectDir: string; outputDir: string }> {
   if (!fs.existsSync(CLIP_FIXTURE)) {
     throw new Error(`Missing clip fixture: ${CLIP_FIXTURE}`);
   }
 
   const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'fb-compile-'));
   rememberTempDir(projectDir);
-  const outputDir = scenario.outputDirParts
-    ? path.join(projectDir, ...scenario.outputDirParts)
+  const outputDir = outputDirParts
+    ? path.join(projectDir, ...outputDirParts)
     : path.join(projectDir, 'video', 'output');
 
   const clipsDir = path.join(projectDir, 'video', 'clips');
   await fs.promises.mkdir(clipsDir, { recursive: true });
 
-  const shotListLines = scenario.clipNames.map((_, index) => JSON.stringify({
-    shot_id: `s00${index + 1}`,
-    scene: 'INT. EDIT SUITE - DAY',
-    shot_type: index === 0 ? 'Wide' : 'Close-Up',
+  const shotListLines = shots.map((shot, index) => JSON.stringify({
+    shot_id: shot.shotId,
+    scene: shot.scene ?? 'INT. EDIT SUITE - DAY',
+    shot_type: shot.shotType ?? (index === 0 ? 'Wide' : 'Close-Up'),
     duration_seconds: 5,
   })).join('\n') + '\n';
   await fs.promises.writeFile(path.join(projectDir, '08-shot-list.jsonl'), shotListLines, 'utf-8');
 
-  const records = scenario.clipNames.map((clipName, index) => makeApprovedRecord(`s00${index + 1}`, clipName));
+  const records = shots.map((shot) => makeApprovedRecord(shot.shotId, shot.clipName));
   await fs.promises.writeFile(
     path.join(projectDir, '08-video-status.jsonl'),
     records.map((record) => JSON.stringify(record)).join('\n') + '\n',
     'utf-8',
   );
 
-  for (const clipName of scenario.clipNames) {
-    await linkClipFixture(path.join(clipsDir, clipName));
+  for (const shot of shots) {
+    await linkClipFixture(path.join(clipsDir, shot.clipName));
   }
 
   return { projectDir, outputDir };
@@ -239,7 +277,8 @@ async function handleMockExec(command: string): Promise<void> {
 }
 
 async function compileScenario(scenario: CompileScenario): Promise<CompileResult> {
-  const { projectDir, outputDir } = await createProject(scenario);
+  const shots = resolveShots(scenario);
+  const { projectDir, outputDir } = await createProject(shots, scenario.outputDirParts);
   const extractedDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'fb-extract-'));
   rememberTempDir(extractedDir);
 
@@ -261,7 +300,7 @@ async function compileScenario(scenario: CompileScenario): Promise<CompileResult
 
   const envelope = JSON.parse(capture.stdout.trim()) as CompileResult['envelope'];
   expect(envelope.status).toBe('success');
-  expect(envelope.data?.clips_compiled).toBe(scenario.clipNames.length);
+  expect(envelope.data?.clips_compiled).toBe(shots.length);
 
   const zipPath = path.join(outputDir, 'project.zip');
   const zipBuffer = await fs.promises.readFile(zipPath);
@@ -273,6 +312,7 @@ async function compileScenario(scenario: CompileScenario): Promise<CompileResult
     projectDir,
     outputDir,
     extractedDir,
+    indexHtml,
     videoSrcs,
     zipEntries,
     envelope,
@@ -328,24 +368,64 @@ describe('[UT-VCOMP-01] compile viewer paths match the packaged clips folder', (
 });
 
 describe('[UT-VCOMP-02] compile viewer handles spaces and nested output directories', () => {
-  it('keeps clip paths valid when clip names include spaces and output is nested', async () => {
+  it('keeps clip paths valid when clip names include spaces, apostrophes, and output is nested', async () => {
     const scenario: CompileScenario = {
-      clipNames: ['Lead Clip.mp4', 'Final Clip.mp4'],
+      shots: [
+        {
+          shotId: 's001',
+          scene: "INT. EDIT SUITE - NIGHT - CONTINUOUS - VERY LONG SCENE NAME WITH CREW'S NOTES THAT SHOULD STAY READABLE",
+          clipName: "Lead Clip's Master Cut.mp4",
+        },
+        {
+          shotId: 's002',
+          scene: "INT. EDIT SUITE - NIGHT - CONTINUOUS - VERY LONG SCENE NAME WITH CREW'S NOTES THAT SHOULD STAY READABLE",
+          clipName: 'Final Clip.mp4',
+        },
+      ],
       outputDirParts: ['video', 'output', 'review-pack'],
     };
     const result = await compileScenario(scenario);
 
     expect(result.outputDir).toContain(path.join('video', 'output', 'review-pack'));
-    expect(result.videoSrcs).toEqual(['clips/Lead Clip.mp4', 'clips/Final Clip.mp4']);
+    expect(result.videoSrcs).toEqual(["clips/Lead Clip's Master Cut.mp4", 'clips/Final Clip.mp4']);
     expect(result.zipEntries).toEqual(expect.arrayContaining([
       'index.html',
       'combined.mp4',
-      'clips/Lead Clip.mp4',
+      "clips/Lead Clip's Master Cut.mp4",
       'clips/Final Clip.mp4',
     ]));
 
     for (const src of result.videoSrcs) {
       expect(fs.existsSync(path.resolve(result.extractedDir, src))).toBe(true);
     }
+
+    expect(result.indexHtml).not.toContain('<script>');
+    expect(extractHeadingTexts(result.indexHtml)[0]).toBe(
+      "s001 — INT. EDIT SUITE - NIGHT - CONTINUOUS - VERY LONG SCENE NAME WITH CREW'S NOTES THAT SHOULD STAY READABLE",
+    );
+    expect(extractVideoSrcs(result.indexHtml)[0]).toBe("clips/Lead Clip's Master Cut.mp4");
+  });
+});
+
+describe('[UT-VCOMP-03] buildIndexHtml escapes hostile HTML input', () => {
+  it('renders special characters as literal text and safe attribute values', async () => {
+    const { buildIndexHtml } = await import('../commands/video/compile');
+    const html = buildIndexHtml([
+      {
+        shotId: 'Shot <01> & "Alpha" \'Beta\'',
+        scene: 'INT. ROOFTOP <script>alert("x")</script> & "Night" \'Sky\'',
+        clipFile: 'clips/reel <1> & "cut" \'final\'.mp4',
+      },
+    ]);
+
+    expect(html).toContain('Shot &lt;01&gt; &amp; &quot;Alpha&quot; &#39;Beta&#39;');
+    expect(html).toContain('INT. ROOFTOP &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; &quot;Night&quot; &#39;Sky&#39;');
+    expect(html).toContain('src="clips/reel &lt;1&gt; &amp; &quot;cut&quot; &#39;final&#39;.mp4"');
+    expect(html).not.toContain('<script>alert("x")</script>');
+
+    expect(extractHeadingTexts(html)[0]).toBe(
+      'Shot <01> & "Alpha" \'Beta\' — INT. ROOFTOP <script>alert("x")</script> & "Night" \'Sky\'',
+    );
+    expect(extractVideoSrcs(html)[0]).toBe('clips/reel <1> & "cut" \'final\'.mp4');
   });
 });
