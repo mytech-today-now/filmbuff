@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.3] - 2026-09-11
+
+### Fixed
+- **Shot-list auto-detection** - Ambiguous input now fails fast even when a file extension suggests a format, preventing weak content from being misclassified.
+- **Video compile packaging** - Generated clip metadata now uses canonical `clips/` paths so packaged projects reference the assembled assets correctly.
+- **Module discovery order** - Rules, examples, submodules, and collection members are now sorted canonically for deterministic discovery and collection resolution.
+
 ## [2.5.2] - 2026-09-10
 
 ### Fixed
