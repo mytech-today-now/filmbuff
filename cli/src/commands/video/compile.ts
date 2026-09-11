@@ -26,15 +26,12 @@ import * as fs from 'fs';
 import * as fsPromises from 'fs/promises';
 import * as path from 'path';
 import * as child_process from 'child_process';
-import * as util from 'util';
 import { getLatestState } from '../../lib/status-file-manager.js';
 import { readAll } from '../../lib/shot-list-reader.js';
 import type { VideoStatusRecord } from '../../lib/shot-state-machine.js';
 import {
   EXIT, isAgentMode, agentSuccess, agentError, humanLog,
 } from '../../lib/agent-mode.js';
-
-const exec = util.promisify(child_process.exec);
 
 type IncludeMode = 'approved' | 'all-complete' | 'all';
 
@@ -49,6 +46,35 @@ export interface VideoCompileOptions {
 /** Locate ffmpeg binary (FILMBUFF_FFMPEG_PATH or system PATH). */
 function findFfmpeg(): string {
   return process.env['FILMBUFF_FFMPEG_PATH'] ?? 'ffmpeg';
+}
+
+/**
+ * Run ffmpeg without involving a shell so user-controlled text stays literal.
+ */
+function runFfmpeg(
+  ffmpeg: string,
+  args: string[],
+  options: child_process.ExecFileOptions = {},
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    child_process.execFile(
+      ffmpeg,
+      args,
+      {
+        ...options,
+        shell: false,
+        windowsHide: true,
+        maxBuffer: 10 * 1024 * 1024,
+      },
+      (error) => {
+        if (error) {
+          reject(error);
+          return;
+        }
+        resolve();
+      },
+    );
+  });
 }
 
 const HTML_ESCAPE_MAP: Record<string, string> = {
@@ -144,19 +170,42 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
 
   let lastScene: string | undefined;
   const titleCardDur = 2;
+  let titleCardIndex = 0;
 
   for (const { shot, record } of eligible) {
     const absClip = path.resolve(projectPath, record!.clip_path!);
 
     if (titleCards && shot.scene && shot.scene !== lastScene) {
-      // Write a title card using ffmpeg lavfi
-      const titleFile = path.join(outputDir, `title_${shot.shot_id}.mp4`);
-      const label     = shot.scene.replace(/'/g, "\\'");
-      const titleCmd  =
-        `${ffmpeg} -y -f lavfi -i "color=c=black:s=1920x1080:d=${titleCardDur}" ` +
-        `-vf "drawtext=text='${label}':fontsize=64:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2" ` +
-        `-t ${titleCardDur} -c:v libx264 -an "${titleFile}" 2>/dev/null`;
-      try { await exec(titleCmd); concatLines.push(`file '${titleFile}'`); } catch { /* ffmpeg not found — skip title card */ }
+      // Write a literal title card file and pass it to ffmpeg as an argument.
+      const titleCardKey = String(titleCardIndex++).padStart(4, '0');
+      const titleFileName = `title_${titleCardKey}.mp4`;
+      const titleTextFileName = `title_${titleCardKey}.txt`;
+      const titleFile = path.join(outputDir, titleFileName);
+      const titleTextFile = path.join(outputDir, titleTextFileName);
+      await fsPromises.writeFile(titleTextFile, shot.scene, 'utf-8');
+
+      try {
+        await runFfmpeg(ffmpeg, [
+          '-y',
+          '-f',
+          'lavfi',
+          '-i',
+          `color=c=black:s=1920x1080:d=${titleCardDur}`,
+          '-vf',
+          `drawtext=fontsize=64:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:expansion=none:textfile=${titleTextFileName}`,
+          '-t',
+          String(titleCardDur),
+          '-c:v',
+          'libx264',
+          '-an',
+          titleFileName,
+        ], { cwd: outputDir });
+        concatLines.push(`file '${titleFile}'`);
+      } catch {
+        /* ffmpeg not found or title render failed — skip title card */
+      } finally {
+        await fsPromises.unlink(titleTextFile).catch(() => undefined);
+      }
       lastScene = shot.scene;
     }
 
@@ -176,9 +225,18 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
   humanLog(`→ Assembling ${eligible.length} clip(s) with ffmpeg…`, agentMode);
 
   try {
-    await exec(
-      `${ffmpeg} -y -f concat -safe 0 -i "${concatFile}" -c copy "${combinedPath}"`,
-    );
+    await runFfmpeg(ffmpeg, [
+      '-y',
+      '-f',
+      'concat',
+      '-safe',
+      '0',
+      '-i',
+      concatFile,
+      '-c',
+      'copy',
+      combinedPath,
+    ]);
   } catch (err) {
     const msg = `ffmpeg failed: ${(err as Error).message}. Ensure ffmpeg is in PATH or set FILMBUFF_FFMPEG_PATH.`;
     if (agentMode) { agentError(EXIT.GENERAL_ERROR, msg); } else { console.error(`✗ ${msg}`); }

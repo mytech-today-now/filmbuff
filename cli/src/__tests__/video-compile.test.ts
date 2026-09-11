@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 
+import type { ExecFileOptions } from 'child_process';
 import type { VideoStatusRecord } from '../lib/shot-state-machine';
 
 type ExecCallback = (err: Error | null, stdout?: string, stderr?: string) => void;
@@ -26,6 +27,7 @@ const CLIP_FIXTURE = path.resolve(
 
 jest.mock('child_process', () => ({
   exec: jest.fn(),
+  execFile: jest.fn(),
 }));
 
 jest.mock('archiver', () => {
@@ -95,6 +97,7 @@ interface CompileResult {
   indexHtml: string;
   videoSrcs: string[];
   zipEntries: string[];
+  ffmpegInvocations: FfmpegInvocation[];
   envelope: {
     status: 'success' | 'error';
     data: {
@@ -107,7 +110,17 @@ interface CompileResult {
   };
 }
 
+interface FfmpegInvocation {
+  command: string;
+  args: string[];
+  cwd?: string;
+  outputPath?: string;
+  drawtextFilter?: string;
+  textFileContents?: string;
+}
+
 const tempDirs: string[] = [];
+const ffmpegInvocations: FfmpegInvocation[] = [];
 
 function beginCapture() {
   const state = {
@@ -267,13 +280,43 @@ function getExecMock(): jest.Mock {
   return (jest.requireMock('child_process') as { exec: jest.Mock }).exec;
 }
 
-async function handleMockExec(command: string): Promise<void> {
-  const outputMatch = [...command.matchAll(/"([^"]+\.mp4)"/g)].at(-1);
-  if (!outputMatch) return;
+function getExecFileMock(): jest.Mock {
+  return (jest.requireMock('child_process') as { execFile: jest.Mock }).execFile;
+}
 
-  const outputPath = outputMatch[1];
-  await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.promises.writeFile(outputPath, Buffer.from('mock mp4 output', 'utf-8'));
+async function handleMockExecFile(
+  command: string,
+  args: string[],
+  options: ExecFileOptions,
+): Promise<void> {
+  const cwd = path.resolve((options.cwd as string | undefined) ?? process.cwd());
+  const outputArg = args.at(-1);
+  const outputPath = outputArg ? (path.isAbsolute(outputArg) ? outputArg : path.resolve(cwd, outputArg)) : undefined;
+  const vfIndex = args.indexOf('-vf');
+  const drawtextFilter = vfIndex >= 0 ? args[vfIndex + 1] : undefined;
+  let textFileContents: string | undefined;
+
+  if (drawtextFilter) {
+    const match = drawtextFilter.match(/textfile=([^:]+)/);
+    if (match) {
+      const titleTextPath = path.resolve(cwd, match[1]);
+      textFileContents = await fs.promises.readFile(titleTextPath, 'utf-8');
+    }
+  }
+
+  if (outputPath) {
+    await fs.promises.mkdir(path.dirname(outputPath), { recursive: true });
+    await fs.promises.writeFile(outputPath, Buffer.from('mock mp4 output', 'utf-8'));
+  }
+
+  ffmpegInvocations.push({
+    command,
+    args: [...args],
+    cwd,
+    outputPath,
+    drawtextFilter,
+    textFileContents,
+  });
 }
 
 async function compileScenario(scenario: CompileScenario): Promise<CompileResult> {
@@ -315,14 +358,24 @@ async function compileScenario(scenario: CompileScenario): Promise<CompileResult
     indexHtml,
     videoSrcs,
     zipEntries,
+    ffmpegInvocations: [...ffmpegInvocations],
     envelope,
   };
 }
 
 beforeEach(() => {
   jest.resetModules();
-  getExecMock().mockImplementation((command: string, callback: ExecCallback) => {
-    void handleMockExec(command)
+  ffmpegInvocations.length = 0;
+  getExecMock().mockImplementation(() => {
+    throw new Error('exec() should not be called by video compile');
+  });
+  getExecFileMock().mockImplementation((
+    command: string,
+    args: string[],
+    options: ExecFileOptions,
+    callback: ExecCallback,
+  ) => {
+    void handleMockExecFile(command, args, options)
       .then(() => callback(null, '', ''))
       .catch((err) => callback(err as Error, '', ''));
   });
@@ -357,13 +410,20 @@ describe('[UT-VCOMP-01] compile viewer paths match the packaged clips folder', (
     ]));
 
     for (const src of result.videoSrcs) {
-      expect(fs.existsSync(path.resolve(result.extractedDir, src))).toBe(true);
-    }
+    expect(fs.existsSync(path.resolve(result.extractedDir, src))).toBe(true);
+  }
 
-    const firstClip = path.resolve(result.extractedDir, result.videoSrcs[0]);
-    const lastClip = path.resolve(result.extractedDir, result.videoSrcs[result.videoSrcs.length - 1]);
+  const firstClip = path.resolve(result.extractedDir, result.videoSrcs[0]);
+  const lastClip = path.resolve(result.extractedDir, result.videoSrcs[result.videoSrcs.length - 1]);
     expect(fs.statSync(firstClip).size).toBeGreaterThan(0);
     expect(fs.statSync(lastClip).size).toBeGreaterThan(0);
+
+    const titleCardCalls = result.ffmpegInvocations.filter((call) => call.drawtextFilter !== undefined);
+    expect(titleCardCalls).toHaveLength(1);
+    expect(titleCardCalls[0].cwd).toBe(result.outputDir);
+    expect(titleCardCalls[0].drawtextFilter).toContain('textfile=title_0000.txt');
+    expect(titleCardCalls[0].textFileContents).toBe('INT. EDIT SUITE - DAY');
+    expect(getExecMock()).not.toHaveBeenCalled();
   });
 });
 
@@ -404,6 +464,16 @@ describe('[UT-VCOMP-02] compile viewer handles spaces and nested output director
       "s001 — INT. EDIT SUITE - NIGHT - CONTINUOUS - VERY LONG SCENE NAME WITH CREW'S NOTES THAT SHOULD STAY READABLE",
     );
     expect(extractVideoSrcs(result.indexHtml)[0]).toBe("clips/Lead Clip's Master Cut.mp4");
+
+    const titleCardCalls = result.ffmpegInvocations.filter((call) => call.drawtextFilter !== undefined);
+    expect(titleCardCalls).toHaveLength(1);
+    expect(titleCardCalls[0].drawtextFilter).toBe(
+      'drawtext=fontsize=64:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:expansion=none:textfile=title_0000.txt',
+    );
+    expect(titleCardCalls[0].textFileContents).toBe(
+      "INT. EDIT SUITE - NIGHT - CONTINUOUS - VERY LONG SCENE NAME WITH CREW'S NOTES THAT SHOULD STAY READABLE",
+    );
+    expect(getExecMock()).not.toHaveBeenCalled();
   });
 });
 
@@ -427,5 +497,30 @@ describe('[UT-VCOMP-03] buildIndexHtml escapes hostile HTML input', () => {
       'Shot <01> & "Alpha" \'Beta\' — INT. ROOFTOP <script>alert("x")</script> & "Night" \'Sky\'',
     );
     expect(extractVideoSrcs(html)[0]).toBe('clips/reel <1> & "cut" \'final\'.mp4');
+  });
+});
+
+describe('[UT-VCOMP-04] title cards keep scene text literal', () => {
+  it('passes scene text through execFile without shell parsing or inline interpolation', async () => {
+    const hostileScene = `EXT. BACKLOT "ALPHA" - NIGHT; rm -rf $HOME && echo 'boom' | cat $(whoami)`;
+    const result = await compileScenario({
+      shots: [
+        {
+          shotId: 's001',
+          scene: hostileScene,
+          clipName: 'lead.mp4',
+        },
+      ],
+    });
+
+    const titleCardCalls = result.ffmpegInvocations.filter((call) => call.drawtextFilter !== undefined);
+    expect(titleCardCalls).toHaveLength(1);
+    expect(titleCardCalls[0].drawtextFilter).toBe(
+      'drawtext=fontsize=64:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:expansion=none:textfile=title_0000.txt',
+    );
+    expect(titleCardCalls[0].textFileContents).toBe(hostileScene);
+    expect(titleCardCalls[0].drawtextFilter).not.toContain(hostileScene);
+    expect(titleCardCalls[0].cwd).toBe(result.outputDir);
+    expect(getExecMock()).not.toHaveBeenCalled();
   });
 });
