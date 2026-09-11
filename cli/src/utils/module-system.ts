@@ -333,13 +333,13 @@ export function loadModule(modulePath: string): Module | null {
     // Get rules
     const rulesDir = path.join(modulePath, 'rules');
     const rules = fs.existsSync(rulesDir)
-      ? fs.readdirSync(rulesDir).filter(f => f.endsWith('.md'))
+      ? sortCanonicalStrings(fs.readdirSync(rulesDir).filter(f => f.endsWith('.md')))
       : [];
 
     // Get examples
     const examplesDir = path.join(modulePath, 'examples');
     const examples = fs.existsSync(examplesDir)
-      ? fs.readdirSync(examplesDir)
+      ? sortCanonicalStrings(fs.readdirSync(examplesDir))
       : [];
 
     // Extract full name from path
@@ -356,10 +356,10 @@ export function loadModule(modulePath: string): Module | null {
     let subModules: string[] | undefined;
     if (metadata.augment?.subModules) {
       // Get submodules from metadata
-      subModules = (metadata.augment.subModules as any[]).map((sub: any) => {
+      subModules = sortCanonicalStrings((metadata.augment.subModules as any[]).map((sub: any) => {
         const subPath = sub.path || sub.id;
         return `${fullName}/${subPath}`.replace(/\/$/, '');
-      });
+      }));
     } else {
       // Scan for subdirectories with module.json
       const subdirs = fs.readdirSync(modulePath, { withFileTypes: true })
@@ -371,7 +371,7 @@ export function loadModule(modulePath: string): Module | null {
         .map(dir => `${fullName}/${dir}`);
 
       subModules = foundSubModules.length > 0
-        ? [...foundSubModules].sort(compareCanonicalFullNames)
+        ? sortCanonicalStrings(foundSubModules)
         : undefined;
     }
 
@@ -801,6 +801,16 @@ function compareCanonicalFullNames(left: string, right: string): number {
   return 0;
 }
 
+function sortCanonicalStrings(values: string[]): string[] {
+  return [...values].sort(compareCanonicalFullNames);
+}
+
+function sortByCanonicalModuleId<T extends { id: string }>(items: T[]): T[] {
+  return [...items].sort((left, right) =>
+    compareCanonicalFullNames(left.id, right.id)
+  );
+}
+
 function sortByCanonicalFullName<T extends { fullName: string }>(items: T[]): T[] {
   return [...items].sort((left, right) =>
     compareCanonicalFullNames(left.fullName, right.fullName)
@@ -829,7 +839,7 @@ function discoverModulesRaw(): Module[] {
     }
   }
 
-  return modules;
+  return sortByCanonicalFullName(modules);
 }
 
 /**
@@ -869,6 +879,13 @@ export interface Collection {
   fullName: string;
 }
 
+function normalizeCollectionMetadata(metadata: CollectionMetadata): CollectionMetadata {
+  return {
+    ...metadata,
+    modules: sortByCanonicalModuleId(metadata.modules)
+  };
+}
+
 /**
  * Discover all collections in the collections directory
  */
@@ -891,7 +908,7 @@ export function discoverCollections(): Collection[] {
 
     if (fs.existsSync(collectionJsonPath)) {
       try {
-        const metadata = JSON.parse(fs.readFileSync(collectionJsonPath, 'utf-8'));
+        const metadata = normalizeCollectionMetadata(JSON.parse(fs.readFileSync(collectionJsonPath, 'utf-8')));
         collections.push({
           metadata,
           path: collectionPath,
@@ -1058,7 +1075,7 @@ export function findCollection(collectionName: string): Collection | null {
   }
 
   try {
-    const metadata = JSON.parse(fs.readFileSync(collectionJsonPath, 'utf-8'));
+    const metadata = normalizeCollectionMetadata(JSON.parse(fs.readFileSync(collectionJsonPath, 'utf-8')));
     return {
       metadata,
       path: collectionPath,
@@ -1074,7 +1091,7 @@ export function findCollection(collectionName: string): Collection | null {
  * Returns array of module IDs that are part of the collection
  */
 export function resolveCollection(collection: Collection): string[] {
-  return collection.metadata.modules.map(m => m.id);
+  return sortByCanonicalModuleId(collection.metadata.modules).map(m => m.id);
 }
 
 /**

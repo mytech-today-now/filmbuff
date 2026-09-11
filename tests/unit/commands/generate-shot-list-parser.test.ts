@@ -31,7 +31,7 @@ describe('generate-shot-list parser auto-detection', () => {
     },
     {
       filename: 'screenplay.md',
-      content: '# Scene',
+      content: '# Scene\n\n**Bold**\n\nAction.',
       parserName: 'Markdown Parser',
     },
     {
@@ -69,6 +69,15 @@ describe('generate-shot-list parser auto-detection', () => {
     const content = '<?xml version="1.0" encoding="UTF-8"?><FinalDraft><Content /></FinalDraft>';
 
     expect(() => createParserAuto('screenplay.txt', content)).toThrowError(
+      'Format could not be detected confidently. Specify the input format explicitly.'
+    );
+  });
+
+  it.each([
+    ['markdown', 'screenplay.md', '# Draft'],
+    ['fountain', 'screenplay.fountain', 'SARAH\nHello.'],
+  ])('throws when a known extension masks weak %s content', (_label, filename, content) => {
+    expect(() => createParserAuto(filename, content)).toThrowError(
       'Format could not be detected confidently. Specify the input format explicitly.'
     );
   });

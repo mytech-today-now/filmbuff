@@ -58,7 +58,7 @@ function isErrnoCode(err: unknown, code: string): boolean {
 function failShotListRead(err: unknown, agentMode: boolean): never {
   if (isErrnoCode(err, 'ENOENT')) {
     if (agentMode) { agentError(EXIT.NOT_FOUND, SHOT_LIST_READ_ERROR_MESSAGE); } else { console.error(`✗ ${SHOT_LIST_READ_ERROR_MESSAGE}`); }
-    process.exit(EXIT.NOT_FOUND);
+    return process.exit(EXIT.NOT_FOUND);
   }
 
   const detail = err instanceof Error && err.message ? err.message : String(err);
@@ -66,7 +66,7 @@ function failShotListRead(err: unknown, agentMode: boolean): never {
     ? `${SHOT_LIST_READ_ERROR_MESSAGE} ${detail}`
     : SHOT_LIST_READ_ERROR_MESSAGE;
   if (agentMode) { agentError(EXIT.GENERAL_ERROR, message); } else { console.error(`✗ ${message}`); }
-  process.exit(EXIT.GENERAL_ERROR);
+  return process.exit(EXIT.GENERAL_ERROR);
 }
 
 export async function videoStatusCommand(opts: VideoStatusOptions): Promise<void> {
@@ -79,7 +79,7 @@ export async function videoStatusCommand(opts: VideoStatusOptions): Promise<void
   if (!fs.existsSync(statusFilePath)) {
     const msg = `Status file not found at ${statusFilePath}. Run \`filmbuff video init\` first.`;
     if (agentMode) { agentError(EXIT.NOT_FOUND, msg); } else { console.error(`✗ ${msg}`); }
-    process.exit(EXIT.NOT_FOUND);
+    return process.exit(EXIT.NOT_FOUND);
   }
 
   // ── 1. Load data ──────────────────────────────────────────────────────────
@@ -87,7 +87,7 @@ export async function videoStatusCommand(opts: VideoStatusOptions): Promise<void
   try {
     shots = await readAll(projectPath);
   } catch (err) {
-    failShotListRead(err, agentMode);
+    return failShotListRead(err, agentMode);
   }
 
   // ── 2. Watchdog sweep ─────────────────────────────────────────────────────

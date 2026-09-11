@@ -4,7 +4,7 @@ Auto-generated command-line help for Augment workflow tools.
 
 **Generated**: 2026-03-19T15:40:08.615Z
 **Tools**: Augx, Beads, OpenSpec
-**Version**: 2.5.3
+**Version**: 2.5.4
 
 ---
 

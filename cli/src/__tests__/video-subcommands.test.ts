@@ -724,6 +724,117 @@ describe('[UT-STAT-06] video status filter returns an empty view without mutatin
   });
 });
 
+describe('[UT-STAT-07] video status rejects unreadable shot-list permissions', () => {
+  it('returns a GENERAL_ERROR envelope when readAll throws EACCES', async () => {
+    tmpDir = await makeTempProject();
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'pending',
+      }),
+    ]);
+
+    jest.resetModules();
+    const mockReadAll = jest.fn(async () => {
+      const err = new Error('permission denied') as NodeJS.ErrnoException;
+      err.code = 'EACCES';
+      throw err;
+    });
+    jest.doMock('../lib/shot-list-reader', () => ({
+      __esModule: true,
+      readAll: mockReadAll,
+    }));
+
+    const { videoStatusCommand } = await import('../commands/video/status');
+    const c = beginCapture();
+    try { await videoStatusCommand({ project: tmpDir, json: true, agent: true }); }
+    catch (e) { if (!(e instanceof ExitError)) throw e; }
+    finally {
+      c.restore();
+      jest.dontMock('../lib/shot-list-reader');
+    }
+
+    expect(c.exitCode).toBe(1);
+    const env = JSON.parse(c.stdout.trim());
+    expect(env.status).toBe('error');
+    expect(env.errorCode).toBe('GENERAL_ERROR');
+    expect(env.data).toBeNull();
+    expect(c.stdout).not.toContain('"total_shots"');
+    expect(c.stderr).toContain('Unable to read the shot list');
+  });
+});
+
+describe('[UT-STAT-08] video status stops after surfacing unreadable shot-list errors', () => {
+  it('does not continue into watchdog or summary generation when readAll fails', async () => {
+    tmpDir = await makeTempProject();
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'pending',
+      }),
+    ]);
+
+    jest.resetModules();
+
+    const runWatchdog = jest.fn(async () => ({ timedOutCount: 0, timedOutShots: [] }));
+    const getLatestState = jest.fn(async () => new Map());
+    const mockReadAll = jest.fn(async () => {
+      const err = new Error('permission denied') as NodeJS.ErrnoException;
+      err.code = 'EACCES';
+      throw err;
+    });
+
+    jest.doMock('../lib/shot-list-reader', () => ({
+      __esModule: true,
+      readAll: mockReadAll,
+    }));
+    jest.doMock('../lib/watchdog', () => {
+      const actual = jest.requireActual('../lib/watchdog') as typeof import('../lib/watchdog');
+      return {
+        __esModule: true,
+        ...actual,
+        runWatchdog,
+      };
+    });
+    jest.doMock('../lib/status-file-manager', () => {
+      const actual = jest.requireActual('../lib/status-file-manager') as typeof import('../lib/status-file-manager');
+      return {
+        __esModule: true,
+        ...actual,
+        getLatestState,
+      };
+    });
+
+    const stdoutSpy = jest.spyOn(process.stdout, 'write').mockImplementation((chunk) => {
+      captured.stdout += typeof chunk === 'string' ? chunk : Buffer.from(chunk as Uint8Array).toString();
+      return true;
+    });
+    const stderrSpy = jest.spyOn(process.stderr, 'write').mockImplementation((chunk) => {
+      captured.stderr += typeof chunk === 'string' ? chunk : Buffer.from(chunk as Uint8Array).toString();
+      return true;
+    });
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+    const captured = { stdout: '', stderr: '' };
+
+    try {
+      const { videoStatusCommand } = await import('../commands/video/status');
+      await expect(videoStatusCommand({ project: tmpDir, json: true, agent: true })).resolves.toBeUndefined();
+    } finally {
+      stdoutSpy.mockRestore();
+      stderrSpy.mockRestore();
+      exitSpy.mockRestore();
+      jest.dontMock('../lib/shot-list-reader');
+      jest.dontMock('../lib/watchdog');
+      jest.dontMock('../lib/status-file-manager');
+    }
+
+    expect(runWatchdog).not.toHaveBeenCalled();
+    expect(getLatestState).not.toHaveBeenCalled();
+    expect(captured.stdout).toContain('"errorCode":"GENERAL_ERROR"');
+    expect(captured.stderr).toContain('Unable to read the shot list');
+  });
+});
+
 // ===========================================================================
 // UT-PROJ — --project flag
 // ===========================================================================

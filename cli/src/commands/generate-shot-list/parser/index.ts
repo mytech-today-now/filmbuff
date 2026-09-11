@@ -180,14 +180,13 @@ export function createParserAuto(filename: string, content: string | Buffer): Pa
   const ambiguousFormatError = 'Format could not be detected confidently. Specify the input format explicitly.';
 
   if (formatFromExtension) {
-    if (formatFromExtension === 'plaintext' && contentDetection.ambiguous) {
+    if (contentDetection.ambiguous) {
       throw new Error(ambiguousFormatError);
     }
 
     if (
       contentDetection.format !== 'plaintext' &&
-      contentDetection.format !== formatFromExtension &&
-      !contentDetection.ambiguous
+      contentDetection.format !== formatFromExtension
     ) {
       throw new Error(ambiguousFormatError);
     }

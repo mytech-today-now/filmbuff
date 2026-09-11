@@ -144,7 +144,11 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
     }
 
     concatLines.push(`file '${absClip}'`);
-    clipItems.push({ shotId: shot.shot_id, scene: shot.scene, clipFile: path.basename(record!.clip_path!) });
+    clipItems.push({
+      shotId: shot.shot_id,
+      scene: shot.scene,
+      clipFile: path.posix.join('clips', path.basename(record!.clip_path!)),
+    });
   }
 
   const concatFile = path.join(outputDir, 'concat.txt');
@@ -172,10 +176,8 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
   const zipPath = path.join(outputDir, 'project.zip');
   // Use built-in archiver if available; otherwise shell out to zip
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const archiver = require('archiver') as { (format: string, opts?: object): { on: (e: string, cb: (err?: Error) => void) => void; pipe: (d: NodeJS.WritableStream) => void; file: (p: string, n: object) => void; finalize: () => void } };
     const output   = fs.createWriteStream(zipPath);
-    const archive  = archiver('zip', { zlib: { level: 9 } });
     const instance = archiver('zip', { zlib: { level: 9 } });
     await new Promise<void>((resolve, reject) => {
       instance.on('error', (err?: Error) => reject(err));

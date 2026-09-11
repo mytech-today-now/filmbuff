@@ -8,7 +8,8 @@ import {
   getModuleSuggestions,
   extractModuleMetadata,
   listModuleFiles,
-  discoverModules
+  discoverModules,
+  resolveCollectionByName
 } from '@cli/utils/module-system';
 
 const require = createRequire(import.meta.url);
@@ -295,20 +296,33 @@ describe('Module Discovery', () => {
       const siblingDir = path.join(modulesDir, 'sibling');
       const alphaDir = path.join(parentDir, 'alpha');
       const betaDir = path.join(parentDir, 'beta');
+      const parentRulesDir = path.join(parentDir, 'rules');
+      const parentExamplesDir = path.join(parentDir, 'examples');
       const collectionsDir = path.join(tempRoot, 'filmbuff', 'collections');
       const etaDir = path.join(collectionsDir, 'eta');
       const zetaDir = path.join(collectionsDir, 'zeta');
 
-      for (const dir of [parentDir, siblingDir, alphaDir, betaDir, etaDir, zetaDir]) {
+      for (const dir of [parentDir, siblingDir, alphaDir, betaDir, parentRulesDir, parentExamplesDir, etaDir, zetaDir]) {
         fs.mkdirSync(dir, { recursive: true });
       }
+
+      fs.writeFileSync(path.join(parentRulesDir, 'z-rule.md'), '# Z Rule\n');
+      fs.writeFileSync(path.join(parentRulesDir, 'a-rule.md'), '# A Rule\n');
+      fs.writeFileSync(path.join(parentExamplesDir, 'z-example.md'), '# Z Example\n');
+      fs.writeFileSync(path.join(parentExamplesDir, 'a-example.md'), '# A Example\n');
 
       fs.writeFileSync(path.join(parentDir, 'module.json'), JSON.stringify({
         name: 'parent',
         version: '1.0.0',
         displayName: 'Parent Module',
         description: 'Parent module for order testing',
-        type: 'examples'
+        type: 'examples',
+        augment: {
+          subModules: [
+            { path: 'beta' },
+            { path: 'alpha' }
+          ]
+        }
       }), 'utf-8');
 
       fs.writeFileSync(path.join(siblingDir, 'module.json'), JSON.stringify({
@@ -341,7 +355,10 @@ describe('Module Discovery', () => {
         displayName: 'Eta Collection',
         description: 'Eta collection for order testing',
         type: 'collection',
-        modules: []
+        modules: [
+          { id: 'coding-standards/js', version: '1.0.0', required: true },
+          { id: 'coding-standards/html', version: '1.0.0', required: true }
+        ]
       }), 'utf-8');
 
       fs.writeFileSync(path.join(zetaDir, 'collection.json'), JSON.stringify({
@@ -350,7 +367,10 @@ describe('Module Discovery', () => {
         displayName: 'Zeta Collection',
         description: 'Zeta collection for order testing',
         type: 'collection',
-        modules: []
+        modules: [
+          { id: 'domain-rules/zeta', version: '1.0.0', required: true },
+          { id: 'domain-rules/alpha', version: '1.0.0', required: true }
+        ]
       }), 'utf-8');
 
       originalReaddirSync = fs.readdirSync;
@@ -359,6 +379,8 @@ describe('Module Discovery', () => {
         const modulesRoot = path.resolve(tempRoot, 'filmbuff').replace(/\\/g, '/');
         const typeRoot = path.resolve(tempRoot, 'filmbuff', 'type').replace(/\\/g, '/');
         const parentRoot = path.resolve(tempRoot, 'filmbuff', 'type', 'parent').replace(/\\/g, '/');
+        const parentRulesRoot = path.resolve(tempRoot, 'filmbuff', 'type', 'parent', 'rules').replace(/\\/g, '/');
+        const parentExamplesRoot = path.resolve(tempRoot, 'filmbuff', 'type', 'parent', 'examples').replace(/\\/g, '/');
         const collectionsRoot = path.resolve(tempRoot, 'filmbuff', 'collections').replace(/\\/g, '/');
         const etaRoot = path.resolve(tempRoot, 'filmbuff', 'collections', 'eta').replace(/\\/g, '/');
         const zetaRoot = path.resolve(tempRoot, 'filmbuff', 'collections', 'zeta').replace(/\\/g, '/');
@@ -374,6 +396,14 @@ describe('Module Discovery', () => {
 
           if (normalizedTarget === parentRoot) {
             return [makeDirent('beta', true), makeDirent('alpha', true)] as any;
+          }
+
+          if (normalizedTarget === parentRulesRoot) {
+            return [makeDirent('z-rule.md', false), makeDirent('a-rule.md', false)] as any;
+          }
+
+          if (normalizedTarget === parentExamplesRoot) {
+            return [makeDirent('z-example.md', false), makeDirent('a-example.md', false)] as any;
           }
 
           if (normalizedTarget === collectionsRoot) {
@@ -412,6 +442,14 @@ describe('Module Discovery', () => {
       expect(secondRun).toEqual(firstRun);
 
       const parent = discoverModules().find(module => module.fullName === 'type/parent');
+      expect(parent?.rules).toEqual([
+        'a-rule.md',
+        'z-rule.md'
+      ]);
+      expect(parent?.examples).toEqual([
+        'a-example.md',
+        'z-example.md'
+      ]);
       expect(parent?.subModules).toEqual([
         'type/parent/alpha',
         'type/parent/beta'
@@ -427,6 +465,27 @@ describe('Module Discovery', () => {
         'collections/zeta'
       ]);
       expect(secondRun).toEqual(firstRun);
+
+      const collections = discoverCollections();
+      const eta = collections.find(collection => collection.fullName === 'collections/eta');
+      const zeta = collections.find(collection => collection.fullName === 'collections/zeta');
+
+      expect(eta?.metadata.modules.map(module => module.id)).toEqual([
+        'coding-standards/html',
+        'coding-standards/js'
+      ]);
+      expect(zeta?.metadata.modules.map(module => module.id)).toEqual([
+        'domain-rules/alpha',
+        'domain-rules/zeta'
+      ]);
+      expect(resolveCollectionByName('eta')).toEqual([
+        'coding-standards/html',
+        'coding-standards/js'
+      ]);
+      expect(resolveCollectionByName('zeta')).toEqual([
+        'domain-rules/alpha',
+        'domain-rules/zeta'
+      ]);
     });
   });
 });

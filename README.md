@@ -2,7 +2,7 @@
 
 **AI-powered writing and screenplay tools — Creative Writing Edition**
 
-[![Version](https://img.shields.io/badge/version-2.5.3-blue.svg)](https://github.com/mytech-today-now/filmbuff)
+[![Version](https://img.shields.io/badge/version-2.5.4-blue.svg)](https://github.com/mytech-today-now/filmbuff)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![npm](https://img.shields.io/badge/npm-%40mytechtoday%2Ffilmbuff-red.svg)](https://www.npmjs.com/package/@mytechtoday/filmbuff)
 
