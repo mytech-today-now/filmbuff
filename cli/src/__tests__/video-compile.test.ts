@@ -9,6 +9,7 @@ import * as os from 'os';
 import * as path from 'path';
 
 import type { ExecFileOptions } from 'child_process';
+import { DOMParser } from '@xmldom/xmldom';
 import type { VideoStatusRecord } from '../lib/shot-state-machine';
 
 type ExecCallback = (err: Error | null, stdout?: string, stderr?: string) => void;
@@ -81,6 +82,7 @@ interface CompileScenario {
   clipNames?: string[];
   shots?: CompileShot[];
   outputDirParts?: string[];
+  projectDirPrefix?: string;
 }
 
 interface CompileShot {
@@ -97,6 +99,7 @@ interface CompileResult {
   indexHtml: string;
   videoSrcs: string[];
   zipEntries: string[];
+  concatText: string;
   ffmpegInvocations: FfmpegInvocation[];
   envelope: {
     status: 'success' | 'error';
@@ -212,8 +215,22 @@ const HTML_ENTITY_MAP: Record<string, string> = {
   '&#39;': '\'',
 };
 
+function formatConcatEntry(filePath: string): string {
+  return `file '${filePath.replace(/'/g, "'\\''")}'`;
+}
+
 function decodeHtmlEntities(value: string): string {
   return value.replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, (entity) => HTML_ENTITY_MAP[entity]);
+}
+
+function parseIndexHtml(indexHtml: string) {
+  return new DOMParser({
+    errorHandler: {
+      warning: () => undefined,
+      error: () => undefined,
+      fatalError: () => undefined,
+    },
+  }).parseFromString(indexHtml, 'text/html');
 }
 
 async function extractZipToDir(zipBuffer: Buffer, destDir: string): Promise<{ zipEntries: string[] }> {
@@ -240,12 +257,16 @@ function extractHeadingTexts(indexHtml: string): string[] {
   return [...indexHtml.matchAll(/<h3>([\s\S]*?)<\/h3>/g)].map((match) => decodeHtmlEntities(match[1]));
 }
 
-async function createProject(shots: CompileShot[], outputDirParts?: string[]): Promise<{ projectDir: string; outputDir: string }> {
+async function createProject(
+  shots: CompileShot[],
+  outputDirParts?: string[],
+  projectDirPrefix = 'fb-compile-',
+): Promise<{ projectDir: string; outputDir: string }> {
   if (!fs.existsSync(CLIP_FIXTURE)) {
     throw new Error(`Missing clip fixture: ${CLIP_FIXTURE}`);
   }
 
-  const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'fb-compile-'));
+  const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), projectDirPrefix));
   rememberTempDir(projectDir);
   const outputDir = outputDirParts
     ? path.join(projectDir, ...outputDirParts)
@@ -321,7 +342,11 @@ async function handleMockExecFile(
 
 async function compileScenario(scenario: CompileScenario): Promise<CompileResult> {
   const shots = resolveShots(scenario);
-  const { projectDir, outputDir } = await createProject(shots, scenario.outputDirParts);
+  const { projectDir, outputDir } = await createProject(
+    shots,
+    scenario.outputDirParts,
+    scenario.projectDirPrefix,
+  );
   const extractedDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'fb-extract-'));
   rememberTempDir(extractedDir);
 
@@ -348,6 +373,7 @@ async function compileScenario(scenario: CompileScenario): Promise<CompileResult
   const zipPath = path.join(outputDir, 'project.zip');
   const zipBuffer = await fs.promises.readFile(zipPath);
   const { zipEntries } = await extractZipToDir(zipBuffer, extractedDir);
+  const concatText = await fs.promises.readFile(path.join(outputDir, 'concat.txt'), 'utf-8');
   const indexHtml = await fs.promises.readFile(path.join(extractedDir, 'index.html'), 'utf-8');
   const videoSrcs = extractVideoSrcs(indexHtml);
 
@@ -358,6 +384,7 @@ async function compileScenario(scenario: CompileScenario): Promise<CompileResult
     indexHtml,
     videoSrcs,
     zipEntries,
+    concatText,
     ffmpegInvocations: [...ffmpegInvocations],
     envelope,
   };
@@ -427,32 +454,34 @@ describe('[UT-VCOMP-01] compile viewer paths match the packaged clips folder', (
   });
 });
 
-describe('[UT-VCOMP-02] compile viewer handles spaces and nested output directories', () => {
-  it('keeps clip paths valid when clip names include spaces, apostrophes, and output is nested', async () => {
+describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, unicode, and nesting', () => {
+  it('writes ffmpeg-safe concat entries for project, output, title-card, and clip paths', async () => {
     const scenario: CompileScenario = {
+      projectDirPrefix: "fb compile 'prøject'-",
+      outputDirParts: ['video', 'output', 'review pack', 'Δ bundle'],
       shots: [
         {
           shotId: 's001',
-          scene: "INT. EDIT SUITE - NIGHT - CONTINUOUS - VERY LONG SCENE NAME WITH CREW'S NOTES THAT SHOULD STAY READABLE",
-          clipName: "Lead Clip's Master Cut.mp4",
+          scene: "INT. EDIT SUITE - NIGHT - CONTINUOUS - CREW'S NOTES ✨",
+          clipName: "nested/Lead Clip's Master ✨.mp4",
         },
         {
           shotId: 's002',
-          scene: "INT. EDIT SUITE - NIGHT - CONTINUOUS - VERY LONG SCENE NAME WITH CREW'S NOTES THAT SHOULD STAY READABLE",
-          clipName: 'Final Clip.mp4',
+          scene: "INT. EDIT SUITE - NIGHT - CONTINUOUS - CREW'S NOTES ✨",
+          clipName: 'nested/final reel/Final Clip ß.mp4',
         },
       ],
-      outputDirParts: ['video', 'output', 'review-pack'],
     };
     const result = await compileScenario(scenario);
 
-    expect(result.outputDir).toContain(path.join('video', 'output', 'review-pack'));
-    expect(result.videoSrcs).toEqual(["clips/Lead Clip's Master Cut.mp4", 'clips/Final Clip.mp4']);
+    expect(result.projectDir).toContain("fb compile 'prøject'-");
+    expect(result.outputDir).toContain(path.join('video', 'output', 'review pack', 'Δ bundle'));
+    expect(result.videoSrcs).toEqual(["clips/Lead Clip's Master ✨.mp4", 'clips/Final Clip ß.mp4']);
     expect(result.zipEntries).toEqual(expect.arrayContaining([
       'index.html',
       'combined.mp4',
-      "clips/Lead Clip's Master Cut.mp4",
-      'clips/Final Clip.mp4',
+      "clips/Lead Clip's Master ✨.mp4",
+      'clips/Final Clip ß.mp4',
     ]));
 
     for (const src of result.videoSrcs) {
@@ -461,9 +490,20 @@ describe('[UT-VCOMP-02] compile viewer handles spaces and nested output director
 
     expect(result.indexHtml).not.toContain('<script>');
     expect(extractHeadingTexts(result.indexHtml)[0]).toBe(
-      "s001 — INT. EDIT SUITE - NIGHT - CONTINUOUS - VERY LONG SCENE NAME WITH CREW'S NOTES THAT SHOULD STAY READABLE",
+      "s001 — INT. EDIT SUITE - NIGHT - CONTINUOUS - CREW'S NOTES ✨",
     );
-    expect(extractVideoSrcs(result.indexHtml)[0]).toBe("clips/Lead Clip's Master Cut.mp4");
+    expect(extractVideoSrcs(result.indexHtml)[0]).toBe("clips/Lead Clip's Master ✨.mp4");
+
+    const document = parseIndexHtml(result.indexHtml);
+    const shots = Array.from(document.getElementsByClassName('shot'));
+    expect(shots).toHaveLength(2);
+    expect(document.getElementsByTagName('script')).toHaveLength(0);
+    expect(shots[0]?.getElementsByTagName('h3')[0]?.textContent).toBe(
+      "s001 — INT. EDIT SUITE - NIGHT - CONTINUOUS - CREW'S NOTES ✨",
+    );
+    expect(shots[0]?.getElementsByTagName('video')[0]?.getAttribute('src')).toBe(
+      "clips/Lead Clip's Master ✨.mp4",
+    );
 
     const titleCardCalls = result.ffmpegInvocations.filter((call) => call.drawtextFilter !== undefined);
     expect(titleCardCalls).toHaveLength(1);
@@ -471,8 +511,17 @@ describe('[UT-VCOMP-02] compile viewer handles spaces and nested output director
       'drawtext=fontsize=64:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:expansion=none:textfile=title_0000.txt',
     );
     expect(titleCardCalls[0].textFileContents).toBe(
-      "INT. EDIT SUITE - NIGHT - CONTINUOUS - VERY LONG SCENE NAME WITH CREW'S NOTES THAT SHOULD STAY READABLE",
+      "INT. EDIT SUITE - NIGHT - CONTINUOUS - CREW'S NOTES ✨",
     );
+    expect(titleCardCalls[0].cwd).toBe(result.outputDir);
+
+    const expectedConcatEntries = [
+      formatConcatEntry(path.join(result.outputDir, 'title_0000.mp4')),
+      formatConcatEntry(path.resolve(result.projectDir, path.join('video', 'clips', "nested/Lead Clip's Master ✨.mp4"))),
+      formatConcatEntry(path.resolve(result.projectDir, path.join('video', 'clips', 'nested/final reel/Final Clip ß.mp4'))),
+    ];
+    expect(result.concatText.trim().split('\n')).toEqual(expectedConcatEntries);
+    expect(result.concatText).toContain("'\\''");
     expect(getExecMock()).not.toHaveBeenCalled();
   });
 });
@@ -493,10 +542,14 @@ describe('[UT-VCOMP-03] buildIndexHtml escapes hostile HTML input', () => {
     expect(html).toContain('src="clips/reel &lt;1&gt; &amp; &quot;cut&quot; &#39;final&#39;.mp4"');
     expect(html).not.toContain('<script>alert("x")</script>');
 
-    expect(extractHeadingTexts(html)[0]).toBe(
+    const document = parseIndexHtml(html);
+    expect(document.getElementsByTagName('script')).toHaveLength(0);
+    expect(document.getElementsByTagName('h3')[0]?.textContent).toBe(
       'Shot <01> & "Alpha" \'Beta\' — INT. ROOFTOP <script>alert("x")</script> & "Night" \'Sky\'',
     );
-    expect(extractVideoSrcs(html)[0]).toBe('clips/reel <1> & "cut" \'final\'.mp4');
+    expect(document.getElementsByTagName('video')[0]?.getAttribute('src')).toBe(
+      'clips/reel <1> & "cut" \'final\'.mp4',
+    );
   });
 });
 

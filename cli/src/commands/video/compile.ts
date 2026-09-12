@@ -90,6 +90,21 @@ function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => HTML_ESCAPE_MAP[char]);
 }
 
+/**
+ * Quote a concat-demuxer path using ffmpeg's single-quoted token rules.
+ */
+function quoteConcatPath(filePath: string): string {
+  return `'${filePath.replace(/'/g, "'\\''")}'`;
+}
+
+function formatConcatEntry(filePath: string): string {
+  return `file ${quoteConcatPath(filePath)}`;
+}
+
+function packagedClipPath(clipPath: string): string {
+  return path.posix.join('clips', path.basename(clipPath));
+}
+
 /** Build a simple self-contained HTML5 video viewer for a list of clips. */
 export function buildIndexHtml(clips: Array<{ shotId: string; scene?: string; clipFile: string }>): string {
   const items = clips.map(c => {
@@ -200,7 +215,7 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
           '-an',
           titleFileName,
         ], { cwd: outputDir });
-        concatLines.push(`file '${titleFile}'`);
+        concatLines.push(formatConcatEntry(titleFile));
       } catch {
         /* ffmpeg not found or title render failed — skip title card */
       } finally {
@@ -209,11 +224,11 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
       lastScene = shot.scene;
     }
 
-    concatLines.push(`file '${absClip}'`);
+    concatLines.push(formatConcatEntry(absClip));
     clipItems.push({
       shotId: shot.shot_id,
       scene: shot.scene,
-      clipFile: path.posix.join('clips', path.basename(record!.clip_path!)),
+      clipFile: packagedClipPath(record!.clip_path!),
     });
   }
 
@@ -260,7 +275,7 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
       instance.pipe(output);
       eligible.forEach(({ record }) => {
         const absClip = path.resolve(projectPath, record!.clip_path!);
-        instance.file(absClip, { name: `clips/${path.basename(absClip)}` });
+        instance.file(absClip, { name: packagedClipPath(absClip) });
       });
       instance.file(indexPath, { name: 'index.html' });
       instance.file(combinedPath, { name: 'combined.mp4' });
