@@ -23,6 +23,10 @@ import {
   type PikaVideoRequest
 } from './pika.js';
 import { PIKA_VIDEO_PROVIDER } from './provider-capabilities.js';
+import {
+  ensureSingleShotJobStore,
+  recordPendingSingleShotJob,
+} from './single-shot-job-store.js';
 
 // ---------------------------------------------------------------------------
 // Internal submit helper
@@ -90,6 +94,10 @@ export async function submitSingleShot(
   opts: Omit<SingleShotOptions, 'outputPath' | 'timeoutMs'>,
   _submit: typeof submitToProvider = submitToProvider,
 ): Promise<{ jobId: string }> {
+  // Fail fast if durable storage cannot be opened; we do not want to lose a job
+  // after submitting it upstream.
+  ensureSingleShotJobStore();
+
   const prompt = buildShotPrompt(opts.shot, opts.extraNotes);
   const { jobId } = await _submit(
     prompt,
@@ -97,6 +105,13 @@ export async function submitSingleShot(
     opts.shot.duration_seconds,
     opts.agentToken,  // forwarded to HTTP layer only; never logged
   );
+
+  recordPendingSingleShotJob({
+    jobId,
+    provider: opts.provider,
+    shotId: opts.shot.shot_id,
+  });
+
   return { jobId };
 }
 
@@ -121,16 +136,8 @@ export async function generateSingleShot(
   _fetchStatus: typeof fetchJobStatus = fetchJobStatus,
   _downloadClip: (url: string, path: string) => Promise<void> = downloadClip,
 ): Promise<SingleShotResult> {
-  const prompt = buildShotPrompt(opts.shot, opts.extraNotes);
   const timeoutMs = opts.timeoutMs ?? DEFAULT_WATCHDOG_TIMEOUT_MS;
-
-  // 1. Submit
-  const { jobId } = await _submit(
-    prompt,
-    opts.provider,
-    opts.shot.duration_seconds,
-    opts.agentToken,  // NEVER logged or serialized
-  );
+  const { jobId } = await submitSingleShot(opts, _submit);
 
   // 2. Poll to completion
   return pollShotJob(

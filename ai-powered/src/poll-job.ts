@@ -27,6 +27,14 @@ import {
   PROVIDER_DEFAULT_CREDITS,
   PROVIDER_POLL_INTERVAL_MS,
 } from './types.js';
+import {
+  ensureSingleShotJobStore,
+  getSingleShotJob,
+  recordCompleteSingleShotJob,
+  recordFailedSingleShotJob,
+  recordPendingSingleShotJob,
+  type SingleShotJobRecord,
+} from './single-shot-job-store.js';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -35,6 +43,70 @@ import {
 /** Sleep for `ms` milliseconds. */
 function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function jobToTerminalResult(job: SingleShotJobRecord): SingleShotResult {
+  if (job.status === 'complete') {
+    return {
+      jobId: job.jobId,
+      status: 'complete',
+      clipPath: job.clipPath ?? undefined,
+      durationSeconds: job.durationSeconds ?? undefined,
+      resolution: job.resolution ?? undefined,
+      creditsCharged: job.creditsCharged ?? undefined,
+    };
+  }
+
+  return {
+    jobId: job.jobId,
+    status: 'failed',
+    creditsCharged: job.creditsCharged ?? undefined,
+    errorMessage: job.errorMessage ?? 'provider_error',
+  };
+}
+
+async function materializeCachedCompleteJob(
+  job: SingleShotJobRecord,
+  outputPath: string,
+  _downloadClip: (url: string, path: string) => Promise<void>,
+): Promise<SingleShotResult> {
+  const preferredClipPath = job.clipPath ?? outputPath;
+
+  try {
+    await fs.access(preferredClipPath);
+  } catch {
+    if (!job.clipUrl) {
+      throw new Error(
+        `Single-shot job ${job.jobId} is complete, but no durable clip URL was stored for recovery.`,
+      );
+    }
+
+    await _downloadClip(job.clipUrl, outputPath);
+    recordCompleteSingleShotJob({
+      jobId: job.jobId,
+      provider: job.provider,
+      shotId: job.shotId ?? undefined,
+      clipUrl: job.clipUrl,
+      clipPath: outputPath,
+      durationSeconds: job.durationSeconds ?? undefined,
+      resolution: job.resolution ?? undefined,
+      creditsCharged: job.creditsCharged ?? undefined,
+    });
+
+    return {
+      jobId: job.jobId,
+      status: 'complete',
+      clipPath: outputPath,
+      durationSeconds: job.durationSeconds ?? undefined,
+      resolution: job.resolution ?? undefined,
+      creditsCharged: job.creditsCharged ?? undefined,
+    };
+  }
+
+  return jobToTerminalResult({
+    ...job,
+    clipPath: preferredClipPath,
+  });
 }
 
 /**
@@ -124,6 +196,22 @@ export async function pollShotJob(
   _fetchStatus: typeof fetchJobStatus = fetchJobStatus,
   _downloadClip: (url: string, path: string) => Promise<void> = downloadClip,
 ): Promise<SingleShotResult> {
+  ensureSingleShotJobStore();
+
+  const cachedJob = getSingleShotJob(jobId);
+  if (cachedJob?.status === 'complete') {
+    return materializeCachedCompleteJob(cachedJob, outputPath, _downloadClip);
+  }
+  if (cachedJob?.status === 'failed') {
+    return jobToTerminalResult(cachedJob);
+  }
+
+  recordPendingSingleShotJob({
+    jobId,
+    provider,
+    shotId: cachedJob?.shotId ?? undefined,
+  });
+
   const intervalMs = PROVIDER_POLL_INTERVAL_MS[provider] ?? 5_000;
   const deadline = Date.now() + timeoutMs;
 
@@ -133,6 +221,16 @@ export async function pollShotJob(
     if (status.done) {
       if (status.success && status.clipUrl) {
         // Download the clip to outputPath
+        recordCompleteSingleShotJob({
+          jobId,
+          provider,
+          shotId: cachedJob?.shotId ?? undefined,
+          clipUrl: status.clipUrl,
+          clipPath: outputPath,
+          durationSeconds: status.durationSeconds,
+          resolution: status.resolution,
+          creditsCharged: extractCreditsCharged(status.rawResponse, provider),
+        });
         await _downloadClip(status.clipUrl, outputPath);
         return {
           jobId,
@@ -143,11 +241,20 @@ export async function pollShotJob(
           creditsCharged: extractCreditsCharged(status.rawResponse, provider),
         };
       } else {
+        const errorMessage = status.errorMessage ?? 'provider_error';
+        const creditsCharged = extractCreditsCharged(status.rawResponse, provider);
+        recordFailedSingleShotJob({
+          jobId,
+          provider,
+          shotId: cachedJob?.shotId ?? undefined,
+          errorMessage,
+          creditsCharged,
+        });
         return {
           jobId,
           status: 'failed',
-          creditsCharged: extractCreditsCharged(status.rawResponse, provider),
-          errorMessage: status.errorMessage ?? 'provider_error',
+          creditsCharged,
+          errorMessage,
         };
       }
     }
@@ -159,11 +266,19 @@ export async function pollShotJob(
   }
 
   // Timeout exceeded
+  const timeoutCredits = PROVIDER_DEFAULT_CREDITS[provider] ?? 0;
+  recordFailedSingleShotJob({
+    jobId,
+    provider,
+    shotId: cachedJob?.shotId ?? undefined,
+    errorMessage: 'api_timeout',
+    creditsCharged: timeoutCredits,
+  });
   return {
     jobId,
     status: 'failed',
     errorMessage: 'api_timeout',
-    creditsCharged: PROVIDER_DEFAULT_CREDITS[provider] ?? 0,
+    creditsCharged: timeoutCredits,
   };
 }
 

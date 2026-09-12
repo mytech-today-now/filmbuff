@@ -9,7 +9,10 @@
  * Beads: bd-5fde (Phase 2 — WS-1)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as fs from 'fs/promises';
+import * as os from 'os';
+import * as path from 'path';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { buildShotPrompt } from '../prompt-builder.js';
 import { extractCreditsCharged, pollShotJob } from '../poll-job.js';
 import { generateSingleShot, submitSingleShot } from '../single-shot.js';
@@ -19,6 +22,10 @@ import {
   type ShotListEntry,
   type SingleShotOptions,
 } from '../types.js';
+import {
+  closeSingleShotJobStore,
+  getSingleShotJob,
+} from '../single-shot-job-store.js';
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -41,6 +48,22 @@ const FULL_SHOT: ShotListEntry = {
 const MINIMAL_SHOT: ShotListEntry = {
   shot_id: 's002',
 };
+
+let tmpDir = '';
+
+beforeEach(async () => {
+  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fb-single-shot-'));
+  process.env['FILMBUFF_SINGLE_SHOT_DB_PATH'] = path.join(tmpDir, 'filmbuff.db');
+  closeSingleShotJobStore();
+});
+
+afterEach(async () => {
+  closeSingleShotJobStore();
+  delete process.env['FILMBUFF_SINGLE_SHOT_DB_PATH'];
+  if (tmpDir) {
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  }
+});
 
 // ---------------------------------------------------------------------------
 // UT-PROMPT-01 through UT-PROMPT-05 — buildShotPrompt()
@@ -194,6 +217,177 @@ describe('submitSingleShot()', () => {
     await submitSingleShot(opts, mockSubmit);
     const [prompt] = mockSubmit.mock.calls[0] as [string, ...unknown[]];
     expect(prompt).toContain('Add lens flare.');
+  });
+});
+
+describe('single-shot durable storage', () => {
+  it('persists a pending job record when submitSingleShot returns a jobId', async () => {
+    const mockSubmit = vi.fn().mockResolvedValueOnce({ jobId: 'job-pending-001' });
+    const opts: Omit<SingleShotOptions, 'outputPath' | 'timeoutMs'> = {
+      shot: FULL_SHOT,
+      provider: 'runway-gen3',
+    };
+
+    const result = await submitSingleShot(opts, mockSubmit);
+
+    expect(result).toEqual({ jobId: 'job-pending-001' });
+    expect(getSingleShotJob('job-pending-001')).toEqual(expect.objectContaining({
+      jobId: 'job-pending-001',
+      shotId: 's001',
+      provider: 'runway-gen3',
+      status: 'pending',
+    }));
+  });
+
+  it('fails fast with a degraded-mode error when durable storage cannot be opened', async () => {
+    closeSingleShotJobStore();
+    process.env['FILMBUFF_SINGLE_SHOT_DB_PATH'] = path.join(tmpDir, 'missing', 'filmbuff.db');
+
+    const mockSubmit = vi.fn();
+    const opts: Omit<SingleShotOptions, 'outputPath' | 'timeoutMs'> = {
+      shot: FULL_SHOT,
+      provider: 'runway-gen3',
+    };
+
+    await expect(submitSingleShot(opts, mockSubmit)).rejects.toThrow(/durable storage unavailable/i);
+    expect(mockSubmit).not.toHaveBeenCalled();
+  });
+
+  it('continues polling when the provider reports pending before completing', async () => {
+    const mockFetch = vi.fn()
+      .mockResolvedValueOnce({ done: false, success: false, rawResponse: {} })
+      .mockResolvedValueOnce({
+        done: true,
+        success: true,
+        clipUrl: 'https://cdn.example.com/pending-then-complete.mp4',
+        durationSeconds: 8,
+        resolution: '1920x1080',
+        rawResponse: { credits_charged: 5 },
+      });
+    const mockDownload = vi.fn().mockResolvedValue(undefined);
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout').mockImplementation(((handler: unknown) => {
+      if (typeof handler === 'function') {
+        (handler as () => void)();
+      }
+      return 0 as never;
+    }) as typeof setTimeout);
+
+    try {
+      const result = await pollShotJob(
+        'job-pending-002',
+        'runway-gen3',
+        path.join(tmpDir, 'pending-then-complete.mp4'),
+        30_000,
+        undefined,
+        mockFetch,
+        mockDownload,
+      );
+
+      expect(result.status).toBe('complete');
+      expect(result.jobId).toBe('job-pending-002');
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(getSingleShotJob('job-pending-002')?.status).toBe('complete');
+    } finally {
+      setTimeoutSpy.mockRestore();
+    }
+  });
+
+  it('returns a cached complete job after a store reopen without querying the provider again', async () => {
+    const mockSubmit = vi.fn().mockResolvedValueOnce({ jobId: 'job-restart-complete' });
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      done: true,
+      success: true,
+      clipUrl: 'https://cdn.example.com/restart-complete.mp4',
+      durationSeconds: 9,
+      resolution: '1920x1080',
+      rawResponse: { credits_charged: 6 },
+    });
+    const mockDownload = vi.fn().mockResolvedValue(undefined);
+    const outputPath = path.join(tmpDir, 'restart-complete.mp4');
+
+    const firstResult = await generateSingleShot(
+      {
+        shot: FULL_SHOT,
+        provider: 'runway-gen3',
+        outputPath,
+        timeoutMs: 30_000,
+      },
+      mockSubmit,
+      mockFetch,
+      mockDownload,
+    );
+
+    expect(firstResult.status).toBe('complete');
+    expect(mockFetch).toHaveBeenCalledOnce();
+    expect(mockDownload).toHaveBeenCalledOnce();
+
+    closeSingleShotJobStore();
+    const cachedFetch = vi.fn().mockRejectedValue(new Error('provider should not be queried after restart'));
+
+    const secondResult = await pollShotJob(
+      'job-restart-complete',
+      'runway-gen3',
+      outputPath,
+      30_000,
+      undefined,
+      cachedFetch,
+      mockDownload,
+    );
+
+    expect(secondResult).toEqual(expect.objectContaining({
+      jobId: 'job-restart-complete',
+      status: 'complete',
+      clipPath: outputPath,
+      durationSeconds: 9,
+      resolution: '1920x1080',
+      creditsCharged: 6,
+    }));
+    expect(cachedFetch).not.toHaveBeenCalled();
+  });
+
+  it('returns a cached failed job after a store reopen with the captured error', async () => {
+    const mockSubmit = vi.fn().mockResolvedValueOnce({ jobId: 'job-restart-failed' });
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      done: true,
+      success: false,
+      errorMessage: 'content_policy_violation',
+      rawResponse: { credits_charged: 4 },
+    });
+    const outputPath = path.join(tmpDir, 'restart-failed.mp4');
+
+    const firstResult = await generateSingleShot(
+      {
+        shot: FULL_SHOT,
+        provider: 'runway-gen3',
+        outputPath,
+        timeoutMs: 30_000,
+      },
+      mockSubmit,
+      mockFetch,
+    );
+
+    expect(firstResult.status).toBe('failed');
+    expect(firstResult.errorMessage).toBe('content_policy_violation');
+
+    closeSingleShotJobStore();
+    const cachedFetch = vi.fn().mockRejectedValue(new Error('provider should not be queried after restart'));
+
+    const secondResult = await pollShotJob(
+      'job-restart-failed',
+      'runway-gen3',
+      outputPath,
+      30_000,
+      undefined,
+      cachedFetch,
+    );
+
+    expect(secondResult).toEqual(expect.objectContaining({
+      jobId: 'job-restart-failed',
+      status: 'failed',
+      errorMessage: 'content_policy_violation',
+      creditsCharged: 4,
+    }));
+    expect(cachedFetch).not.toHaveBeenCalled();
   });
 });
 
