@@ -44,9 +44,9 @@ const DEFAULT_TOOLS: Tool[] = [
  * Subcommand detection patterns
  */
 const SUBCOMMAND_PATTERNS = [
-  /Commands?:\s*\n((?:\s+\w+.*\n)+)/,           // "Commands:" section
-  /Available commands?:\s*\n((?:\s+\w+.*\n)+)/, // "Available commands:" section
-  /Usage:.*\{(\w+(?:\|\w+)*)\}/,                // Usage: cmd {subcmd1|subcmd2}
+  /Commands?:\s*\n((?:\s+\w+(?:-\w+)*.*\n)+)/,           // "Commands:" section
+  /Available commands?:\s*\n((?:\s+\w+(?:-\w+)*.*\n)+)/, // "Available commands:" section
+  /Usage:.*\{((?:\w+(?:-\w+)*)(?:\|(?:\w+(?:-\w+)*))*)\}/, // Usage: cmd {subcmd1|subcmd2}
 ];
 
 /**
@@ -122,7 +122,7 @@ function extractCommandNames(text: string): string[] {
   const commands: string[] = [];
   
   for (const line of lines) {
-    const match = line.match(/^\s+(\w+)/);
+    const match = line.match(/^\s+(\w+(?:-\w+)*)/);
     if (match) {
       commands.push(match[1]);
     }

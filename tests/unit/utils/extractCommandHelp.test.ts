@@ -92,6 +92,24 @@ Options:
       expect(result).toEqual(['close', 'create', 'list', 'update']);
     });
 
+    it('should detect hyphenated subcommands from "Commands:" section', () => {
+      const helpText = `
+Usage: tool [command]
+
+Commands:
+  generate-video  Generate a video
+  check-updates   Check for updates
+  mcp-server      Start the MCP server
+
+Options:
+  --help    Show help
+`;
+
+      const result = detectSubcommands(helpText);
+
+      expect(result).toEqual(['check-updates', 'generate-video', 'mcp-server']);
+    });
+
     it('should detect subcommands from "Available commands:" section', () => {
       const helpText = `
 Available commands:
@@ -114,6 +132,14 @@ Available commands:
       expect(result).toContain('list');
       expect(result).toContain('update');
       expect(result).toContain('delete');
+    });
+
+    it('should detect hyphenated subcommands from Usage pattern', () => {
+      const helpText = `Usage: tool {generate-video|check-updates|mcp-server}`;
+
+      const result = detectSubcommands(helpText);
+
+      expect(result).toEqual(['check-updates', 'generate-video', 'mcp-server']);
     });
 
     it('should return empty array when no subcommands found', () => {
