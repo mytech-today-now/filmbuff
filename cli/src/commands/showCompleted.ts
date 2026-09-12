@@ -2,7 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
 import {
-  getAllCompletedTasks,
+  getCompletedTaskHistory,
   filterTasksByDateRange,
   filterTasksBySearch,
   filterTasksByLabels,
@@ -129,6 +129,11 @@ function formatTaskBdStyle(task: CompletedTask, verbose: boolean = false): strin
   return lines.join('\n');
 }
 
+function formatCorruptionWarning(projectRoot: string, completedPath: string, lineNumber: number): string {
+  const relativePath = path.relative(projectRoot, completedPath) || completedPath;
+  return `⚠ Completed history in ${relativePath} is corrupted at line ${lineNumber}. Showing recovered records only.`;
+}
+
 /**
  * Show completed command handler
  */
@@ -161,10 +166,25 @@ export function showCompletedCommand(options: ShowCompletedOptions): void {
     return;
   }
 
-  // Get all completed tasks
-  let tasks = getAllCompletedTasks(completedPath);
+  // Get all completed tasks and keep any corruption signal visible.
+  const history = getCompletedTaskHistory(completedPath);
+  let tasks = history.tasks;
+
+  if (history.corruption) {
+    console.warn(chalk.yellow(formatCorruptionWarning(
+      projectRoot,
+      history.corruption.completedPath,
+      history.corruption.lineNumber
+    )));
+  }
 
   if (tasks.length === 0) {
+    if (history.corruption) {
+      console.log(chalk.yellow('No valid completed tasks could be recovered from the corrupted history.'));
+      console.log(chalk.gray('\nCompleted tasks are stored in: scripts/completed.jsonl'));
+      return;
+    }
+
     console.log(chalk.yellow('No completed tasks found.'));
     console.log(chalk.gray('\nCompleted tasks are stored in: scripts/completed.jsonl'));
     console.log(chalk.gray('Close tasks using: bd close <task-id>'));

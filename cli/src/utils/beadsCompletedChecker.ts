@@ -43,6 +43,21 @@ export interface CompletedTask extends BeadsTask {
   close_reason?: string;
 }
 
+export class CompletedHistoryCorruptionError extends Error {
+  readonly completedPath: string;
+  readonly lineNumber: number;
+  readonly line: string;
+
+  constructor(completedPath: string, lineNumber: number, line: string) {
+    super(`Malformed completed history line ${lineNumber} in ${completedPath}`);
+    this.name = 'CompletedHistoryCorruptionError';
+    this.completedPath = completedPath;
+    this.lineNumber = lineNumber;
+    this.line = line;
+    Object.setPrototypeOf(this, CompletedHistoryCorruptionError.prototype);
+  }
+}
+
 function resolveCompletedPath(completedPath: string = 'scripts/completed.jsonl'): string {
   if (path.isAbsolute(completedPath)) {
     return completedPath;
@@ -52,95 +67,136 @@ function resolveCompletedPath(completedPath: string = 'scripts/completed.jsonl')
   return path.join(projectRoot, completedPath);
 }
 
+type CompletedHistoryScanMode = 'strict' | 'lenient';
+
+export interface CompletedHistoryResult {
+  tasks: CompletedTask[];
+  corruption: CompletedHistoryCorruptionError | null;
+}
+
+function isCompletedTaskRecord(task: unknown): task is CompletedTask {
+  if (typeof task !== 'object' || task === null || Array.isArray(task)) {
+    return false;
+  }
+
+  const record = task as Partial<CompletedTask>;
+  return (
+    typeof record.id === 'string' &&
+    record.status === 'closed' &&
+    typeof record.closed_at === 'string'
+  );
+}
+
+function scanCompletedTasks(
+  completedPath: string,
+  mode: CompletedHistoryScanMode,
+  visitor: (task: CompletedTask) => void,
+  onCorruption?: (error: CompletedHistoryCorruptionError) => void
+): void {
+  const resolvedPath = resolveCompletedPath(completedPath);
+
+  if (!fs.existsSync(resolvedPath)) {
+    return;
+  }
+
+  const content = fs.readFileSync(resolvedPath, 'utf-8').replace(/^\uFEFF/, '');
+  const lines = content.split(/\r?\n/);
+
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (!line.trim()) {
+      continue;
+    }
+
+    let task: CompletedTask | null = null;
+    try {
+      const parsed = JSON.parse(line) as unknown;
+      if (!isCompletedTaskRecord(parsed)) {
+        throw new Error('Line does not match the completed-task record format.');
+      }
+
+      task = parsed;
+    } catch {
+      const corruption = new CompletedHistoryCorruptionError(resolvedPath, index + 1, line);
+      if (mode === 'strict') {
+        throw corruption;
+      }
+
+      onCorruption?.(corruption);
+      continue;
+    }
+
+    if (!task) {
+      continue;
+    }
+
+    visitor(task);
+  }
+}
+
 /**
  * Check if a task exists in completed.jsonl
  */
 export function isTaskCompleted(taskId: string, completedPath: string = 'scripts/completed.jsonl'): boolean {
-  const resolvedPath = resolveCompletedPath(completedPath);
+  let found = false;
 
-  if (!fs.existsSync(resolvedPath)) {
-    return false;
-  }
-
-  const content = fs.readFileSync(resolvedPath, 'utf-8');
-  const lines = content.trim().split('\n').filter(line => line.trim());
-
-  for (const line of lines) {
-    try {
-      const task = JSON.parse(line) as BeadsTask;
-      if (task.id === taskId) {
-        return true;
-      }
-    } catch (error) {
-      // Skip invalid JSON lines
-      continue;
+  scanCompletedTasks(completedPath, 'strict', (task) => {
+    if (task.id === taskId) {
+      found = true;
     }
-  }
+  });
 
-  return false;
+  return found;
 }
 
 /**
  * Get a completed task by ID from completed.jsonl
  */
 export function getCompletedTask(taskId: string, completedPath: string = 'scripts/completed.jsonl'): CompletedTask | null {
-  const resolvedPath = resolveCompletedPath(completedPath);
-
-  if (!fs.existsSync(resolvedPath)) {
-    return null;
-  }
-
-  const content = fs.readFileSync(resolvedPath, 'utf-8');
-  const lines = content.trim().split('\n').filter(line => line.trim());
-
   // Find the last occurrence of the task (most recent update)
   let foundTask: CompletedTask | null = null;
 
-  for (const line of lines) {
-    try {
-      const task = JSON.parse(line) as CompletedTask;
-      if (task.id === taskId && task.status === 'closed' && task.closed_at) {
-        foundTask = task;
-      }
-    } catch (error) {
-      // Skip invalid JSON lines
-      continue;
+  scanCompletedTasks(completedPath, 'strict', (task) => {
+    if (task.id === taskId) {
+      foundTask = task;
     }
-  }
+  });
 
   return foundTask;
+}
+
+/**
+ * Read all completed tasks from completed.jsonl and report any corruption.
+ */
+export function getCompletedTaskHistory(completedPath: string = 'scripts/completed.jsonl'): CompletedHistoryResult {
+  const tasksMap = new Map<string, CompletedTask>();
+  let corruption: CompletedHistoryCorruptionError | null = null;
+
+  scanCompletedTasks(completedPath, 'lenient', (task) => {
+    tasksMap.set(task.id, task);
+  }, (error) => {
+    if (!corruption) {
+      corruption = error;
+    }
+  });
+
+  return {
+    tasks: Array.from(tasksMap.values()),
+    corruption
+  };
 }
 
 /**
  * Get all completed tasks from completed.jsonl
  */
 export function getAllCompletedTasks(completedPath: string = 'scripts/completed.jsonl'): CompletedTask[] {
-  const resolvedPath = resolveCompletedPath(completedPath);
+  const history = getCompletedTaskHistory(completedPath);
 
-  if (!fs.existsSync(resolvedPath)) {
-    return [];
+  if (history.corruption) {
+    throw history.corruption;
   }
 
-  const content = fs.readFileSync(resolvedPath, 'utf-8');
-  const lines = content.trim().split('\n').filter(line => line.trim());
-
-  const tasksMap = new Map<string, CompletedTask>();
-
-  for (const line of lines) {
-    try {
-      const task = JSON.parse(line) as BeadsTask;
-      // Only include tasks that are actually completed
-      if (task.status === 'closed' && task.closed_at) {
-        tasksMap.set(task.id, task as CompletedTask);
-      }
-    } catch (error) {
-      // Skip invalid JSON lines
-      console.warn(`Warning: Skipping invalid JSON line in ${resolvedPath}`);
-      continue;
-    }
-  }
-
-  return Array.from(tasksMap.values());
+  return history.tasks;
 }
 
 /**

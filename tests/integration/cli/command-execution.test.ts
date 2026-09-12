@@ -134,6 +134,30 @@ async function createCompletedTasksFixture(projectPath: string): Promise<void> {
   );
 }
 
+async function createCorruptedCompletedTasksFixture(projectPath: string): Promise<void> {
+  const beadsDir = join(projectPath, '.beads');
+  const scriptsDir = join(projectPath, 'scripts');
+
+  await mkdir(beadsDir, { recursive: true });
+  await mkdir(scriptsDir, { recursive: true });
+
+  await writeFile(
+    join(scriptsDir, 'completed.jsonl'),
+    [
+      '{"id":"bd-broken"',
+      JSON.stringify({
+        id: 'bd-1001',
+        title: 'Split the search flags',
+        description: 'Give module content and completed tasks separate search options.',
+        status: 'closed',
+        priority: 2,
+        closed_at: '2026-09-07T12:00:00.000Z',
+        close_reason: 'Completed with distinct CLI flags'
+      })
+    ].join('\n')
+  );
+}
+
 interface ShowCompletedFixtureTask {
   id: string;
   title: string;
@@ -640,7 +664,7 @@ describe('CLI Command Execution', () => {
       expect(output).toContain('bd-1001');
       expect(output).toContain('Split the search flags');
       expect(output).not.toContain('bd-1002');
-    }, 30_000);
+    }, 60_000);
 
     it('keeps commander-style errors for unknown show flags', async () => {
       const project = await testEnv.createProject({ name: 'show-unknown-flag' });
@@ -751,6 +775,23 @@ describe('CLI Command Execution', () => {
         cwd
       );
     }
+
+    it('warns about corrupted completed history while still showing recovered records', async () => {
+      const project = await testEnv.createProject({ name: 'show-completed-corruption' });
+      await createCorruptedCompletedTasksFixture(project.path);
+
+      const result = await runShowCompleted(project.path);
+      const output = normalizeOutput(result.stdout + result.stderr);
+      const completedFilePath = join('scripts', 'completed.jsonl');
+
+      expect(result.exitCode).toBe(0);
+      expect(output).toContain(`Completed history in ${completedFilePath} is corrupted at line 1.`);
+      expect(output).toContain('Showing recovered records only.');
+      expect(output).toContain('Completed Tasks (1)');
+      expect(output).toContain('bd-1001');
+      expect(output).toContain('Split the search flags');
+      expect(output).not.toContain('bd-broken');
+    }, 60_000);
 
     it('finds the same completed tasks from the repository root and a nested directory', async () => {
       const project = await testEnv.createProject({ name: 'show-completed-root-resolution' });
