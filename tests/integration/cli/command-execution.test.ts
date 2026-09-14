@@ -793,6 +793,60 @@ describe('CLI Command Execution', () => {
       expect(output).not.toContain('bd-broken');
     }, 60_000);
 
+    it('keeps date-only filters aligned with local midnight boundaries', async () => {
+      const project = await testEnv.createProject({ name: 'show-completed-date-boundaries' });
+      await createResolvedCompletedProjectFixture(project.path, [
+        {
+          id: 'bd-3001',
+          title: 'Late-night finish',
+          description: 'Completed just before midnight',
+          status: 'closed',
+          closed_at: new Date(2026, 8, 11, 23, 59, 59, 999).toISOString(),
+          close_reason: 'Finished before midnight'
+        },
+        {
+          id: 'bd-3002',
+          title: 'Just-after-midnight finish',
+          description: 'Completed right after midnight',
+          status: 'closed',
+          closed_at: new Date(2026, 8, 12, 0, 0, 0, 0).toISOString(),
+          close_reason: 'Finished after midnight'
+        },
+        {
+          id: 'bd-3003',
+          title: 'Earlier finish',
+          description: 'Completed on the previous day',
+          status: 'closed',
+          closed_at: new Date(2026, 8, 10, 12, 0, 0, 0).toISOString(),
+          close_reason: 'Finished earlier'
+        }
+      ]);
+
+      const day11Result = await runShowCompleted(project.path, [
+        '--since',
+        '2026-09-11',
+        '--until',
+        '2026-09-11',
+        '--json'
+      ]);
+      const day12Result = await runShowCompleted(project.path, [
+        '--since',
+        '2026-09-12',
+        '--until',
+        '2026-09-12',
+        '--json'
+      ]);
+
+      expect(day11Result.exitCode).toBe(0);
+      expect(day12Result.exitCode).toBe(0);
+      expect(JSON.parse(day11Result.stdout).map((task: { id: string }) => task.id)).toEqual([
+        'bd-3001'
+      ]);
+      expect(JSON.parse(day12Result.stdout).map((task: { id: string }) => task.id)).toEqual([
+        'bd-3002'
+      ]);
+    }, 30_000);
+
     it('finds the same completed tasks from the repository root and a nested directory', async () => {
       const project = await testEnv.createProject({ name: 'show-completed-root-resolution' });
       await createResolvedCompletedProjectFixture(project.path, completedTasks);

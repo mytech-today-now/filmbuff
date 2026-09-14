@@ -4,10 +4,13 @@ import { tmpdir } from 'os';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   CompletedHistoryCorruptionError,
+  CompletedTask,
   getAllCompletedTasks,
   getCompletedTask,
   getCompletedTaskHistory,
-  isTaskCompleted
+  isTaskCompleted,
+  InvalidCompletedDateFilterError,
+  filterTasksByDateRange
 } from '@cli/utils/beadsCompletedChecker';
 
 const createdDirs: string[] = [];
@@ -28,6 +31,20 @@ function createCompletedHistory(lines: string[]): string {
   fs.writeFileSync(completedPath, lines.join('\n'), 'utf-8');
 
   return completedPath;
+}
+
+function createTask(id: string, closedAt: Date): CompletedTask {
+  return {
+    id,
+    title: `Task ${id}`,
+    status: 'closed',
+    closed_at: closedAt.toISOString(),
+    close_reason: 'Completed'
+  };
+}
+
+function taskIds(tasks: CompletedTask[]): string[] {
+  return tasks.map((task) => task.id);
 }
 
 describe('beads completed checker', () => {
@@ -147,4 +164,64 @@ describe('beads completed checker', () => {
       expect(history.corruption.lineNumber).toBe(1);
     }
   }, 20_000);
+
+  describe('date range filtering', () => {
+    it('rejects invalid date filters before applying the range', () => {
+      const tasks = [createTask('bd-2001', new Date(2026, 8, 11, 12, 0, 0, 0))];
+
+      expect(() => filterTasksByDateRange(tasks, '2026-02-30')).toThrow(
+        InvalidCompletedDateFilterError
+      );
+      expect(() => filterTasksByDateRange(tasks, undefined, 'not-a-date')).toThrow(
+        InvalidCompletedDateFilterError
+      );
+    });
+
+    it('treats bare dates as local-day windows and keeps open-ended filters working', () => {
+      const tasks = [
+        createTask('bd-2002', new Date(2026, 8, 10, 18, 0, 0, 0)),
+        createTask('bd-2003', new Date(2026, 8, 11, 0, 15, 0, 0)),
+        createTask('bd-2004', new Date(2026, 8, 11, 23, 30, 0, 0)),
+        createTask('bd-2005', new Date(2026, 8, 12, 0, 15, 0, 0))
+      ];
+
+      expect(taskIds(filterTasksByDateRange(tasks, '2026-09-11', '2026-09-11'))).toEqual([
+        'bd-2003',
+        'bd-2004'
+      ]);
+
+      expect(taskIds(filterTasksByDateRange(tasks, '2026-09-11'))).toEqual([
+        'bd-2003',
+        'bd-2004',
+        'bd-2005'
+      ]);
+
+      expect(taskIds(filterTasksByDateRange(tasks, undefined, '2026-09-11'))).toEqual([
+        'bd-2002',
+        'bd-2003',
+        'bd-2004'
+      ]);
+    });
+
+    it('keeps midnight-edge tasks inside the correct local day and rejects timezone-free timestamps', () => {
+      const tasks = [
+        createTask('bd-2006', new Date(2026, 8, 11, 23, 59, 59, 999)),
+        createTask('bd-2007', new Date(2026, 8, 12, 0, 0, 0, 0)),
+        createTask('bd-2008', new Date(2026, 8, 12, 0, 0, 0, 1))
+      ];
+
+      expect(() => filterTasksByDateRange(tasks, '2026-09-11T00:00:00')).toThrow(
+        InvalidCompletedDateFilterError
+      );
+
+      expect(taskIds(filterTasksByDateRange(tasks, '2026-09-11', '2026-09-11'))).toEqual([
+        'bd-2006'
+      ]);
+
+      expect(taskIds(filterTasksByDateRange(tasks, '2026-09-12', '2026-09-12'))).toEqual([
+        'bd-2007',
+        'bd-2008'
+      ]);
+    });
+  });
 });

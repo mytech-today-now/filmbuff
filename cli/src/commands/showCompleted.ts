@@ -7,7 +7,9 @@ import {
   filterTasksBySearch,
   filterTasksByLabels,
   sortTasks,
-  CompletedTask
+  CompletedTask,
+  InvalidCompletedDateFilterError,
+  parseCompletedDateRange
 } from '../utils/beadsCompletedChecker';
 import { findProjectRoot } from '../utils/module-system';
 
@@ -138,6 +140,18 @@ function formatCorruptionWarning(projectRoot: string, completedPath: string, lin
  * Show completed command handler
  */
 export function showCompletedCommand(options: ShowCompletedOptions): void {
+  try {
+    parseCompletedDateRange(options.since, options.until);
+  } catch (error) {
+    if (error instanceof InvalidCompletedDateFilterError) {
+      console.error(chalk.red(error.message));
+      process.exit(1);
+      return;
+    }
+
+    throw error;
+  }
+
   const projectRoot = findProjectRoot() ?? process.cwd();
   const completedPath = path.join(projectRoot, 'scripts', 'completed.jsonl');
   const beadsDir = path.join(projectRoot, '.beads');

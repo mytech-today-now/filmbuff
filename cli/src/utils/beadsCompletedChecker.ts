@@ -87,6 +87,84 @@ function isCompletedTaskRecord(task: unknown): task is CompletedTask {
   );
 }
 
+const DATE_ONLY_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
+const ISO_TIMESTAMP_WITH_TIMEZONE_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+export class InvalidCompletedDateFilterError extends Error {
+  readonly filterName: 'since' | 'until';
+  readonly value: string;
+
+  constructor(filterName: 'since' | 'until', value: string) {
+    super(
+      `Invalid --${filterName} value "${value}". Use YYYY-MM-DD for a local calendar day or an ISO 8601 timestamp with timezone, such as 2026-09-12T00:00:00Z.`
+    );
+    this.name = 'InvalidCompletedDateFilterError';
+    this.filterName = filterName;
+    this.value = value;
+    Object.setPrototypeOf(this, InvalidCompletedDateFilterError.prototype);
+  }
+}
+
+function parseCompletedDateBoundary(
+  value: string,
+  filterName: 'since' | 'until',
+  boundary: 'start' | 'end'
+): Date {
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    throw new InvalidCompletedDateFilterError(filterName, value);
+  }
+
+  const dateOnlyMatch = DATE_ONLY_PATTERN.exec(trimmed);
+  if (dateOnlyMatch) {
+    const year = Number(dateOnlyMatch[1]);
+    const month = Number(dateOnlyMatch[2]);
+    const day = Number(dateOnlyMatch[3]);
+    const date = new Date(
+      year,
+      month - 1,
+      day,
+      boundary === 'start' ? 0 : 23,
+      boundary === 'start' ? 0 : 59,
+      boundary === 'start' ? 0 : 59,
+      boundary === 'start' ? 0 : 999
+    );
+
+    if (
+      date.getFullYear() !== year ||
+      date.getMonth() !== month - 1 ||
+      date.getDate() !== day
+    ) {
+      throw new InvalidCompletedDateFilterError(filterName, value);
+    }
+
+    return date;
+  }
+
+  if (!ISO_TIMESTAMP_WITH_TIMEZONE_PATTERN.test(trimmed)) {
+    throw new InvalidCompletedDateFilterError(filterName, value);
+  }
+
+  const date = new Date(trimmed);
+  if (Number.isNaN(date.getTime())) {
+    throw new InvalidCompletedDateFilterError(filterName, value);
+  }
+
+  return date;
+}
+
+export function parseCompletedDateRange(
+  since?: string,
+  until?: string
+): { since?: Date; until?: Date } {
+  return {
+    since: since !== undefined ? parseCompletedDateBoundary(since, 'since', 'start') : undefined,
+    until: until !== undefined ? parseCompletedDateBoundary(until, 'until', 'end') : undefined
+  };
+}
+
 function scanCompletedTasks(
   completedPath: string,
   mode: CompletedHistoryScanMode,
@@ -207,20 +285,20 @@ export function filterTasksByDateRange(
   since?: string,
   until?: string
 ): CompletedTask[] {
+  const dateRange = parseCompletedDateRange(since, until);
+
   return tasks.filter(task => {
     const closedAt = task.closed_at;
     if (!closedAt) return false;
 
     const taskDate = new Date(closedAt);
 
-    if (since) {
-      const sinceDate = new Date(since);
-      if (taskDate < sinceDate) return false;
+    if (dateRange.since && taskDate < dateRange.since) {
+      return false;
     }
 
-    if (until) {
-      const untilDate = new Date(until);
-      if (taskDate > untilDate) return false;
+    if (dateRange.until && taskDate > dateRange.until) {
+      return false;
     }
 
     return true;
