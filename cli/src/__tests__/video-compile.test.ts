@@ -481,7 +481,7 @@ describe('[UT-VCOMP-01] compile viewer paths match the packaged clips folder', (
   });
 });
 
-describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, unicode, and nesting', () => {
+describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, ampersands, and other concat-sensitive characters', () => {
   it('writes ffmpeg-safe concat entries for project, output, title-card, and clip paths', async () => {
     const scenario: CompileScenario = {
       projectDirPrefix: "fb compile 'prøject'-",
@@ -495,7 +495,7 @@ describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, unicode, an
         {
           shotId: 's002',
           scene: "INT. EDIT SUITE - NIGHT - CONTINUOUS - CREW'S NOTES ✨",
-          clipName: 'nested/final reel/Final Clip; take 2 (cut).mp4',
+          clipName: 'nested/final reel/Final Clip; take 2 (cut) [draft] #1.mp4',
         },
       ],
     };
@@ -505,13 +505,13 @@ describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, unicode, an
     expect(result.outputDir).toContain(path.join('video', 'output', 'review pack & audit', 'Δ bundle $(whoami)'));
     expect(result.videoSrcs).toEqual([
       "clips/Lead Clip's Master & Demo $.mp4",
-      'clips/Final Clip; take 2 (cut).mp4',
+      'clips/Final Clip; take 2 (cut) [draft] #1.mp4',
     ]);
     expect(result.zipEntries).toEqual(expect.arrayContaining([
       'index.html',
       'combined.mp4',
       "clips/Lead Clip's Master & Demo $.mp4",
-      'clips/Final Clip; take 2 (cut).mp4',
+      'clips/Final Clip; take 2 (cut) [draft] #1.mp4',
     ]));
 
     for (const src of result.videoSrcs) {
@@ -549,7 +549,7 @@ describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, unicode, an
     const expectedConcatPaths = [
       path.join(result.outputDir, 'title_0000.mp4'),
       path.resolve(result.projectDir, path.join('video', 'clips', "nested/Lead Clip's Master & Demo $.mp4")),
-      path.resolve(result.projectDir, path.join('video', 'clips', 'nested/final reel/Final Clip; take 2 (cut).mp4')),
+      path.resolve(result.projectDir, path.join('video', 'clips', 'nested/final reel/Final Clip; take 2 (cut) [draft] #1.mp4')),
     ];
     const parsedConcatPaths = result.concatText.trim().split('\n').map(parseConcatEntry);
     expect(parsedConcatPaths).toEqual(expectedConcatPaths);
