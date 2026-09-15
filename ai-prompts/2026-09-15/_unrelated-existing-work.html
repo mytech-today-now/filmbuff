@@ -1,0 +1,3347 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FilmBuff Unrelated Pre-Existing Worktree Edits Prompts 2026-09-15</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f5efe4;
+      --paper-2: #efe3d0;
+      --card: rgba(255, 252, 247, 0.95);
+      --ink: #2c2419;
+      --muted: #635546;
+      --line: #d6c4ad;
+      --accent: #5c3e1a;
+      --accent-2: #1d4c50;
+      --shadow: 0 14px 36px rgba(57, 40, 20, 0.12);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.72), transparent 36%),
+        linear-gradient(180deg, #eadcc6 0%, #f8f2e7 22%, #efe1cb 100%);
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.6;
+    }
+
+    main {
+      width: min(1200px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .hero,
+    .toc,
+    .issue,
+    .phase-card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .hero {
+      padding: 28px;
+      margin-bottom: 22px;
+    }
+
+    .eyebrow,
+    .issue-kicker,
+    .phase-kicker {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+
+    h1, h2, h3, h4 {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      margin-bottom: 12px;
+      color: #22170d;
+    }
+
+    .lead {
+      max-width: 82ch;
+      margin: 0;
+      font-size: 1.03rem;
+    }
+
+    .meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.35rem 0.7rem;
+      border-radius: 999px;
+      border: 1px solid rgba(92, 62, 26, 0.18);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(240, 229, 209, 0.88));
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    .toc {
+      padding: 22px 22px 12px;
+      margin-bottom: 22px;
+    }
+
+    .toc h2 {
+      margin-bottom: 12px;
+      font-size: 1.35rem;
+    }
+
+    .toc ol {
+      margin: 0;
+      padding-left: 0;
+      list-style: none;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+    }
+
+    .toc a {
+      display: grid;
+      gap: 4px;
+      text-decoration: none;
+      color: inherit;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(214, 196, 173, 0.9);
+      background: rgba(255, 255, 255, 0.66);
+      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+    }
+
+    .toc a:hover,
+    .toc a:focus-visible {
+      transform: translateY(-1px);
+      border-color: rgba(92, 62, 26, 0.4);
+      box-shadow: 0 8px 20px rgba(57, 40, 20, 0.08);
+      outline: none;
+    }
+
+    .toc-number,
+    .toc-meta {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .issue {
+      padding: 22px;
+      margin-bottom: 22px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .issue-header {
+      margin-bottom: 16px;
+    }
+
+    .issue-header h2 {
+      margin: 6px 0 8px;
+      font-size: clamp(1.25rem, 2vw, 1.7rem);
+      color: #271b10;
+    }
+
+    .issue-summary {
+      margin: 0;
+      max-width: 90ch;
+      color: var(--muted);
+    }
+
+    .phase-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 14px;
+    }
+
+    .phase-card {
+      padding: 14px;
+    }
+
+    .phase-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .phase-head h3 {
+      margin-top: 4px;
+      font-size: 1rem;
+      color: #302114;
+    }
+
+    .phase-note {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .task-list {
+      margin: 0 0 12px;
+      padding-left: 18px;
+    }
+
+    .task-list li + li {
+      margin-top: 6px;
+    }
+
+    details {
+      border-radius: 14px;
+      border: 1px solid rgba(92, 62, 26, 0.16);
+      background: rgba(250, 244, 234, 0.9);
+      padding: 10px 12px;
+    }
+
+    summary {
+      cursor: pointer;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.92rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    .prompt-block {
+      margin: 12px 0 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: #24180d;
+      background: rgba(255, 255, 255, 0.72);
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid rgba(92, 62, 26, 0.12);
+    }
+
+    footer {
+      margin-top: 24px;
+      color: var(--muted);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 0.9rem;
+    }
+
+    .footer-card {
+      margin-top: 22px;
+      padding: 18px 20px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      background: rgba(255, 252, 247, 0.9);
+      box-shadow: var(--shadow);
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header class="hero">
+      <p class="eyebrow">FilmBuff prompt output</p>
+      <h1>Unrelated Pre-Existing Worktree Edits, 2026-09-15</h1>
+      <p class="lead">This document splits the 2026-09-10 pre-mortem issues into chained prompts. Each issue runs as a report-first sequence: the first prompt writes a report at a named path, includes an ordered task list, and the follow-up prompts read that report to implement and verify the fix.</p>
+      <div class="meta-row">
+        <span class="chip">Source: ai-prompts/pre-mortem-2026-09-10-18-27-25.html</span>
+        <span class="chip">Template: report-first chained prompt shape</span>
+        <span class="chip">16 issues</span>
+        <span class="chip">48 chained prompts</span>
+      </div>
+    </header>
+
+    <nav class="toc" aria-label="Table of contents">
+      <h2>Table of Contents</h2>
+      <ol>
+
+        <li>
+          <a href="#issue-01">
+            <span class="toc-number">01</span>
+            <span class="toc-title">Compile viewer points at the wrong clip path</span>
+            <span class="toc-meta">Core · High severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-02">
+            <span class="toc-number">02</span>
+            <span class="toc-title">Compile viewer writes unsanitized HTML</span>
+            <span class="toc-meta">Core · Critical severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-03">
+            <span class="toc-number">03</span>
+            <span class="toc-title">Title-card ffmpeg command is shell-interpreted</span>
+            <span class="toc-meta">Core · Critical severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-04">
+            <span class="toc-number">04</span>
+            <span class="toc-title">Concat list paths are not escaped</span>
+            <span class="toc-meta">Core · High severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-05">
+            <span class="toc-number">05</span>
+            <span class="toc-title">Project agnostic validation misses source files</span>
+            <span class="toc-meta">Core · High severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-06">
+            <span class="toc-number">06</span>
+            <span class="toc-title">Malformed completed.jsonl causes false negatives</span>
+            <span class="toc-meta">Core · High severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-07">
+            <span class="toc-number">07</span>
+            <span class="toc-title">Completed task lists silently truncate on bad JSON</span>
+            <span class="toc-meta">Core · High severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-08">
+            <span class="toc-number">08</span>
+            <span class="toc-title">Date filters accept invalid or timezone-shifted input</span>
+            <span class="toc-meta">Core · Medium severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-09">
+            <span class="toc-number">09</span>
+            <span class="toc-title">Hyphenated subcommands are omitted from help</span>
+            <span class="toc-meta">Core · Medium severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-10">
+            <span class="toc-number">10</span>
+            <span class="toc-title">Update skips legacy linked modules</span>
+            <span class="toc-meta">Core · High severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-11">
+            <span class="toc-number">11</span>
+            <span class="toc-title">Pin preserves alias names instead of normalizing</span>
+            <span class="toc-meta">Additional · Medium severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-12">
+            <span class="toc-number">12</span>
+            <span class="toc-title">Upgrade only rewrites exact canonical names</span>
+            <span class="toc-meta">Additional · Medium severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-13">
+            <span class="toc-number">13</span>
+            <span class="toc-title">Reject and reopen report archive success on missing clips</span>
+            <span class="toc-meta">Additional · Medium severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-14">
+            <span class="toc-number">14</span>
+            <span class="toc-title">Reject and reopen are not transactional</span>
+            <span class="toc-meta">Additional · High severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-15">
+            <span class="toc-number">15</span>
+            <span class="toc-title">VS Code helper shells out with a concatenated command string</span>
+            <span class="toc-meta">Additional · High severity</span>
+          </a>
+        </li>
+
+        <li>
+          <a href="#issue-16">
+            <span class="toc-number">16</span>
+            <span class="toc-title">Version info JSON emits the requested alias instead of the canonical id</span>
+            <span class="toc-meta">Additional · Medium severity</span>
+          </a>
+        </li>
+      </ol>
+    </nav>
+
+
+    <article class="issue" id="issue-01">
+<header class="issue-header">
+        <p class="issue-kicker">01 of 16 · Core · High severity · Likely</p>
+        <h2>Compile viewer points at the wrong clip path</h2>
+        <p class="issue-summary">The generated viewer uses only the clip basename, but the zip stores clips inside a `clips/` folder. The result is a review page that cannot load media once the archive is opened.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover viewer path resolution, archive layout, and clip names with spaces or nested output folders.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Compile viewer points at the wrong clip path and write the report at `ai-prompts/2026-09-15/generated/issue-01/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Compile viewer points at the wrong clip path
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-01/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The generated viewer uses only the clip basename, but the zip stores clips inside a `clips/` folder. The result is a review page that cannot load media once the archive is opened.
+- Evidence: the viewer uses path.basename(record.clip_path) while the zip stores clips under clips/.
+- Failure mode: The generated viewer uses only the clip basename, but the zip stores clips inside a `clips/` folder. The result is a review page that cannot load media once the archive is opened.
+- Preserve: the existing compile flow, archive layout, and non-video behavior.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover viewer path resolution, archive layout, and clip names with spaces or nested output folders.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover viewer path resolution, archive layout, and clip names with spaces or nested output folders.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-01/report.md` and apply the smallest safe fix for Compile viewer points at the wrong clip path without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Compile viewer points at the wrong clip path
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-01/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The generated viewer uses only the clip basename, but the zip stores clips inside a `clips/` folder. The result is a review page that cannot load media once the archive is opened.
+- Evidence: the viewer uses path.basename(record.clip_path) while the zip stores clips under clips/.
+- Failure mode: The generated viewer uses only the clip basename, but the zip stores clips inside a `clips/` folder. The result is a review page that cannot load media once the archive is opened.
+- Preserve: the existing compile flow, archive layout, and non-video behavior.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover viewer path resolution, archive layout, and clip names with spaces or nested output folders.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-01/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover viewer path resolution, archive layout, and clip names with spaces or nested output folders.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-01/report.md` and prove that Compile viewer points at the wrong clip path is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Compile viewer points at the wrong clip path
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-01/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The generated viewer uses only the clip basename, but the zip stores clips inside a `clips/` folder. The result is a review page that cannot load media once the archive is opened.
+- Evidence: the viewer uses path.basename(record.clip_path) while the zip stores clips under clips/.
+- Failure mode: The generated viewer uses only the clip basename, but the zip stores clips inside a `clips/` folder. The result is a review page that cannot load media once the archive is opened.
+- Preserve: the existing compile flow, archive layout, and non-video behavior.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover viewer path resolution, archive layout, and clip names with spaces or nested output folders.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-01/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-02">
+<header class="issue-header">
+        <p class="issue-kicker">02 of 16 · Core · Critical severity · Likely</p>
+        <h2>Compile viewer writes unsanitized HTML</h2>
+        <p class="issue-summary">Scene names, shot ids, and clip names are interpolated directly into the HTML document. A malformed or hostile value can break the page or inject markup into the generated viewer.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover special characters, quotes, and markup-like input in the generated viewer HTML.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Compile viewer writes unsanitized HTML and write the report at `ai-prompts/2026-09-15/generated/issue-02/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Compile viewer writes unsanitized HTML
+- Priority: Core issue, Critical severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-02/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: Scene names, shot ids, and clip names are interpolated directly into the HTML document. A malformed or hostile value can break the page or inject markup into the generated viewer.
+- Evidence: buildIndexHtml() interpolates shotId, scene, and clipFile directly into HTML without escaping.
+- Failure mode: Scene names, shot ids, and clip names are interpolated directly into the HTML document. A malformed or hostile value can break the page or inject markup into the generated viewer.
+- Preserve: the current viewer layout and compile behavior.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover special characters, quotes, and markup-like input in the generated viewer HTML.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover special characters, quotes, and markup-like input in the generated viewer HTML.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-02/report.md` and apply the smallest safe fix for Compile viewer writes unsanitized HTML without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Compile viewer writes unsanitized HTML
+- Priority: Core issue, Critical severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-02/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: Scene names, shot ids, and clip names are interpolated directly into the HTML document. A malformed or hostile value can break the page or inject markup into the generated viewer.
+- Evidence: buildIndexHtml() interpolates shotId, scene, and clipFile directly into HTML without escaping.
+- Failure mode: Scene names, shot ids, and clip names are interpolated directly into the HTML document. A malformed or hostile value can break the page or inject markup into the generated viewer.
+- Preserve: the current viewer layout and compile behavior.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover special characters, quotes, and markup-like input in the generated viewer HTML.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-02/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover special characters, quotes, and markup-like input in the generated viewer HTML.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-02/report.md` and prove that Compile viewer writes unsanitized HTML is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Compile viewer writes unsanitized HTML
+- Priority: Core issue, Critical severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-02/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: Scene names, shot ids, and clip names are interpolated directly into the HTML document. A malformed or hostile value can break the page or inject markup into the generated viewer.
+- Evidence: buildIndexHtml() interpolates shotId, scene, and clipFile directly into HTML without escaping.
+- Failure mode: Scene names, shot ids, and clip names are interpolated directly into the HTML document. A malformed or hostile value can break the page or inject markup into the generated viewer.
+- Preserve: the current viewer layout and compile behavior.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover special characters, quotes, and markup-like input in the generated viewer HTML.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-02/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-03">
+<header class="issue-header">
+        <p class="issue-kicker">03 of 16 · Core · Critical severity · Likely</p>
+        <h2>Title-card ffmpeg command is shell-interpreted</h2>
+        <p class="issue-summary">The scene title is embedded inside a shell command string and handed to `exec`. That means shell metacharacters can be interpreted instead of treated as literal text.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover command construction, argument boundaries, and paths or titles that contain shell metacharacters.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Title-card ffmpeg command is shell-interpreted and write the report at `ai-prompts/2026-09-15/generated/issue-03/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Title-card ffmpeg command is shell-interpreted
+- Priority: Core issue, Critical severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-03/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The scene title is embedded inside a shell command string and handed to `exec`. That means shell metacharacters can be interpreted instead of treated as literal text.
+- Evidence: the title-card ffmpeg command is built as a shell string and executed with exec().
+- Failure mode: The scene title is embedded inside a shell command string and handed to `exec`. That means shell metacharacters can be interpreted instead of treated as literal text.
+- Preserve: the existing title-card feature and ffmpeg-based output.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover command construction, argument boundaries, and paths or titles that contain shell metacharacters.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover command construction, argument boundaries, and paths or titles that contain shell metacharacters.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-03/report.md` and apply the smallest safe fix for Title-card ffmpeg command is shell-interpreted without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Title-card ffmpeg command is shell-interpreted
+- Priority: Core issue, Critical severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-03/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The scene title is embedded inside a shell command string and handed to `exec`. That means shell metacharacters can be interpreted instead of treated as literal text.
+- Evidence: the title-card ffmpeg command is built as a shell string and executed with exec().
+- Failure mode: The scene title is embedded inside a shell command string and handed to `exec`. That means shell metacharacters can be interpreted instead of treated as literal text.
+- Preserve: the existing title-card feature and ffmpeg-based output.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover command construction, argument boundaries, and paths or titles that contain shell metacharacters.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-03/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover command construction, argument boundaries, and paths or titles that contain shell metacharacters.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-03/report.md` and prove that Title-card ffmpeg command is shell-interpreted is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Title-card ffmpeg command is shell-interpreted
+- Priority: Core issue, Critical severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-03/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The scene title is embedded inside a shell command string and handed to `exec`. That means shell metacharacters can be interpreted instead of treated as literal text.
+- Evidence: the title-card ffmpeg command is built as a shell string and executed with exec().
+- Failure mode: The scene title is embedded inside a shell command string and handed to `exec`. That means shell metacharacters can be interpreted instead of treated as literal text.
+- Preserve: the existing title-card feature and ffmpeg-based output.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover command construction, argument boundaries, and paths or titles that contain shell metacharacters.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-03/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-04">
+<header class="issue-header">
+        <p class="issue-kicker">04 of 16 · Core · High severity · Likely</p>
+        <h2>Concat list paths are not escaped</h2>
+        <p class="issue-summary">The ffmpeg concat manifest is written with raw single quotes around each path. Any apostrophe inside a path or file name can break the manifest and stop the compile step.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover paths with spaces, apostrophes, ampersands, and other concat-sensitive characters.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Concat list paths are not escaped and write the report at `ai-prompts/2026-09-15/generated/issue-04/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Concat list paths are not escaped
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-04/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The ffmpeg concat manifest is written with raw single quotes around each path. Any apostrophe inside a path or file name can break the manifest and stop the compile step.
+- Evidence: concat lines are written as file &#39;path&#39; without escaping.
+- Failure mode: The ffmpeg concat manifest is written with raw single quotes around each path. Any apostrophe inside a path or file name can break the manifest and stop the compile step.
+- Preserve: the existing combined.mp4 workflow and archive layout.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover paths with spaces, apostrophes, ampersands, and other concat-sensitive characters.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover paths with spaces, apostrophes, ampersands, and other concat-sensitive characters.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-04/report.md` and apply the smallest safe fix for Concat list paths are not escaped without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Concat list paths are not escaped
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-04/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The ffmpeg concat manifest is written with raw single quotes around each path. Any apostrophe inside a path or file name can break the manifest and stop the compile step.
+- Evidence: concat lines are written as file &#39;path&#39; without escaping.
+- Failure mode: The ffmpeg concat manifest is written with raw single quotes around each path. Any apostrophe inside a path or file name can break the manifest and stop the compile step.
+- Preserve: the existing combined.mp4 workflow and archive layout.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover paths with spaces, apostrophes, ampersands, and other concat-sensitive characters.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-04/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover paths with spaces, apostrophes, ampersands, and other concat-sensitive characters.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-04/report.md` and prove that Concat list paths are not escaped is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Concat list paths are not escaped
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/commands/video/compile.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-04/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The ffmpeg concat manifest is written with raw single quotes around each path. Any apostrophe inside a path or file name can break the manifest and stop the compile step.
+- Evidence: concat lines are written as file &#39;path&#39; without escaping.
+- Failure mode: The ffmpeg concat manifest is written with raw single quotes around each path. Any apostrophe inside a path or file name can break the manifest and stop the compile step.
+- Preserve: the existing combined.mp4 workflow and archive layout.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover paths with spaces, apostrophes, ampersands, and other concat-sensitive characters.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-04/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-05">
+<header class="issue-header">
+        <p class="issue-kicker">05 of 16 · Core · High severity · Likely</p>
+        <h2>Project agnostic validation misses source files</h2>
+        <p class="issue-summary">The validator only scans markdown and JSON files even though the module tree contains TypeScript source. That leaves a large blind spot for hardcoded paths and URLs in code files.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover validation discovery paths, source file selection, and project-specific versus project-agnostic behavior.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Project agnostic validation misses source files and write the report at `ai-prompts/2026-09-15/generated/issue-05/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Project agnostic validation misses source files
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/utils/module-system.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-05/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The validator only scans markdown and JSON files even though the module tree contains TypeScript source. That leaves a large blind spot for hardcoded paths and URLs in code files.
+- Evidence: validateProjectAgnostic() only scans .md and .json files even though module trees contain .ts files.
+- Failure mode: The validator only scans markdown and JSON files even though the module tree contains TypeScript source. That leaves a large blind spot for hardcoded paths and URLs in code files.
+- Preserve: the current validation categories and output format unless a change is required.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover validation discovery paths, source file selection, and project-specific versus project-agnostic behavior.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover validation discovery paths, source file selection, and project-specific versus project-agnostic behavior.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-05/report.md` and apply the smallest safe fix for Project agnostic validation misses source files without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Project agnostic validation misses source files
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/utils/module-system.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-05/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The validator only scans markdown and JSON files even though the module tree contains TypeScript source. That leaves a large blind spot for hardcoded paths and URLs in code files.
+- Evidence: validateProjectAgnostic() only scans .md and .json files even though module trees contain .ts files.
+- Failure mode: The validator only scans markdown and JSON files even though the module tree contains TypeScript source. That leaves a large blind spot for hardcoded paths and URLs in code files.
+- Preserve: the current validation categories and output format unless a change is required.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover validation discovery paths, source file selection, and project-specific versus project-agnostic behavior.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-05/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover validation discovery paths, source file selection, and project-specific versus project-agnostic behavior.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-05/report.md` and prove that Project agnostic validation misses source files is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Project agnostic validation misses source files
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/utils/module-system.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-05/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The validator only scans markdown and JSON files even though the module tree contains TypeScript source. That leaves a large blind spot for hardcoded paths and URLs in code files.
+- Evidence: validateProjectAgnostic() only scans .md and .json files even though module trees contain .ts files.
+- Failure mode: The validator only scans markdown and JSON files even though the module tree contains TypeScript source. That leaves a large blind spot for hardcoded paths and URLs in code files.
+- Preserve: the current validation categories and output format unless a change is required.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover validation discovery paths, source file selection, and project-specific versus project-agnostic behavior.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-05/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-06">
+<header class="issue-header">
+        <p class="issue-kicker">06 of 16 · Core · High severity · Medium likelihood</p>
+        <h2>Malformed completed.jsonl causes false negatives</h2>
+        <p class="issue-summary">Single-task lookup helpers read the completed history line by line and silently ignore JSON parse failures. A corrupted line can therefore look like the task never existed.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover malformed JSON lines, valid records, empty files, and duplicate task ids.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Malformed completed.jsonl causes false negatives and write the report at `ai-prompts/2026-09-15/generated/issue-06/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Malformed completed.jsonl causes false negatives
+- Priority: Core issue, High severity, Medium likelihood
+- Affected files: cli/src/utils/beadsCompletedChecker.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-06/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: Single-task lookup helpers read the completed history line by line and silently ignore JSON parse failures. A corrupted line can therefore look like the task never existed.
+- Evidence: isTaskCompleted() and getCompletedTask() silently ignore parse failures.
+- Failure mode: Single-task lookup helpers read the completed history line by line and silently ignore JSON parse failures. A corrupted line can therefore look like the task never existed.
+- Preserve: the current query behavior for valid completed records.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover malformed JSON lines, valid records, empty files, and duplicate task ids.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover malformed JSON lines, valid records, empty files, and duplicate task ids.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-06/report.md` and apply the smallest safe fix for Malformed completed.jsonl causes false negatives without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Malformed completed.jsonl causes false negatives
+- Priority: Core issue, High severity, Medium likelihood
+- Affected files: cli/src/utils/beadsCompletedChecker.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-06/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: Single-task lookup helpers read the completed history line by line and silently ignore JSON parse failures. A corrupted line can therefore look like the task never existed.
+- Evidence: isTaskCompleted() and getCompletedTask() silently ignore parse failures.
+- Failure mode: Single-task lookup helpers read the completed history line by line and silently ignore JSON parse failures. A corrupted line can therefore look like the task never existed.
+- Preserve: the current query behavior for valid completed records.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover malformed JSON lines, valid records, empty files, and duplicate task ids.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-06/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover malformed JSON lines, valid records, empty files, and duplicate task ids.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-06/report.md` and prove that Malformed completed.jsonl causes false negatives is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Malformed completed.jsonl causes false negatives
+- Priority: Core issue, High severity, Medium likelihood
+- Affected files: cli/src/utils/beadsCompletedChecker.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-06/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: Single-task lookup helpers read the completed history line by line and silently ignore JSON parse failures. A corrupted line can therefore look like the task never existed.
+- Evidence: isTaskCompleted() and getCompletedTask() silently ignore parse failures.
+- Failure mode: Single-task lookup helpers read the completed history line by line and silently ignore JSON parse failures. A corrupted line can therefore look like the task never existed.
+- Preserve: the current query behavior for valid completed records.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover malformed JSON lines, valid records, empty files, and duplicate task ids.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-06/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-07">
+<header class="issue-header">
+        <p class="issue-kicker">07 of 16 · Core · High severity · Likely</p>
+        <h2>Completed task lists silently truncate on bad JSON</h2>
+        <p class="issue-summary">The full completed-task listing path also swallows parse failures and keeps going. That means a damaged history can still produce a cheerful list that is missing work.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover mixed valid and invalid lines, clean files, and the user-facing listing command.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Completed task lists silently truncate on bad JSON and write the report at `ai-prompts/2026-09-15/generated/issue-07/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Completed task lists silently truncate on bad JSON
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/utils/beadsCompletedChecker.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-07/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The full completed-task listing path also swallows parse failures and keeps going. That means a damaged history can still produce a cheerful list that is missing work.
+- Evidence: getAllCompletedTasks() catches parse errors and continues without a corruption signal.
+- Failure mode: The full completed-task listing path also swallows parse failures and keeps going. That means a damaged history can still produce a cheerful list that is missing work.
+- Preserve: the current sort and de-duplication behavior for clean data.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover mixed valid and invalid lines, clean files, and the user-facing listing command.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover mixed valid and invalid lines, clean files, and the user-facing listing command.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-07/report.md` and apply the smallest safe fix for Completed task lists silently truncate on bad JSON without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Completed task lists silently truncate on bad JSON
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/utils/beadsCompletedChecker.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-07/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The full completed-task listing path also swallows parse failures and keeps going. That means a damaged history can still produce a cheerful list that is missing work.
+- Evidence: getAllCompletedTasks() catches parse errors and continues without a corruption signal.
+- Failure mode: The full completed-task listing path also swallows parse failures and keeps going. That means a damaged history can still produce a cheerful list that is missing work.
+- Preserve: the current sort and de-duplication behavior for clean data.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover mixed valid and invalid lines, clean files, and the user-facing listing command.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-07/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover mixed valid and invalid lines, clean files, and the user-facing listing command.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-07/report.md` and prove that Completed task lists silently truncate on bad JSON is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Completed task lists silently truncate on bad JSON
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/utils/beadsCompletedChecker.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-07/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The full completed-task listing path also swallows parse failures and keeps going. That means a damaged history can still produce a cheerful list that is missing work.
+- Evidence: getAllCompletedTasks() catches parse errors and continues without a corruption signal.
+- Failure mode: The full completed-task listing path also swallows parse failures and keeps going. That means a damaged history can still produce a cheerful list that is missing work.
+- Preserve: the current sort and de-duplication behavior for clean data.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover mixed valid and invalid lines, clean files, and the user-facing listing command.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-07/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-08">
+<header class="issue-header">
+        <p class="issue-kicker">08 of 16 · Core · Medium severity · Medium likelihood</p>
+        <h2>Date filters accept invalid or timezone-shifted input</h2>
+        <p class="issue-summary">The date range filter relies on `new Date()` for both boundaries without validation or normalization. Invalid values behave like no filter, and date-only inputs can drift at the timezone edge.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover invalid dates, date-only ranges, and tasks completed near midnight in the local timezone.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Date filters accept invalid or timezone-shifted input and write the report at `ai-prompts/2026-09-15/generated/issue-08/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Date filters accept invalid or timezone-shifted input
+- Priority: Core issue, Medium severity, Medium likelihood
+- Affected files: cli/src/utils/beadsCompletedChecker.ts and cli/src/commands/showCompleted.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-08/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The date range filter relies on `new Date()` for both boundaries without validation or normalization. Invalid values behave like no filter, and date-only inputs can drift at the timezone edge.
+- Evidence: filterTasksByDateRange() uses new Date() directly on raw strings.
+- Failure mode: The date range filter relies on `new Date()` for both boundaries without validation or normalization. Invalid values behave like no filter, and date-only inputs can drift at the timezone edge.
+- Preserve: the existing completed-task listing behavior for valid filters.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover invalid dates, date-only ranges, and tasks completed near midnight in the local timezone.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover invalid dates, date-only ranges, and tasks completed near midnight in the local timezone.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-08/report.md` and apply the smallest safe fix for Date filters accept invalid or timezone-shifted input without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Date filters accept invalid or timezone-shifted input
+- Priority: Core issue, Medium severity, Medium likelihood
+- Affected files: cli/src/utils/beadsCompletedChecker.ts and cli/src/commands/showCompleted.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-08/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The date range filter relies on `new Date()` for both boundaries without validation or normalization. Invalid values behave like no filter, and date-only inputs can drift at the timezone edge.
+- Evidence: filterTasksByDateRange() uses new Date() directly on raw strings.
+- Failure mode: The date range filter relies on `new Date()` for both boundaries without validation or normalization. Invalid values behave like no filter, and date-only inputs can drift at the timezone edge.
+- Preserve: the existing completed-task listing behavior for valid filters.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover invalid dates, date-only ranges, and tasks completed near midnight in the local timezone.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-08/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover invalid dates, date-only ranges, and tasks completed near midnight in the local timezone.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-08/report.md` and prove that Date filters accept invalid or timezone-shifted input is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Date filters accept invalid or timezone-shifted input
+- Priority: Core issue, Medium severity, Medium likelihood
+- Affected files: cli/src/utils/beadsCompletedChecker.ts and cli/src/commands/showCompleted.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-08/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The date range filter relies on `new Date()` for both boundaries without validation or normalization. Invalid values behave like no filter, and date-only inputs can drift at the timezone edge.
+- Evidence: filterTasksByDateRange() uses new Date() directly on raw strings.
+- Failure mode: The date range filter relies on `new Date()` for both boundaries without validation or normalization. Invalid values behave like no filter, and date-only inputs can drift at the timezone edge.
+- Preserve: the existing completed-task listing behavior for valid filters.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover invalid dates, date-only ranges, and tasks completed near midnight in the local timezone.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-08/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-09">
+<header class="issue-header">
+        <p class="issue-kicker">09 of 16 · Core · Medium severity · Likely</p>
+        <h2>Hyphenated subcommands are omitted from help</h2>
+        <p class="issue-summary">The help extractor only matches `\w+`, so commands with hyphens are treated like unsupported tokens and never make it into the generated docs.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover help generation, nested command discovery, and the display of hyphenated names.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Hyphenated subcommands are omitted from help and write the report at `ai-prompts/2026-09-15/generated/issue-09/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Hyphenated subcommands are omitted from help
+- Priority: Core issue, Medium severity, Likely
+- Affected files: cli/src/utils/extractCommandHelp.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-09/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The help extractor only matches `\w+`, so commands with hyphens are treated like unsupported tokens and never make it into the generated docs.
+- Evidence: the help parser only matches \w+, so commands like generate-video and mcp-server are missed.
+- Failure mode: The help extractor only matches `\w+`, so commands with hyphens are treated like unsupported tokens and never make it into the generated docs.
+- Preserve: the existing help generation format and recursion limits.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover help generation, nested command discovery, and the display of hyphenated names.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover help generation, nested command discovery, and the display of hyphenated names.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-09/report.md` and apply the smallest safe fix for Hyphenated subcommands are omitted from help without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Hyphenated subcommands are omitted from help
+- Priority: Core issue, Medium severity, Likely
+- Affected files: cli/src/utils/extractCommandHelp.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-09/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The help extractor only matches `\w+`, so commands with hyphens are treated like unsupported tokens and never make it into the generated docs.
+- Evidence: the help parser only matches \w+, so commands like generate-video and mcp-server are missed.
+- Failure mode: The help extractor only matches `\w+`, so commands with hyphens are treated like unsupported tokens and never make it into the generated docs.
+- Preserve: the existing help generation format and recursion limits.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover help generation, nested command discovery, and the display of hyphenated names.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-09/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover help generation, nested command discovery, and the display of hyphenated names.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-09/report.md` and prove that Hyphenated subcommands are omitted from help is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Hyphenated subcommands are omitted from help
+- Priority: Core issue, Medium severity, Likely
+- Affected files: cli/src/utils/extractCommandHelp.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-09/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The help extractor only matches `\w+`, so commands with hyphens are treated like unsupported tokens and never make it into the generated docs.
+- Evidence: the help parser only matches \w+, so commands like generate-video and mcp-server are missed.
+- Failure mode: The help extractor only matches `\w+`, so commands with hyphens are treated like unsupported tokens and never make it into the generated docs.
+- Preserve: the existing help generation format and recursion limits.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover help generation, nested command discovery, and the display of hyphenated names.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-09/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-10">
+<header class="issue-header">
+        <p class="issue-kicker">10 of 16 · Core · High severity · Likely</p>
+        <h2>Update skips legacy linked modules</h2>
+        <p class="issue-summary">The module updater filters by exact stored names and then treats any record whose name does not map to a local directory as externally managed. Legacy alias records can therefore be skipped instead of updated.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover legacy linked modules, current modules, and the update flow that discovers them.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Update skips legacy linked modules and write the report at `ai-prompts/2026-09-15/generated/issue-10/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Update skips legacy linked modules
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/commands/update.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-10/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The module updater filters by exact stored names and then treats any record whose name does not map to a local directory as externally managed. Legacy alias records can therefore be skipped instead of updated.
+- Evidence: the update command filters and rewrites config entries by exact stored name.
+- Failure mode: The module updater filters by exact stored names and then treats any record whose name does not map to a local directory as externally managed. Legacy alias records can therefore be skipped instead of updated.
+- Preserve: the current update workflow, CLI update flow, and config format where possible.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover legacy linked modules, current modules, and the update flow that discovers them.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover legacy linked modules, current modules, and the update flow that discovers them.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-10/report.md` and apply the smallest safe fix for Update skips legacy linked modules without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Update skips legacy linked modules
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/commands/update.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-10/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The module updater filters by exact stored names and then treats any record whose name does not map to a local directory as externally managed. Legacy alias records can therefore be skipped instead of updated.
+- Evidence: the update command filters and rewrites config entries by exact stored name.
+- Failure mode: The module updater filters by exact stored names and then treats any record whose name does not map to a local directory as externally managed. Legacy alias records can therefore be skipped instead of updated.
+- Preserve: the current update workflow, CLI update flow, and config format where possible.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover legacy linked modules, current modules, and the update flow that discovers them.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-10/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover legacy linked modules, current modules, and the update flow that discovers them.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-10/report.md` and prove that Update skips legacy linked modules is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Update skips legacy linked modules
+- Priority: Core issue, High severity, Likely
+- Affected files: cli/src/commands/update.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-10/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The module updater filters by exact stored names and then treats any record whose name does not map to a local directory as externally managed. Legacy alias records can therefore be skipped instead of updated.
+- Evidence: the update command filters and rewrites config entries by exact stored name.
+- Failure mode: The module updater filters by exact stored names and then treats any record whose name does not map to a local directory as externally managed. Legacy alias records can therefore be skipped instead of updated.
+- Preserve: the current update workflow, CLI update flow, and config format where possible.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover legacy linked modules, current modules, and the update flow that discovers them.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-10/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-11">
+<header class="issue-header">
+        <p class="issue-kicker">11 of 16 · Additional · Medium severity · Medium likelihood</p>
+        <h2>Pin preserves alias names instead of normalizing</h2>
+        <p class="issue-summary">The pin command accepts alias-style matches, but when the matching record is an object it only updates the version field. The stored module name can remain stale and keep confusing later commands.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover alias inputs, canonical inputs, and the persisted manifest output.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Pin preserves alias names instead of normalizing and write the report at `ai-prompts/2026-09-15/generated/issue-11/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Pin preserves alias names instead of normalizing
+- Priority: Additional issue, Medium severity, Medium likelihood
+- Affected files: cli/src/commands/pin.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-11/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The pin command accepts alias-style matches, but when the matching record is an object it only updates the version field. The stored module name can remain stale and keep confusing later commands.
+- Evidence: the pin command can update version while leaving the stored name unchanged.
+- Failure mode: The pin command accepts alias-style matches, but when the matching record is an object it only updates the version field. The stored module name can remain stale and keep confusing later commands.
+- Preserve: the existing pin workflow and version validation.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover alias inputs, canonical inputs, and the persisted manifest output.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover alias inputs, canonical inputs, and the persisted manifest output.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-11/report.md` and apply the smallest safe fix for Pin preserves alias names instead of normalizing without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Pin preserves alias names instead of normalizing
+- Priority: Additional issue, Medium severity, Medium likelihood
+- Affected files: cli/src/commands/pin.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-11/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The pin command accepts alias-style matches, but when the matching record is an object it only updates the version field. The stored module name can remain stale and keep confusing later commands.
+- Evidence: the pin command can update version while leaving the stored name unchanged.
+- Failure mode: The pin command accepts alias-style matches, but when the matching record is an object it only updates the version field. The stored module name can remain stale and keep confusing later commands.
+- Preserve: the existing pin workflow and version validation.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover alias inputs, canonical inputs, and the persisted manifest output.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-11/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover alias inputs, canonical inputs, and the persisted manifest output.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-11/report.md` and prove that Pin preserves alias names instead of normalizing is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Pin preserves alias names instead of normalizing
+- Priority: Additional issue, Medium severity, Medium likelihood
+- Affected files: cli/src/commands/pin.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-11/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The pin command accepts alias-style matches, but when the matching record is an object it only updates the version field. The stored module name can remain stale and keep confusing later commands.
+- Evidence: the pin command can update version while leaving the stored name unchanged.
+- Failure mode: The pin command accepts alias-style matches, but when the matching record is an object it only updates the version field. The stored module name can remain stale and keep confusing later commands.
+- Preserve: the existing pin workflow and version validation.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover alias inputs, canonical inputs, and the persisted manifest output.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-11/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-12">
+<header class="issue-header">
+        <p class="issue-kicker">12 of 16 · Additional · Medium severity · Likely</p>
+        <h2>Upgrade only rewrites exact canonical names</h2>
+        <p class="issue-summary">Upgrade updates `.augment/extensions.json` only when the stored name matches `module.fullName` exactly. If the config still uses an alias, the upgrade can report success while the manifest remains stale.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover exact canonical names, aliases, and rewritten manifest records.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Upgrade only rewrites exact canonical names and write the report at `ai-prompts/2026-09-15/generated/issue-12/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Upgrade only rewrites exact canonical names
+- Priority: Additional issue, Medium severity, Likely
+- Affected files: cli/src/commands/upgrade.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-12/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: Upgrade updates `.augment/extensions.json` only when the stored name matches `module.fullName` exactly. If the config still uses an alias, the upgrade can report success while the manifest remains stale.
+- Evidence: the config update path searches for an exact match on module.fullName.
+- Failure mode: Upgrade updates `.augment/extensions.json` only when the stored name matches `module.fullName` exactly. If the config still uses an alias, the upgrade can report success while the manifest remains stale.
+- Preserve: the current upgrade detection and reporting behavior.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover exact canonical names, aliases, and rewritten manifest records.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover exact canonical names, aliases, and rewritten manifest records.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-12/report.md` and apply the smallest safe fix for Upgrade only rewrites exact canonical names without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Upgrade only rewrites exact canonical names
+- Priority: Additional issue, Medium severity, Likely
+- Affected files: cli/src/commands/upgrade.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-12/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: Upgrade updates `.augment/extensions.json` only when the stored name matches `module.fullName` exactly. If the config still uses an alias, the upgrade can report success while the manifest remains stale.
+- Evidence: the config update path searches for an exact match on module.fullName.
+- Failure mode: Upgrade updates `.augment/extensions.json` only when the stored name matches `module.fullName` exactly. If the config still uses an alias, the upgrade can report success while the manifest remains stale.
+- Preserve: the current upgrade detection and reporting behavior.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover exact canonical names, aliases, and rewritten manifest records.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-12/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover exact canonical names, aliases, and rewritten manifest records.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-12/report.md` and prove that Upgrade only rewrites exact canonical names is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Upgrade only rewrites exact canonical names
+- Priority: Additional issue, Medium severity, Likely
+- Affected files: cli/src/commands/upgrade.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-12/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: Upgrade updates `.augment/extensions.json` only when the stored name matches `module.fullName` exactly. If the config still uses an alias, the upgrade can report success while the manifest remains stale.
+- Evidence: the config update path searches for an exact match on module.fullName.
+- Failure mode: Upgrade updates `.augment/extensions.json` only when the stored name matches `module.fullName` exactly. If the config still uses an alias, the upgrade can report success while the manifest remains stale.
+- Preserve: the current upgrade detection and reporting behavior.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover exact canonical names, aliases, and rewritten manifest records.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-12/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-13">
+<header class="issue-header">
+        <p class="issue-kicker">13 of 16 · Additional · Medium severity · Medium likelihood</p>
+        <h2>Reject and reopen report archive success on missing clips</h2>
+        <p class="issue-summary">The clip renamer explicitly no-ops when the source file is absent, but the command still logs that the clip was archived. That turns a missing file into a false success story.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover missing clip handling, user-facing status, and archive reporting behavior.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Reject and reopen report archive success on missing clips and write the report at `ai-prompts/2026-09-15/generated/issue-13/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Reject and reopen report archive success on missing clips
+- Priority: Additional issue, Medium severity, Medium likelihood
+- Affected files: cli/src/commands/video/reject.ts, cli/src/commands/video/reopen.ts, cli/src/lib/status-file-manager.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-13/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The clip renamer explicitly no-ops when the source file is absent, but the command still logs that the clip was archived. That turns a missing file into a false success story.
+- Evidence: renameClipForRetry() no-ops on missing source files, but the commands still log an archive destination.
+- Failure mode: The clip renamer explicitly no-ops when the source file is absent, but the command still logs that the clip was archived. That turns a missing file into a false success story.
+- Preserve: the state transition semantics and the current audit trail shape where possible.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover missing clip handling, user-facing status, and archive reporting behavior.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover missing clip handling, user-facing status, and archive reporting behavior.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-13/report.md` and apply the smallest safe fix for Reject and reopen report archive success on missing clips without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Reject and reopen report archive success on missing clips
+- Priority: Additional issue, Medium severity, Medium likelihood
+- Affected files: cli/src/commands/video/reject.ts, cli/src/commands/video/reopen.ts, cli/src/lib/status-file-manager.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-13/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The clip renamer explicitly no-ops when the source file is absent, but the command still logs that the clip was archived. That turns a missing file into a false success story.
+- Evidence: renameClipForRetry() no-ops on missing source files, but the commands still log an archive destination.
+- Failure mode: The clip renamer explicitly no-ops when the source file is absent, but the command still logs that the clip was archived. That turns a missing file into a false success story.
+- Preserve: the state transition semantics and the current audit trail shape where possible.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover missing clip handling, user-facing status, and archive reporting behavior.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-13/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover missing clip handling, user-facing status, and archive reporting behavior.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-13/report.md` and prove that Reject and reopen report archive success on missing clips is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Reject and reopen report archive success on missing clips
+- Priority: Additional issue, Medium severity, Medium likelihood
+- Affected files: cli/src/commands/video/reject.ts, cli/src/commands/video/reopen.ts, cli/src/lib/status-file-manager.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-13/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The clip renamer explicitly no-ops when the source file is absent, but the command still logs that the clip was archived. That turns a missing file into a false success story.
+- Evidence: renameClipForRetry() no-ops on missing source files, but the commands still log an archive destination.
+- Failure mode: The clip renamer explicitly no-ops when the source file is absent, but the command still logs that the clip was archived. That turns a missing file into a false success story.
+- Preserve: the state transition semantics and the current audit trail shape where possible.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover missing clip handling, user-facing status, and archive reporting behavior.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-13/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-14">
+<header class="issue-header">
+        <p class="issue-kicker">14 of 16 · Additional · High severity · Medium likelihood</p>
+        <h2>Reject and reopen are not transactional</h2>
+        <p class="issue-summary">Both commands append the state transition before attempting the clip rename. If the filesystem move fails, the history file already says the transition happened and the clip remains in place.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover partial failures, rollback behavior, and the state after a failed clip move.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Reject and reopen are not transactional and write the report at `ai-prompts/2026-09-15/generated/issue-14/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Reject and reopen are not transactional
+- Priority: Additional issue, High severity, Medium likelihood
+- Affected files: cli/src/commands/video/reject.ts and cli/src/commands/video/reopen.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-14/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: Both commands append the state transition before attempting the clip rename. If the filesystem move fails, the history file already says the transition happened and the clip remains in place.
+- Evidence: appendRecords() runs before renameClipForRetry(), which can leave state and filesystem out of sync.
+- Failure mode: Both commands append the state transition before attempting the clip rename. If the filesystem move fails, the history file already says the transition happened and the clip remains in place.
+- Preserve: the existing status transitions and user-facing command intent.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover partial failures, rollback behavior, and the state after a failed clip move.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover partial failures, rollback behavior, and the state after a failed clip move.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-14/report.md` and apply the smallest safe fix for Reject and reopen are not transactional without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Reject and reopen are not transactional
+- Priority: Additional issue, High severity, Medium likelihood
+- Affected files: cli/src/commands/video/reject.ts and cli/src/commands/video/reopen.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-14/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: Both commands append the state transition before attempting the clip rename. If the filesystem move fails, the history file already says the transition happened and the clip remains in place.
+- Evidence: appendRecords() runs before renameClipForRetry(), which can leave state and filesystem out of sync.
+- Failure mode: Both commands append the state transition before attempting the clip rename. If the filesystem move fails, the history file already says the transition happened and the clip remains in place.
+- Preserve: the existing status transitions and user-facing command intent.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover partial failures, rollback behavior, and the state after a failed clip move.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-14/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover partial failures, rollback behavior, and the state after a failed clip move.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-14/report.md` and prove that Reject and reopen are not transactional is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Reject and reopen are not transactional
+- Priority: Additional issue, High severity, Medium likelihood
+- Affected files: cli/src/commands/video/reject.ts and cli/src/commands/video/reopen.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-14/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: Both commands append the state transition before attempting the clip rename. If the filesystem move fails, the history file already says the transition happened and the clip remains in place.
+- Evidence: appendRecords() runs before renameClipForRetry(), which can leave state and filesystem out of sync.
+- Failure mode: Both commands append the state transition before attempting the clip rename. If the filesystem move fails, the history file already says the transition happened and the clip remains in place.
+- Preserve: the existing status transitions and user-facing command intent.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover partial failures, rollback behavior, and the state after a failed clip move.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-14/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-15">
+<header class="issue-header">
+        <p class="issue-kicker">15 of 16 · Additional · High severity · Likely</p>
+        <h2>VS Code helper shells out with a concatenated command string</h2>
+        <p class="issue-summary">The editor launcher assembles `code` plus all arguments into one shell string. That makes the helper fragile for paths with spaces and unsafe for any shell metacharacters that sneak into the argument list.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover exact argument passing, quoted paths, and file names that contain spaces or metacharacters.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for VS Code helper shells out with a concatenated command string and write the report at `ai-prompts/2026-09-15/generated/issue-15/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: VS Code helper shells out with a concatenated command string
+- Priority: Additional issue, High severity, Likely
+- Affected files: cli/src/utils/vscode-editor.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-15/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The editor launcher assembles `code` plus all arguments into one shell string. That makes the helper fragile for paths with spaces and unsafe for any shell metacharacters that sneak into the argument list.
+- Evidence: openInVSCode() concatenates arguments into one execSync() command string.
+- Failure mode: The editor launcher assembles `code` plus all arguments into one shell string. That makes the helper fragile for paths with spaces and unsafe for any shell metacharacters that sneak into the argument list.
+- Preserve: the current behavior for preview mode, reuse window, and version checks.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover exact argument passing, quoted paths, and file names that contain spaces or metacharacters.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover exact argument passing, quoted paths, and file names that contain spaces or metacharacters.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-15/report.md` and apply the smallest safe fix for VS Code helper shells out with a concatenated command string without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: VS Code helper shells out with a concatenated command string
+- Priority: Additional issue, High severity, Likely
+- Affected files: cli/src/utils/vscode-editor.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-15/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The editor launcher assembles `code` plus all arguments into one shell string. That makes the helper fragile for paths with spaces and unsafe for any shell metacharacters that sneak into the argument list.
+- Evidence: openInVSCode() concatenates arguments into one execSync() command string.
+- Failure mode: The editor launcher assembles `code` plus all arguments into one shell string. That makes the helper fragile for paths with spaces and unsafe for any shell metacharacters that sneak into the argument list.
+- Preserve: the current behavior for preview mode, reuse window, and version checks.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover exact argument passing, quoted paths, and file names that contain spaces or metacharacters.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-15/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover exact argument passing, quoted paths, and file names that contain spaces or metacharacters.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-15/report.md` and prove that VS Code helper shells out with a concatenated command string is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: VS Code helper shells out with a concatenated command string
+- Priority: Additional issue, High severity, Likely
+- Affected files: cli/src/utils/vscode-editor.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-15/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The editor launcher assembles `code` plus all arguments into one shell string. That makes the helper fragile for paths with spaces and unsafe for any shell metacharacters that sneak into the argument list.
+- Evidence: openInVSCode() concatenates arguments into one execSync() command string.
+- Failure mode: The editor launcher assembles `code` plus all arguments into one shell string. That makes the helper fragile for paths with spaces and unsafe for any shell metacharacters that sneak into the argument list.
+- Preserve: the current behavior for preview mode, reuse window, and version checks.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover exact argument passing, quoted paths, and file names that contain spaces or metacharacters.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-15/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <article class="issue" id="issue-16">
+<header class="issue-header">
+        <p class="issue-kicker">16 of 16 · Additional · Medium severity · Medium likelihood</p>
+        <h2>Version info JSON emits the requested alias instead of the canonical id</h2>
+        <p class="issue-summary">The command resolves the module correctly, but the JSON payload still uses the raw input string in the `module` field. That makes the machine-readable output unstable whenever callers use an alias.</p>
+      </header>
+      <div class="phase-grid">
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 1 · Report</p>
+              <h3>Confirm the failure boundary and write the report the next prompt will read.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover canonical lookups, alias lookups, and not-found cases in JSON mode.</p>
+          <ul class="task-list">
+            <li>Inspect the repository instructions and the affected files.</li>
+            <li>Confirm the failure from the source, the current output, and the evidence you capture.</li>
+            <li>Write the report at the named path with root cause, safe boundary, and the ordered task list.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior debugging specialist and repository investigator.
+
+Objective
+Confirm the failure boundary for Version info JSON emits the requested alias instead of the canonical id and write the report at `ai-prompts/2026-09-15/generated/issue-16/report.md` before any code change.
+
+Context
+- Repository: FilmBuff
+- Issue: Version info JSON emits the requested alias instead of the canonical id
+- Priority: Additional issue, Medium severity, Medium likelihood
+- Affected files: cli/src/commands/version-info.ts
+- Generated report: `ai-prompts/2026-09-15/generated/issue-16/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and any repo-local tests or fixtures.
+- Summary: The command resolves the module correctly, but the JSON payload still uses the raw input string in the `module` field. That makes the machine-readable output unstable whenever callers use an alias.
+- Evidence: the JSON payload uses moduleName even after the module is resolved.
+- Failure mode: The command resolves the module correctly, but the JSON payload still uses the raw input string in the `module` field. That makes the machine-readable output unstable whenever callers use an alias.
+- Preserve: the human-readable output and the existing version and compatibility checks.
+- Phase focus: Confirm the failure boundary and trace the issue back to the exact source evidence.
+- Verification focus: Cover canonical lookups, alias lookups, and not-found cases in JSON mode.
+- Reporting requirement: Include root cause, evidence, safe boundary, and an ordered task list that the next prompt will follow.
+
+Required work
+1. Inspect the repository instructions and the affected files.
+2. Confirm the failure from the source, the current output, and the evidence you capture.
+3. Write the report at the named path with root cause, safe boundary, and the ordered task list.
+
+Acceptance criteria
+- The report exists at the named path.
+- The report captures the failure boundary, root cause, and ordered task list.
+- The next prompt can read the report without extra assumptions.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 2 · Implement</p>
+              <h3>Read the report and apply the smallest safe fix.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover canonical lookups, alias lookups, and not-found cases in JSON mode.</p>
+          <ul class="task-list">
+            <li>Read the report and follow its ordered task list.</li>
+            <li>Implement the smallest safe fix for the issue.</li>
+            <li>Keep the change localized to the issue boundary and preserve the surrounding contract.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior implementation engineer and reliability specialist.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-16/report.md` and apply the smallest safe fix for Version info JSON emits the requested alias instead of the canonical id without expanding scope.
+
+Context
+- Repository: FilmBuff
+- Issue: Version info JSON emits the requested alias instead of the canonical id
+- Priority: Additional issue, Medium severity, Medium likelihood
+- Affected files: cli/src/commands/version-info.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-16/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, and the report's ordered task list.
+- Summary: The command resolves the module correctly, but the JSON payload still uses the raw input string in the `module` field. That makes the machine-readable output unstable whenever callers use an alias.
+- Evidence: the JSON payload uses moduleName even after the module is resolved.
+- Failure mode: The command resolves the module correctly, but the JSON payload still uses the raw input string in the `module` field. That makes the machine-readable output unstable whenever callers use an alias.
+- Preserve: the human-readable output and the existing version and compatibility checks.
+- Phase focus: Apply the smallest safe fix while preserving the surrounding contract and non-target behavior.
+- Verification focus: Cover canonical lookups, alias lookups, and not-found cases in JSON mode.
+- Workflow requirement: Follow the ordered task list in `ai-prompts/2026-09-15/generated/issue-16/report.md` before changing code.
+
+Required work
+1. Read the report and follow its ordered task list.
+2. Implement the smallest safe fix for the issue.
+3. Keep the change localized to the issue boundary and preserve the surrounding contract.
+
+Acceptance criteria
+- The issue is fixed with a minimal, scoped change.
+- The implementation follows the report's ordered task list.
+- No unnecessary abstraction or cleanup has been added.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+
+        <section class="phase-card">
+          <div class="phase-head">
+            <div>
+              <p class="phase-kicker">Phase 3 · Verify</p>
+              <h3>Read the report and prove the fix with focused regression coverage.</h3>
+            </div>
+            <span class="chip">3 tasks</span>
+          </div>
+          <p class="phase-note">Cover canonical lookups, alias lookups, and not-found cases in JSON mode.</p>
+          <ul class="task-list">
+            <li>Add or update focused regression tests from the report's ordered task list.</li>
+            <li>Run the narrowest relevant verification first, then broaden only if needed.</li>
+            <li>Confirm the clean path still behaves the same and capture the results.</li>
+          </ul>
+          <details>
+            <summary>Show refined prompt</summary>
+            <pre class="prompt-block">You are a senior test automation specialist and release validator.
+
+Objective
+Read `ai-prompts/2026-09-15/generated/issue-16/report.md` and prove that Version info JSON emits the requested alias instead of the canonical id is fixed with focused regression coverage.
+
+Context
+- Repository: FilmBuff
+- Issue: Version info JSON emits the requested alias instead of the canonical id
+- Priority: Additional issue, Medium severity, Medium likelihood
+- Affected files: cli/src/commands/version-info.ts
+- Report path: `ai-prompts/2026-09-15/generated/issue-16/report.md`
+- Shared inputs: `AGENTS.md`, the affected files, existing tests or fixtures, and the report's ordered task list.
+- Summary: The command resolves the module correctly, but the JSON payload still uses the raw input string in the `module` field. That makes the machine-readable output unstable whenever callers use an alias.
+- Evidence: the JSON payload uses moduleName even after the module is resolved.
+- Failure mode: The command resolves the module correctly, but the JSON payload still uses the raw input string in the `module` field. That makes the machine-readable output unstable whenever callers use an alias.
+- Preserve: the human-readable output and the existing version and compatibility checks.
+- Phase focus: Add focused regression coverage and prove the fix with the narrowest relevant verification.
+- Verification focus: Cover canonical lookups, alias lookups, and not-found cases in JSON mode.
+- Workflow requirement: Use the ordered task list in `ai-prompts/2026-09-15/generated/issue-16/report.md` to drive the verification plan.
+
+Required work
+1. Add or update focused regression tests from the report's ordered task list.
+2. Run the narrowest relevant verification first, then broaden only if needed.
+3. Confirm the clean path still behaves the same and capture the results.
+
+Acceptance criteria
+- Regression coverage proves the original failure is fixed.
+- Baseline behavior still passes on the clean path.
+- The verification result is reproducible and clearly reported.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </details>
+        </section>
+      </div>
+    </article>
+
+    <div class="footer-card">
+      <footer>
+        <p>This artifact is static and self-contained. Open the prompts in order: report, implement, verify. The report prompt writes <code>report.md</code>; later prompts read that same file and the task list inside it.</p>
+        <p>Source note: the underlying issue set comes from the 2026-09-10 pre-mortem snapshot, and the prompt shape follows the report-first chained template.</p>
+      </footer>
+    </div>
+  </main>
+</body>
+</html>

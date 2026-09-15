@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FilmBuff Pre-Mortem Report 2026-09-10</title>
+  <style>
+    :root {
+      --paper: #f7f0e4;
+      --paper-2: #f1e4cf;
+      --ink: #2d2418;
+      --muted: #5c5040;
+      --border: #d8c5aa;
+      --shadow: rgba(62, 45, 22, 0.12);
+      --core-bg: #5b3f1a;
+      --core-fg: #fff5e5;
+      --add-bg: #1f4a4c;
+      --add-fg: #efffff;
+      --high-bg: #7d1f1f;
+      --medium-bg: #8a5a11;
+      --low-bg: #335c29;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { color-scheme: light; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.6), transparent 38%),
+        linear-gradient(180deg, #eadcc6 0%, #f9f3e7 24%, #efe0c8 100%);
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.6;
+    }
+
+    main.report {
+      width: min(1180px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 28px 0 44px;
+    }
+
+    .hero,
+    .section,
+    .issue-card {
+      background: rgba(255, 250, 243, 0.9);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: 0 10px 30px var(--shadow);
+    }
+
+    .hero {
+      padding: 28px;
+    }
+
+    .eyebrow {
+      margin: 0 0 10px;
+      font-family: "Aptos", "Segoe UI", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      font-family: "Aptos", "Segoe UI", sans-serif;
+      line-height: 1.2;
+      margin: 0;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      color: #261a0f;
+      margin-bottom: 14px;
+    }
+
+    .lead {
+      max-width: 78ch;
+      margin: 0;
+      font-size: 1.05rem;
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .meta-card {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(244, 229, 203, 0.8));
+      border: 1px solid rgba(140, 112, 78, 0.24);
+    }
+
+    .meta-card span {
+      display: block;
+      font-family: "Aptos", "Segoe UI", sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .section {
+      margin-top: 22px;
+      padding: 24px;
+    }
+
+    .section-head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .section-head p {
+      margin: 0;
+      max-width: 72ch;
+      color: var(--muted);
+    }
+
+    .pill-row,
+    .issue-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 0.34rem 0.72rem;
+      font-family: "Aptos", "Segoe UI", sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+
+    .kind-core { background: var(--core-bg); color: var(--core-fg); }
+    .kind-additional { background: var(--add-bg); color: var(--add-fg); }
+    .severity-critical { background: #5a1111; color: #fff4f4; }
+    .severity-high { background: var(--high-bg); color: #fff4f4; }
+    .severity-medium { background: var(--medium-bg); color: #fff8ea; }
+    .severity-low { background: var(--low-bg); color: #f3fff0; }
+
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 18px;
+      border: 1px solid rgba(140, 112, 78, 0.28);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    caption {
+      text-align: left;
+      padding: 0 0 12px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 14px 12px;
+      font-family: "Aptos", "Segoe UI", sans-serif;
+      background: rgba(81, 59, 27, 0.12);
+      border-bottom: 1px solid rgba(140, 112, 78, 0.24);
+      color: #2d1f11;
+      vertical-align: bottom;
+    }
+
+    tbody td {
+      padding: 12px;
+      border-bottom: 1px solid rgba(140, 112, 78, 0.18);
+      vertical-align: top;
+    }
+
+    tbody tr:nth-child(even) {
+      background: rgba(244, 234, 219, 0.55);
+    }
+
+    tbody tr:hover {
+      background: rgba(229, 216, 195, 0.48);
+    }
+
+    .issue-card {
+      margin-top: 18px;
+      padding: 22px;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .issue-card header {
+      margin-bottom: 16px;
+    }
+
+    .issue-index {
+      margin: 0 0 8px;
+      font-family: "Aptos", "Segoe UI", sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      color: var(--muted);
+      font-size: 0.74rem;
+    }
+
+    .issue-title {
+      margin-bottom: 10px;
+      font-size: clamp(1.25rem, 2vw, 1.7rem);
+    }
+
+    .issue-summary {
+      margin: 10px 0 0;
+      color: var(--muted);
+      max-width: 82ch;
+    }
+
+    .issue-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+    }
+
+    .panel {
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(140, 112, 78, 0.18);
+    }
+
+    .panel h4 {
+      margin-bottom: 8px;
+      font-size: 0.92rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #3f2d1a;
+    }
+
+    .panel p {
+      margin: 0 0 10px;
+    }
+
+    .panel p:last-child {
+      margin-bottom: 0;
+    }
+
+    .prompt-block {
+      margin: 0;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: #fffdf7;
+      border: 1px solid rgba(140, 112, 78, 0.2);
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.9rem;
+      line-height: 1.55;
+      color: #2e2418;
+    }
+
+    .panel ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .panel li + li {
+      margin-top: 6px;
+    }
+
+    .confidence {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    a {
+      color: #6a4314;
+    }
+
+    code {
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 0.94em;
+    }
+
+    .footer-note {
+      margin-top: 24px;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 760px) {
+      main.report {
+        width: min(100% - 16px, 1180px);
+        padding-top: 12px;
+      }
+
+      .hero,
+      .section,
+      .issue-card {
+        border-radius: 18px;
+        padding: 18px;
+      }
+    }
+
+    @media print {
+      body {
+        background: #fff;
+        color: #111;
+      }
+
+      main.report {
+        width: 100%;
+        padding: 0;
+      }
+
+      .hero,
+      .section,
+      .issue-card {
+        box-shadow: none;
+        break-inside: avoid;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      .table-wrap {
+        overflow: visible;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="report">
+    <header class="hero" aria-labelledby="report-title">
+      <p class="eyebrow">FilmBuff pre-mortem report</p>
+      <h1 id="report-title">What is most likely to fail next, and why</h1>
+      <p class="lead">
+        This report is based on repository inspection of the current worktree. The source request did not enumerate the 10 core issues, so those were selected from the strongest code-backed risks. The remaining 6 additional issues round out the most important workflow, integrity, and identity failures.
+      </p>
+
+      <div class="meta-grid" role="list" aria-label="Report metadata">
+        <div class="meta-card" role="listitem">
+          <span>Generated</span>
+          2026-09-10 18:27:25 local time
+        </div>
+        <div class="meta-card" role="listitem">
+          <span>Scope</span>
+          16 issues, 10 core and 6 additional
+        </div>
+        <div class="meta-card" role="listitem">
+          <span>Focus</span>
+          Runtime behavior, data integrity, and command safety
+        </div>
+        <div class="meta-card" role="listitem">
+          <span>Format</span>
+          Static HTML, semantic markup, print-friendly
+        </div>
+      </div>
+    </header>
+
+    <section class="section" aria-labelledby="risk-map-title">
+      <div class="section-head">
+        <div>
+          <h2 id="risk-map-title">Risk Map</h2>
+          <p>The 16 detailed findings below are mirrored one-for-one in this table so the highest-risk paths are easy to scan before reading the full analysis.</p>
+        </div>
+        <div class="pill-row" aria-label="Legend">
+          <span class="pill kind-core">Core</span>
+          <span class="pill kind-additional">Additional</span>
+          <span class="pill severity-critical">Critical</span>
+          <span class="pill severity-high">High</span>
+          <span class="pill severity-medium">Medium</span>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <caption>Each row links to a matching issue card.</caption>
+          <thead>
+            <tr>
+              <th scope="col">#</th>
+              <th scope="col">Issue</th>
+              <th scope="col">Kind</th>
+              <th scope="col">Severity</th>
+              <th scope="col">Likelihood</th>
+              <th scope="col">Main impact</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td>01</td><td><a href="#issue-01">Compile viewer points at the wrong clip path</a></td><td><span class="pill kind-core">Core</span></td><td>High</td><td>Likely</td><td>Users cannot play clips from the generated archive</td></tr>
+            <tr><td>02</td><td><a href="#issue-02">Compile viewer writes unsanitized HTML</a></td><td><span class="pill kind-core">Core</span></td><td>Critical</td><td>Likely</td><td>Markup injection in the generated viewer</td></tr>
+            <tr><td>03</td><td><a href="#issue-03">Title-card ffmpeg command is shell-interpreted</a></td><td><span class="pill kind-core">Core</span></td><td>Critical</td><td>Likely</td><td>Scene text can break or hijack the command</td></tr>
+            <tr><td>04</td><td><a href="#issue-04">Concat list paths are not escaped</a></td><td><span class="pill kind-core">Core</span></td><td>High</td><td>Likely</td><td>Apostrophes or special paths break assembly</td></tr>
+            <tr><td>05</td><td><a href="#issue-05">Project agnostic validation misses source files</a></td><td><span class="pill kind-core">Core</span></td><td>High</td><td>Likely</td><td>Hardcoded paths and URLs can evade checks</td></tr>
+            <tr><td>06</td><td><a href="#issue-06">Malformed completed.jsonl causes false negatives</a></td><td><span class="pill kind-core">Core</span></td><td>High</td><td>Medium</td><td>Task lookups can hide existing completed items</td></tr>
+            <tr><td>07</td><td><a href="#issue-07">Completed task lists silently truncate on bad JSON</a></td><td><span class="pill kind-core">Core</span></td><td>High</td><td>Likely</td><td>History can look complete when it is not</td></tr>
+            <tr><td>08</td><td><a href="#issue-08">Date filters accept invalid or timezone-shifted input</a></td><td><span class="pill kind-core">Core</span></td><td>Medium</td><td>Medium</td><td>Show completed output can be misleading</td></tr>
+            <tr><td>09</td><td><a href="#issue-09">Hyphenated subcommands are omitted from help</a></td><td><span class="pill kind-core">Core</span></td><td>Medium</td><td>Likely</td><td>Generated command docs are incomplete</td></tr>
+            <tr><td>10</td><td><a href="#issue-10">Update skips legacy linked modules</a></td><td><span class="pill kind-core">Core</span></td><td>High</td><td>Likely</td><td>Module updates miss alias-based records</td></tr>
+            <tr><td>11</td><td><a href="#issue-11">Pin preserves alias names instead of normalizing</a></td><td><span class="pill kind-additional">Additional</span></td><td>Medium</td><td>Medium</td><td>Later commands keep resolving stale names</td></tr>
+            <tr><td>12</td><td><a href="#issue-12">Upgrade only rewrites exact canonical names</a></td><td><span class="pill kind-additional">Additional</span></td><td>Medium</td><td>Likely</td><td>Upgrade can report success while config stays stale</td></tr>
+            <tr><td>13</td><td><a href="#issue-13">Reject and reopen report archive success on missing clips</a></td><td><span class="pill kind-additional">Additional</span></td><td>Medium</td><td>Medium</td><td>Operators trust a move that never happened</td></tr>
+            <tr><td>14</td><td><a href="#issue-14">Reject and reopen are not transactional</a></td><td><span class="pill kind-additional">Additional</span></td><td>High</td><td>Medium</td><td>State changes can persist when clip moves fail</td></tr>
+            <tr><td>15</td><td><a href="#issue-15">VS Code helper shells out with a concatenated command string</a></td><td><span class="pill kind-additional">Additional</span></td><td>High</td><td>Likely</td><td>Paths with spaces or metacharacters break opening</td></tr>
+            <tr><td>16</td><td><a href="#issue-16">Version info JSON emits the requested alias instead of the canonical id</a></td><td><span class="pill kind-additional">Additional</span></td><td>Medium</td><td>Medium</td><td>Automation can key off the wrong module name</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="findings-title">
+      <div class="section-head">
+        <div>
+          <h2 id="findings-title">Detailed Findings</h2>
+          <p>Each card below contains the evidence, failure mode, mitigation path, implementation prompt, and the tests that should guard against regression.</p>
+        </div>
+      </div>
+
+      <article class="issue-card" id="issue-01" aria-labelledby="issue-01-title">
+        <header>
+          <p class="issue-index">Issue 01 of 16</p>
+          <h3 class="issue-title" id="issue-01-title">Compile viewer points at the wrong clip path</h3>
+          <div class="issue-meta">
+            <span class="pill kind-core">Core</span>
+            <span class="pill severity-high">High severity</span>
+            <span class="pill severity-high">Likely</span>
+          </div>
+          <p class="issue-summary">The generated viewer uses only the clip basename, but the zip stores clips inside a <code>clips/</code> folder. The result is a review page that cannot load media once the archive is opened.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/commands/video/compile.ts:147-188</code> sets <code>clipFile</code> to <code>path.basename(record.clip_path)</code>, while the archive adds each file as <code>clips/&lt;basename&gt;</code>.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>Opening <code>index.html</code> from the output folder or extracted zip loads the page, but the player elements point at paths that do not exist.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior full-stack engineer and test automation specialist.
+
+Objective
+Fix the FilmBuff video compile output so the generated HTML viewer opens the same clip files that the delivered archive contains.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/video/compile.ts
+- Known failure: the viewer uses path.basename(record.clip_path) while the zip stores clips under clips/.
+- Preserve the existing compile flow, archive layout, and non-video behavior.
+
+Required work
+1. Inspect the repository instructions and the surrounding video compile code.
+2. Confirm the path mismatch from the source, the HTML viewer, and the zip layout.
+3. Implement the smallest safe change that makes the viewer and archive agree.
+4. Add or update tests that prove the generated index page can load clips from the delivered package.
+5. Cover edge cases such as spaces in clip names and nested output directories.
+6. Run the narrowest relevant verification first, then broaden if needed.
+
+Acceptance criteria
+- Every video element in index.html resolves to an existing file in the output package.
+- The clip path used by the viewer matches the packaged archive layout.
+- Existing non-video behavior remains unchanged.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dashes in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> compile a project, extract the zip, and confirm the first and last clip play from <code>index.html</code>.</p>
+            <p><strong>Additional baseline tests:</strong> verify the page still works when clip names include spaces and when the output folder is nested one level deeper.</p>
+            <p><strong>Acceptance criteria:</strong> every video element resolves to an existing file in the delivered archive.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The path mismatch is visible directly in the code and has no compensating copy step.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-02" aria-labelledby="issue-02-title">
+        <header>
+          <p class="issue-index">Issue 02 of 16</p>
+          <h3 class="issue-title" id="issue-02-title">Compile viewer writes unsanitized HTML</h3>
+          <div class="issue-meta">
+            <span class="pill kind-core">Core</span>
+            <span class="pill severity-critical">Critical severity</span>
+            <span class="pill severity-high">Likely</span>
+          </div>
+          <p class="issue-summary">Scene names, shot ids, and clip names are interpolated directly into the HTML document. A malformed or hostile value can break the page or inject markup into the generated viewer.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>buildIndexHtml()</code> in <code>cli/src/commands/video/compile.ts</code> inserts <code>shotId</code>, <code>scene</code>, and <code>clipFile</code> into a template string with no escaping.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>A title such as <code>&lt;script&gt;</code> or a clip name containing quotes can alter the DOM, distort the viewer, or open the door to HTML injection.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior full-stack engineer and application security specialist.
+
+Objective
+Fix the generated video viewer so untrusted shot titles, scene names, and clip names cannot become HTML markup.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/video/compile.ts
+- Known failure: buildIndexHtml() interpolates shotId, scene, and clipFile directly into HTML without escaping.
+- Preserve the current viewer layout and compile behavior.
+
+Required work
+1. Inspect the repository instructions and the affected HTML generation code.
+2. Confirm which values are user controlled and where they enter the template.
+3. Escape or safely render every untrusted value before it reaches HTML.
+4. Add tests that use special characters, quotes, and markup-like input.
+5. Confirm normal titles still render correctly.
+6. Verify the output remains a valid static viewer.
+
+Acceptance criteria
+- The generated HTML contains escaped text only.
+- No user-controlled value can create active markup in the viewer.
+- Existing normal content still renders as expected.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> compile with a shot title that contains <code>&lt;</code>, <code>&gt;</code>, <code>&amp;</code>, and quotes, then assert the emitted HTML encodes them safely.</p>
+            <p><strong>Additional baseline tests:</strong> verify normal titles, apostrophes, and long scene names still render cleanly.</p>
+            <p><strong>Acceptance criteria:</strong> the HTML output contains escaped text only, and the browser sees literal text instead of active markup.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The template is plainly string-based and the inputs are not sanitized at the boundary.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-03" aria-labelledby="issue-03-title">
+        <header>
+          <p class="issue-index">Issue 03 of 16</p>
+          <h3 class="issue-title" id="issue-03-title">Title-card ffmpeg command is shell-interpreted</h3>
+          <div class="issue-meta">
+            <span class="pill kind-core">Core</span>
+            <span class="pill severity-critical">Critical severity</span>
+            <span class="pill severity-high">Likely</span>
+          </div>
+          <p class="issue-summary">The scene title is embedded inside a shell command string and handed to <code>exec</code>. That means shell metacharacters can be interpreted instead of treated as literal text.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/commands/video/compile.ts:137-142</code> builds <code>titleCmd</code> with <code>shot.scene</code> inside <code>drawtext</code>, then runs <code>await exec(titleCmd)</code>.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>A scene string containing shell syntax can break the title-card render or be interpreted by the shell before ffmpeg ever sees it.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior backend engineer and security-focused automation specialist.
+
+Objective
+Remove the shell-injection risk from scene title card rendering in the video compile command.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/video/compile.ts
+- Known failure: the title-card ffmpeg command is built as a shell string and executed with exec().
+- Preserve the existing title-card feature and ffmpeg-based output.
+
+Required work
+1. Inspect how the command currently builds the title card and how ffmpeg is invoked elsewhere.
+2. Replace shell-string execution with a process-safe invocation strategy.
+3. Make sure scene text is handled as literal data, not shell syntax.
+4. Add regression tests for quotes, punctuation, and shell-like characters in scene names.
+5. Validate that ordinary scene titles still render correctly.
+
+Acceptance criteria
+- The title-card command no longer depends on shell parsing.
+- Scene text cannot alter the command structure.
+- Title cards still generate correctly for normal input.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> render a title card for a scene that contains quotes, dollar signs, and command-like punctuation, then assert the process does not invoke a shell parser.</p>
+            <p><strong>Additional baseline tests:</strong> cover ordinary titles, apostrophes, and multi-word scenes.</p>
+            <p><strong>Acceptance criteria:</strong> the command runs through a safe process API and the rendered title card contains the intended literal text.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The vulnerable pattern is a direct shell interpolation in the current code.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-04" aria-labelledby="issue-04-title">
+        <header>
+          <p class="issue-index">Issue 04 of 16</p>
+          <h3 class="issue-title" id="issue-04-title">Concat list paths are not escaped</h3>
+          <div class="issue-meta">
+            <span class="pill kind-core">Core</span>
+            <span class="pill severity-high">High severity</span>
+            <span class="pill severity-high">Likely</span>
+          </div>
+          <p class="issue-summary">The ffmpeg concat manifest is written with raw single quotes around each path. Any apostrophe inside a path or file name can break the manifest and stop the compile step.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/commands/video/compile.ts:142-151</code> writes <code>file '&lt;path&gt;'</code> lines directly for both the title card and each clip.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>If a project path, clip path, or generated title-card path contains an apostrophe, ffmpeg can misparse the manifest and refuse to build <code>combined.mp4</code>.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior backend engineer and reliability specialist.
+
+Objective
+Make ffmpeg concat manifest generation safe for paths that contain apostrophes or other special characters.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/video/compile.ts
+- Known failure: concat lines are written as file 'path' without escaping.
+- Preserve the existing combined.mp4 workflow and archive layout.
+
+Required work
+1. Inspect how concat.txt is generated and how ffmpeg consumes it.
+2. Escape paths according to ffmpeg concat rules or use a safe serializer.
+3. Add tests that cover apostrophes, spaces, and nested directories.
+4. Confirm the generated combined video still builds for normal projects.
+
+Acceptance criteria
+- Concat entries are parseable by ffmpeg for all tested path shapes.
+- Apostrophes in paths do not break compilation.
+- Existing supported paths continue to work.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> compile a project whose path or clip name contains an apostrophe and confirm the manifest and final video are produced correctly.</p>
+            <p><strong>Additional baseline tests:</strong> cover spaces, unicode characters, and nested directories.</p>
+            <p><strong>Acceptance criteria:</strong> all emitted concat entries are parseable by ffmpeg across the tested path shapes.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The current format is unescaped and the failure case is easy to reproduce with real paths.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-05" aria-labelledby="issue-05-title">
+        <header>
+          <p class="issue-index">Issue 05 of 16</p>
+          <h3 class="issue-title" id="issue-05-title">Project agnostic validation misses source files</h3>
+          <div class="issue-meta">
+            <span class="pill kind-core">Core</span>
+            <span class="pill severity-high">High severity</span>
+            <span class="pill severity-high">Likely</span>
+          </div>
+          <p class="issue-summary">The validator only scans markdown and JSON files even though the module tree contains TypeScript source. That leaves a large blind spot for hardcoded paths and URLs in code files.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/utils/module-system.ts:1249-1264</code> only calls <code>scanFile()</code> for <code>.md</code> and <code>.json</code> entries, while the repo has module TypeScript files under <code>filmbuff/writing-standards/screenplay/</code>.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>Code-level references can slip through validation even when documentation and metadata look clean, so a module can ship with a hidden path or URL problem.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and repository tooling specialist.
+
+Objective
+Expand project agnostic validation so it catches hardcoded paths and URLs in module source files, not just markdown and JSON.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/utils/module-system.ts
+- Known failure: validateProjectAgnostic() only scans .md and .json files even though module trees contain .ts files.
+- Preserve the current validation categories and output format unless a change is required.
+
+Required work
+1. Inspect the validation flow and the module tree layout.
+2. Confirm which file types should be checked for this repository.
+3. Extend the scan safely without introducing false positives on generated or irrelevant files.
+4. Add tests that prove source files are scanned and that existing markdown and JSON behavior remains intact.
+
+Acceptance criteria
+- Source-bearing module files are included in validation.
+- Hardcoded paths and URLs in applicable code files are reported.
+- Existing markdown and JSON checks still pass unchanged.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> place a bad absolute path and a bad URL in a <code>.ts</code> file and assert the validator reports both.</p>
+            <p><strong>Additional baseline tests:</strong> confirm that existing markdown and JSON scans still behave exactly as before.</p>
+            <p><strong>Acceptance criteria:</strong> source files that are part of the module are no longer invisible to the project agnostic check.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The code path is explicit, and the repository already contains non-markdown module files.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-06" aria-labelledby="issue-06-title">
+        <header>
+          <p class="issue-index">Issue 06 of 16</p>
+          <h3 class="issue-title" id="issue-06-title">Malformed completed.jsonl causes false negatives</h3>
+          <div class="issue-meta">
+            <span class="pill kind-core">Core</span>
+            <span class="pill severity-high">High severity</span>
+            <span class="pill severity-medium">Medium likelihood</span>
+          </div>
+          <p class="issue-summary">Single-task lookup helpers read the completed history line by line and silently ignore JSON parse failures. A corrupted line can therefore look like the task never existed.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/utils/beadsCompletedChecker.ts:58-105</code> catches parse errors in <code>isTaskCompleted()</code> and <code>getCompletedTask()</code> without surfacing a corruption signal to the caller.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>If the only durable record for a completed task is malformed, the lookup path returns <code>false</code> or <code>null</code> instead of saying the history is damaged.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and data-integrity specialist.
+
+Objective
+Make completed-task lookups fail or report corruption explicitly when scripts/completed.jsonl contains malformed JSON.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/utils/beadsCompletedChecker.ts
+- Known failure: isTaskCompleted() and getCompletedTask() silently ignore parse failures.
+- Preserve the current query behavior for valid completed records.
+
+Required work
+1. Inspect the completed-task helpers and the file format expectations.
+2. Decide how parse failures should be surfaced to callers.
+3. Implement the smallest safe change that distinguishes missing data from corrupted data.
+4. Add tests for malformed lines, valid lines, and duplicate task ids.
+
+Acceptance criteria
+- A corrupted history file cannot look like a clean negative lookup.
+- Valid completed records still resolve correctly.
+- The caller can detect malformed input instead of silently losing history.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> seed a completed file with one malformed line and one valid record, then assert that lookup either reports corruption or preserves the valid record explicitly.</p>
+            <p><strong>Additional baseline tests:</strong> verify empty files, blank lines, and duplicate task ids continue to work.</p>
+            <p><strong>Acceptance criteria:</strong> a corrupted file cannot masquerade as a clean negative lookup.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The behavior is caused by the current catch-and-continue pattern.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-07" aria-labelledby="issue-07-title">
+        <header>
+          <p class="issue-index">Issue 07 of 16</p>
+          <h3 class="issue-title" id="issue-07-title">Completed task lists silently truncate on bad JSON</h3>
+          <div class="issue-meta">
+            <span class="pill kind-core">Core</span>
+            <span class="pill severity-high">High severity</span>
+            <span class="pill severity-high">Likely</span>
+          </div>
+          <p class="issue-summary">The full completed-task listing path also swallows parse failures and keeps going. That means a damaged history can still produce a cheerful list that is missing work.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/utils/beadsCompletedChecker.ts:117-135</code> reads every line, catches parse errors, and only inserts successfully parsed tasks into the map.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>A broken line can disappear from the final history without failing the command, so the user gets a partial report that looks complete.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and data-quality specialist.
+
+Objective
+Prevent completed-task listings from silently dropping records when scripts/completed.jsonl contains bad JSON.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/utils/beadsCompletedChecker.ts
+- Known failure: getAllCompletedTasks() catches parse errors and continues without a corruption signal.
+- Preserve the current sort and de-duplication behavior for clean data.
+
+Required work
+1. Inspect the full completed-task listing flow and how the command presents results.
+2. Add a corruption-aware path so partial history cannot masquerade as complete history.
+3. Add regression tests for mixed valid and invalid lines.
+4. Confirm clean files still produce the same task list behavior.
+
+Acceptance criteria
+- A damaged completed history is reported explicitly.
+- Valid records are not lost without explanation.
+- Clean input still sorts and de-duplicates correctly.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> feed a file with both valid and invalid lines and assert the command reports corruption instead of silently omitting the bad entry.</p>
+            <p><strong>Additional baseline tests:</strong> confirm that a clean file still sorts and de-duplicates as expected.</p>
+            <p><strong>Acceptance criteria:</strong> completed-task history never drops data without telling the user exactly what happened.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The current implementation has no corruption accounting, only a catch block.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-08" aria-labelledby="issue-08-title">
+        <header>
+          <p class="issue-index">Issue 08 of 16</p>
+          <h3 class="issue-title" id="issue-08-title">Date filters accept invalid or timezone-shifted input</h3>
+          <div class="issue-meta">
+            <span class="pill kind-core">Core</span>
+            <span class="pill severity-medium">Medium severity</span>
+            <span class="pill severity-medium">Medium likelihood</span>
+          </div>
+          <p class="issue-summary">The date range filter relies on <code>new Date()</code> for both boundaries without validation or normalization. Invalid values behave like no filter, and date-only inputs can drift at the timezone edge.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/utils/beadsCompletedChecker.ts:149-168</code> parses <code>since</code> and <code>until</code> directly with <code>new Date()</code>, while <code>cli/src/commands/showCompleted.ts:175-176</code> passes the raw strings through unchanged.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>Users can believe they filtered by a date range when the parser silently accepted an invalid string or interpreted a date at the wrong day boundary.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and data validation specialist.
+
+Objective
+Make completed-task date filtering reject invalid inputs and behave consistently across timezones.
+
+Context
+- Repository: FilmBuff
+- Affected files: cli/src/utils/beadsCompletedChecker.ts and cli/src/commands/showCompleted.ts
+- Known failure: filterTasksByDateRange() uses new Date() directly on raw strings.
+- Preserve the existing completed-task listing behavior for valid filters.
+
+Required work
+1. Inspect the filter logic and the command options that feed it.
+2. Define the accepted date format and boundary semantics.
+3. Normalize or validate the inputs before filtering.
+4. Add tests for invalid dates, date-only filters, and near-midnight cases.
+
+Acceptance criteria
+- Invalid filter input is rejected or reported clearly.
+- The same logical day maps to the same output set.
+- Existing valid filters continue to work.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> cover invalid dates, date-only ranges, and a task completed near midnight in the local timezone.</p>
+            <p><strong>Additional baseline tests:</strong> verify an open-ended <code>since</code> or <code>until</code> filter still works on ordinary data.</p>
+            <p><strong>Acceptance criteria:</strong> invalid filters are rejected and the same logical day always maps to the same output set.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>Medium-high. The behavior follows directly from the current date parsing strategy.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-09" aria-labelledby="issue-09-title">
+        <header>
+          <p class="issue-index">Issue 09 of 16</p>
+          <h3 class="issue-title" id="issue-09-title">Hyphenated subcommands are omitted from help</h3>
+          <div class="issue-meta">
+            <span class="pill kind-core">Core</span>
+            <span class="pill severity-medium">Medium severity</span>
+            <span class="pill severity-high">Likely</span>
+          </div>
+          <p class="issue-summary">The help extractor only matches <code>\w+</code>, so commands with hyphens are treated like unsupported tokens and never make it into the generated docs.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/utils/extractCommandHelp.ts:46-50</code> and <code>113-131</code> use <code>\w+</code> in both the section parser and the line parser, which excludes names like <code>mcp-server</code> and <code>generate-video</code>.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>The generated command reference can silently omit real CLI entries, especially the hyphenated commands that are common in this repo.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and CLI tooling specialist.
+
+Objective
+Fix help extraction so hyphenated subcommands are discovered and documented.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/utils/extractCommandHelp.ts
+- Known failure: the help parser only matches \w+, so commands like generate-video and mcp-server are missed.
+- Preserve the existing help generation format and recursion limits.
+
+Required work
+1. Inspect the parser patterns and the current help tests.
+2. Update command detection so hyphenated names are parsed correctly.
+3. Add regression tests for Commands and Usage sections that include hyphenated names.
+4. Keep the existing one-word command behavior intact.
+
+Acceptance criteria
+- Hyphenated subcommands are included in generated help.
+- Existing simple commands still parse as before.
+- The output remains stable and deduplicated.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> feed help text containing <code>generate-video</code>, <code>check-updates</code>, and <code>mcp-server</code> and assert they are discovered.</p>
+            <p><strong>Additional baseline tests:</strong> keep the simple one-word command cases that already pass.</p>
+            <p><strong>Acceptance criteria:</strong> the generated help output includes every hyphenated subcommand in the source text.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The regex choice is narrow and directly conflicts with the command names used in the CLI.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-10" aria-labelledby="issue-10-title">
+        <header>
+          <p class="issue-index">Issue 10 of 16</p>
+          <h3 class="issue-title" id="issue-10-title">Update skips legacy linked modules</h3>
+          <div class="issue-meta">
+            <span class="pill kind-core">Core</span>
+            <span class="pill severity-high">High severity</span>
+            <span class="pill severity-high">Likely</span>
+          </div>
+          <p class="issue-summary">The module updater filters by exact stored names and then treats any record whose name does not map to a local directory as externally managed. Legacy alias records can therefore be skipped instead of updated.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/commands/update.ts:49-55</code> filters with <code>m.name === options.module</code>, and <code>updateModule()</code> then joins <code>linkedModule.name</code> into the filesystem path before deciding whether the module has a local source.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>If <code>.augment/extensions.json</code> still contains a legacy alias, the updater can say the module is externally managed or simply miss it entirely even though a local source exists.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and module-management specialist.
+
+Objective
+Make module update handling work for legacy linked-module records as well as canonical names.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/update.ts
+- Known failure: the update command filters and rewrites config entries by exact stored name.
+- Preserve the current update workflow, CLI update flow, and config format where possible.
+
+Required work
+1. Inspect the update flow and how linked module names are resolved elsewhere.
+2. Confirm how legacy alias entries should map to canonical module ids.
+3. Canonicalize the update target before looking up and rewriting config entries.
+4. Add tests for canonical names, legacy aliases, and no-local-source cases.
+
+Acceptance criteria
+- Update can target both canonical and legacy-linked records.
+- The config entry that represents the module is rewritten correctly.
+- Existing canonical update behavior remains unchanged.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> include a legacy alias record, a canonical record, and a renamed module source to ensure each path behaves correctly.</p>
+            <p><strong>Additional baseline tests:</strong> keep the already-supported canonical update path and the no-local-source path.</p>
+            <p><strong>Acceptance criteria:</strong> update can target both canonical and legacy-linked records and rewrites the correct config entry.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The current code uses raw names in both the filter and the filesystem lookup.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-11" aria-labelledby="issue-11-title">
+        <header>
+          <p class="issue-index">Issue 11 of 16</p>
+          <h3 class="issue-title" id="issue-11-title">Pin preserves alias names instead of normalizing</h3>
+          <div class="issue-meta">
+            <span class="pill kind-additional">Additional</span>
+            <span class="pill severity-medium">Medium severity</span>
+            <span class="pill severity-medium">Medium likelihood</span>
+          </div>
+          <p class="issue-summary">The pin command accepts alias-style matches, but when the matching record is an object it only updates the version field. The stored module name can remain stale and keep confusing later commands.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/commands/pin.ts:72-113</code> can match a legacy alias, but the object branch only edits <code>version</code> and leaves <code>name</code> unchanged.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>After pinning, the config can still carry a legacy name that later commands resolve inconsistently, which makes the record harder to update or audit.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and module identity specialist.
+
+Objective
+Make pinning normalize alias-backed module records instead of preserving stale names.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/pin.ts
+- Known failure: the pin command can update version while leaving the stored name unchanged.
+- Preserve the existing pin workflow and version validation.
+
+Required work
+1. Inspect how pin resolves aliases and how the config entry is rewritten.
+2. Normalize object records to the canonical module id when pinning.
+3. Add tests for string records, object records, and already-pinned versions.
+4. Keep the canonical pin path stable.
+
+Acceptance criteria
+- Pin leaves the config in a canonical state.
+- Alias-backed records are rewritten to the canonical module id.
+- Existing valid pin behavior still passes.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> pin a string alias and an object alias, then assert the stored <code>name</code> becomes the canonical id in both cases.</p>
+            <p><strong>Additional baseline tests:</strong> keep the canonical record and already-pinned version cases.</p>
+            <p><strong>Acceptance criteria:</strong> pin always leaves the config in a canonical, future-proof state.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The code path is visible and the name field is left untouched in the object branch.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-12" aria-labelledby="issue-12-title">
+        <header>
+          <p class="issue-index">Issue 12 of 16</p>
+          <h3 class="issue-title" id="issue-12-title">Upgrade only rewrites exact canonical names</h3>
+          <div class="issue-meta">
+            <span class="pill kind-additional">Additional</span>
+            <span class="pill severity-medium">Medium severity</span>
+            <span class="pill severity-high">Likely</span>
+          </div>
+          <p class="issue-summary">Upgrade updates <code>.augment/extensions.json</code> only when the stored name matches <code>module.fullName</code> exactly. If the config still uses an alias, the upgrade can report success while the manifest remains stale.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/commands/upgrade.ts:147-156</code> searches for <code>m.name === module.fullName</code> and only writes back if that exact match succeeds.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>The source module upgrades, but the linked config entry can stay on the old alias or name, so the manifest and local source drift apart.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and release management specialist.
+
+Objective
+Make upgrade rewrite the correct linked-module record even when the stored name is not already canonical.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/upgrade.ts
+- Known failure: the config update path searches for an exact match on module.fullName.
+- Preserve the current upgrade detection and reporting behavior.
+
+Required work
+1. Inspect the upgrade flow and the config rewrite logic.
+2. Resolve linked entries through the canonical module id before rewriting.
+3. Add tests for legacy alias records, canonical records, and already-latest cases.
+4. Confirm the upgrade report still reflects the same version decisions.
+
+Acceptance criteria
+- Upgrade never leaves a resolved module with a stale stored name.
+- Alias-backed config entries are updated correctly.
+- Canonical upgrade behavior remains intact.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> upgrade a legacy alias record and confirm the stored name and version both change.</p>
+            <p><strong>Additional baseline tests:</strong> keep the exact canonical-name case and the already-latest case.</p>
+            <p><strong>Acceptance criteria:</strong> an upgrade never leaves a resolved module with a stale stored name.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The search predicate is exact and the write-back path is conditional on that predicate.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-13" aria-labelledby="issue-13-title">
+        <header>
+          <p class="issue-index">Issue 13 of 16</p>
+          <h3 class="issue-title" id="issue-13-title">Reject and reopen report archive success on missing clips</h3>
+          <div class="issue-meta">
+            <span class="pill kind-additional">Additional</span>
+            <span class="pill severity-medium">Medium severity</span>
+            <span class="pill severity-medium">Medium likelihood</span>
+          </div>
+          <p class="issue-summary">The clip renamer explicitly no-ops when the source file is absent, but the command still logs that the clip was archived. That turns a missing file into a false success story.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/lib/status-file-manager.ts:278-285</code> documents a no-op when the source does not exist, while <code>cli/src/commands/video/reject.ts:75-80</code> and <code>reopen.ts:60-89</code> always log an archived destination.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>Operators believe the clip was moved into an attempt archive even when no file existed at the source path, which breaks audit trust.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and reliability specialist.
+
+Objective
+Make reject and reopen report the real clip archive outcome instead of claiming success when no source clip exists.
+
+Context
+- Repository: FilmBuff
+- Affected files: cli/src/commands/video/reject.ts, cli/src/commands/video/reopen.ts, cli/src/lib/status-file-manager.ts
+- Known failure: renameClipForRetry() no-ops on missing source files, but the commands still log an archive destination.
+- Preserve the state transition semantics and the current audit trail shape where possible.
+
+Required work
+1. Inspect the helper contract and the command-level logging.
+2. Return a structured outcome that distinguishes moved, missing, and failed.
+3. Update the command output so it reflects the real filesystem result.
+4. Add tests for missing clips, normal moves, and already-archived attempts.
+
+Acceptance criteria
+- The commands never claim an archive happened unless a file was actually moved.
+- Missing source clips are reported explicitly.
+- Normal archive behavior still works.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> run reject and reopen against a record whose clip path does not exist and assert the command reports the missing source explicitly.</p>
+            <p><strong>Additional baseline tests:</strong> keep the normal archive case and the already-archived-attempt case.</p>
+            <p><strong>Acceptance criteria:</strong> the command never claims an archive happened unless a file was actually moved.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>Medium-high. The helper contract and the command logging currently disagree.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-14" aria-labelledby="issue-14-title">
+        <header>
+          <p class="issue-index">Issue 14 of 16</p>
+          <h3 class="issue-title" id="issue-14-title">Reject and reopen are not transactional</h3>
+          <div class="issue-meta">
+            <span class="pill kind-additional">Additional</span>
+            <span class="pill severity-high">High severity</span>
+            <span class="pill severity-medium">Medium likelihood</span>
+          </div>
+          <p class="issue-summary">Both commands append the state transition before attempting the clip rename. If the filesystem move fails, the history file already says the transition happened and the clip remains in place.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/commands/video/reject.ts:67-80</code> and <code>reopen.ts:85-89</code> call <code>appendRecords()</code> before <code>renameClipForRetry()</code> has a chance to complete or fail.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>A permissions error, lock, or disk issue can leave the status log and the filesystem describing two different realities.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and transactional workflow specialist.
+
+Objective
+Make reject and reopen behave atomically so the state log does not advance when the clip move fails.
+
+Context
+- Repository: FilmBuff
+- Affected files: cli/src/commands/video/reject.ts and cli/src/commands/video/reopen.ts
+- Known failure: appendRecords() runs before renameClipForRetry(), which can leave state and filesystem out of sync.
+- Preserve the existing status transitions and user-facing command intent.
+
+Required work
+1. Inspect the order of operations and the error handling in both commands.
+2. Reorder or wrap the operations so the state change only persists after the filesystem step succeeds.
+3. Add regression tests that simulate rename failure and confirm no partial transition remains.
+4. Keep the normal archive and reopen paths working.
+
+Acceptance criteria
+- State changes are atomic from the caller perspective.
+- A filesystem failure does not leave a misleading completed transition behind.
+- Existing successful flows still work.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> simulate a rename failure and confirm that no state transition is persisted unless the move succeeds.</p>
+            <p><strong>Additional baseline tests:</strong> cover the normal archive path, a missing file path, and the reopen-with-reason path.</p>
+            <p><strong>Acceptance criteria:</strong> clip movement and state updates are atomic from the caller perspective.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The ordering is explicit in both command files.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-15" aria-labelledby="issue-15-title">
+        <header>
+          <p class="issue-index">Issue 15 of 16</p>
+          <h3 class="issue-title" id="issue-15-title">VS Code helper shells out with a concatenated command string</h3>
+          <div class="issue-meta">
+            <span class="pill kind-additional">Additional</span>
+            <span class="pill severity-high">High severity</span>
+            <span class="pill severity-high">Likely</span>
+          </div>
+          <p class="issue-summary">The editor launcher assembles <code>code</code> plus all arguments into one shell string. That makes the helper fragile for paths with spaces and unsafe for any shell metacharacters that sneak into the argument list.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/utils/vscode-editor.ts:57-75</code> builds <code>args</code>, then calls <code>execSync(`code ${args.join(' ')}`)</code> instead of a process API that keeps the argument vector intact.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>A file path with a space, quote, or other shell character can be split, mangled, or reinterpreted before VS Code receives it.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and desktop tooling specialist.
+
+Objective
+Remove the command-string shelling risk from the VS Code file opener.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/utils/vscode-editor.ts
+- Known failure: openInVSCode() concatenates arguments into one execSync() command string.
+- Preserve the current behavior for preview mode, reuse window, and version checks.
+
+Required work
+1. Inspect the editor helper and how arguments are assembled.
+2. Replace shell-string execution with a process-safe API that preserves the argument array.
+3. Add tests for paths with spaces, apostrophes, and other special characters.
+4. Verify the normal open, preview, and focus behaviors still work.
+
+Acceptance criteria
+- The helper opens the exact requested file path without shell parsing the path.
+- Supported editor modes continue to work.
+- No path splitting occurs for spaces or punctuation.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> open a file whose path contains spaces, apostrophes, and an ampersand, then confirm VS Code receives the exact file argument.</p>
+            <p><strong>Additional baseline tests:</strong> keep the normal path, preview mode, and reuse-window cases.</p>
+            <p><strong>Acceptance criteria:</strong> the helper opens the requested file reliably without shell parsing the path.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>High. The shell string is explicit and the failure mode is a standard argument-splitting problem.</p>
+          </section>
+        </div>
+      </article>
+
+      <article class="issue-card" id="issue-16" aria-labelledby="issue-16-title">
+        <header>
+          <p class="issue-index">Issue 16 of 16</p>
+          <h3 class="issue-title" id="issue-16-title">Version info JSON emits the requested alias instead of the canonical id</h3>
+          <div class="issue-meta">
+            <span class="pill kind-additional">Additional</span>
+            <span class="pill severity-medium">Medium severity</span>
+            <span class="pill severity-medium">Medium likelihood</span>
+          </div>
+          <p class="issue-summary">The command resolves the module correctly, but the JSON payload still uses the raw input string in the <code>module</code> field. That makes the machine-readable output unstable whenever callers use an alias.</p>
+        </header>
+        <div class="issue-grid">
+          <section class="panel">
+            <h4>Evidence</h4>
+            <p><code>cli/src/commands/version-info.ts:60-74</code> writes <code>module: moduleName</code> even though the command already resolved <code>module</code> through <code>findModule()</code>.</p>
+          </section>
+          <section class="panel">
+            <h4>Failure mode</h4>
+            <p>Automation can key caches, reports, or follow-up actions off a legacy alias instead of the canonical module id that the resolver actually used.</p>
+          </section>
+          <section class="panel">
+            <h4>Refined Prompt</h4>
+            <pre class="prompt-block">You are a senior software engineer and API-contract specialist.
+
+Objective
+Make the JSON output from version info stable by reporting the canonical module id instead of the raw request string.
+
+Context
+- Repository: FilmBuff
+- Affected file: cli/src/commands/version-info.ts
+- Known failure: the JSON payload uses moduleName even after the module is resolved.
+- Preserve the human-readable output and the existing version and compatibility checks.
+
+Required work
+1. Inspect the JSON payload and the resolved module object.
+2. Emit the canonical module id in machine-readable output.
+3. Keep the original request string only if it is needed as a separate field.
+4. Add tests for canonical lookups, alias lookups, and not-found cases.
+
+Acceptance criteria
+- JSON output is stable across alias and canonical lookups.
+- Automation can rely on the reported module id.
+- Existing human-readable behavior remains unchanged.
+
+Final report
+- Outcome
+- Root cause
+- Files changed
+- Tests added or updated
+- Verification results
+- Remaining risks or follow-ups, if any
+
+Do not use em dash in any generated content.</pre>
+          </section>
+          <section class="panel">
+            <h4>Verification</h4>
+            <p><strong>Regression tests:</strong> call the command in JSON mode with both a canonical module name and a legacy alias, then assert the payload always reports the canonical id.</p>
+            <p><strong>Additional baseline tests:</strong> keep the human-readable output and the not-found path unchanged.</p>
+            <p><strong>Acceptance criteria:</strong> the JSON contract is stable across alias and canonical lookups.</p>
+          </section>
+          <section class="panel">
+            <h4>Confidence</h4>
+            <p>Medium-high. The mismatch is visible in the current payload shape.</p>
+          </section>
+        </div>
+      </article>
+    </section>
+
+    <p class="footer-note">
+      This document is intentionally static and self-contained. The recommended next step is to implement the highest-severity fixes first in the video compile path, then add regression coverage for corrupted history files and legacy module identity handling.
+    </p>
+  </main>
+</body>
+</html>

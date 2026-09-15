@@ -449,6 +449,10 @@ describe('[UT-VCOMP-01] compile viewer paths match the packaged clips folder', (
     const result = await compileScenario(scenario);
 
     expect(result.videoSrcs).toEqual(['clips/lead.mp4', 'clips/final.mp4']);
+    expect(result.indexHtml).toContain('src="clips/lead.mp4"');
+    expect(result.indexHtml).toContain('src="clips/final.mp4"');
+    expect(result.indexHtml).not.toContain('src="lead.mp4"');
+    expect(result.indexHtml).not.toContain('src="final.mp4"');
     expect(result.zipEntries).toEqual(expect.arrayContaining([
       'index.html',
       'combined.mp4',
@@ -481,30 +485,33 @@ describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, unicode, an
   it('writes ffmpeg-safe concat entries for project, output, title-card, and clip paths', async () => {
     const scenario: CompileScenario = {
       projectDirPrefix: "fb compile 'prøject'-",
-      outputDirParts: ['video', 'output', 'review pack', 'Δ bundle'],
+      outputDirParts: ['video', 'output', 'review pack & audit', 'Δ bundle $(whoami)'],
       shots: [
         {
           shotId: 's001',
           scene: "INT. EDIT SUITE - NIGHT - CONTINUOUS - CREW'S NOTES ✨",
-          clipName: "nested/Lead Clip's Master ✨.mp4",
+          clipName: "nested/Lead Clip's Master & Demo $.mp4",
         },
         {
           shotId: 's002',
           scene: "INT. EDIT SUITE - NIGHT - CONTINUOUS - CREW'S NOTES ✨",
-          clipName: 'nested/final reel/Final Clip ß.mp4',
+          clipName: 'nested/final reel/Final Clip; take 2 (cut).mp4',
         },
       ],
     };
     const result = await compileScenario(scenario);
 
     expect(result.projectDir).toContain("fb compile 'prøject'-");
-    expect(result.outputDir).toContain(path.join('video', 'output', 'review pack', 'Δ bundle'));
-    expect(result.videoSrcs).toEqual(["clips/Lead Clip's Master ✨.mp4", 'clips/Final Clip ß.mp4']);
+    expect(result.outputDir).toContain(path.join('video', 'output', 'review pack & audit', 'Δ bundle $(whoami)'));
+    expect(result.videoSrcs).toEqual([
+      "clips/Lead Clip's Master & Demo $.mp4",
+      'clips/Final Clip; take 2 (cut).mp4',
+    ]);
     expect(result.zipEntries).toEqual(expect.arrayContaining([
       'index.html',
       'combined.mp4',
-      "clips/Lead Clip's Master ✨.mp4",
-      'clips/Final Clip ß.mp4',
+      "clips/Lead Clip's Master & Demo $.mp4",
+      'clips/Final Clip; take 2 (cut).mp4',
     ]));
 
     for (const src of result.videoSrcs) {
@@ -515,7 +522,7 @@ describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, unicode, an
     expect(extractHeadingTexts(result.indexHtml)[0]).toBe(
       "s001 — INT. EDIT SUITE - NIGHT - CONTINUOUS - CREW'S NOTES ✨",
     );
-    expect(extractVideoSrcs(result.indexHtml)[0]).toBe("clips/Lead Clip's Master ✨.mp4");
+    expect(extractVideoSrcs(result.indexHtml)[0]).toBe("clips/Lead Clip's Master & Demo $.mp4");
 
     const document = parseIndexHtml(result.indexHtml);
     const shots = Array.from(document.getElementsByClassName('shot'));
@@ -525,7 +532,7 @@ describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, unicode, an
       "s001 — INT. EDIT SUITE - NIGHT - CONTINUOUS - CREW'S NOTES ✨",
     );
     expect(shots[0]?.getElementsByTagName('video')[0]?.getAttribute('src')).toBe(
-      "clips/Lead Clip's Master ✨.mp4",
+      "clips/Lead Clip's Master & Demo $.mp4",
     );
 
     const titleCardCalls = result.ffmpegInvocations.filter((call) => call.drawtextFilter !== undefined);
@@ -541,8 +548,8 @@ describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, unicode, an
 
     const expectedConcatPaths = [
       path.join(result.outputDir, 'title_0000.mp4'),
-      path.resolve(result.projectDir, path.join('video', 'clips', "nested/Lead Clip's Master ✨.mp4")),
-      path.resolve(result.projectDir, path.join('video', 'clips', 'nested/final reel/Final Clip ß.mp4')),
+      path.resolve(result.projectDir, path.join('video', 'clips', "nested/Lead Clip's Master & Demo $.mp4")),
+      path.resolve(result.projectDir, path.join('video', 'clips', 'nested/final reel/Final Clip; take 2 (cut).mp4')),
     ];
     const parsedConcatPaths = result.concatText.trim().split('\n').map(parseConcatEntry);
     expect(parsedConcatPaths).toEqual(expectedConcatPaths);
@@ -600,6 +607,22 @@ describe('[UT-VCOMP-04] title cards keep scene text literal', () => {
     expect(titleCardCalls[0].drawtextFilter).not.toContain(hostileScene);
     expect(titleCardCalls[0].cwd).toBe(result.outputDir);
     expect(titleCardCalls[0].shell).toBe(false);
+    expect(titleCardCalls[0].command).toBe('ffmpeg');
+    expect(titleCardCalls[0].args).toEqual([
+      '-y',
+      '-f',
+      'lavfi',
+      '-i',
+      'color=c=black:s=1920x1080:d=2',
+      '-vf',
+      'drawtext=fontsize=64:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:expansion=none:textfile=title_0000.txt',
+      '-t',
+      '2',
+      '-c:v',
+      'libx264',
+      '-an',
+      'title_0000.mp4',
+    ]);
     expect(getExecMock()).not.toHaveBeenCalled();
   });
 });
