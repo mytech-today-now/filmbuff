@@ -120,6 +120,17 @@ async function writeStatusFile(dir: string, records: VideoStatusRecord[]): Promi
   await fs.promises.writeFile(path.join(dir, '08-video-status.jsonl'), lines);
 }
 
+async function writeClipFile(
+  dir: string,
+  relativeClipPath: string,
+  contents = 'fake mp4 data',
+): Promise<string> {
+  const clipPath = path.join(dir, relativeClipPath);
+  await fs.promises.mkdir(path.dirname(clipPath), { recursive: true });
+  await fs.promises.writeFile(clipPath, contents);
+  return clipPath;
+}
+
 function mockStdinTTY(value: boolean): () => void {
   const original = process.stdin.isTTY;
   Object.defineProperty(process.stdin, 'isTTY', {
@@ -148,6 +159,8 @@ async function nextCmd()     { return (await import('../commands/video/next')).v
 async function generateCmd() { return (await import('../commands/video/generate')).videoGenerateCommand; }
 async function generateAllCmd() { return (await import('../commands/video/generate-all')).videoGenerateAllCommand; }
 async function approveCmd()  { return (await import('../commands/video/approve')).videoApproveCommand; }
+async function rejectCmd()   { return (await import('../commands/video/reject')).videoRejectCommand; }
+async function reopenCmd()   { return (await import('../commands/video/reopen')).videoReopenCommand; }
 async function statusCmd()   { return (await import('../commands/video/status')).videoStatusCommand; }
 
 interface Deferred<T> {
@@ -575,6 +588,274 @@ describe('[UT-APP-02] video approve exits STATE_CONFLICT(5) for non-complete sho
     finally   { c.restore(); }
 
     expect(c.exitCode).toBe(5);
+  });
+});
+
+// ===========================================================================
+// UT-ARC — video reject / reopen archive outcomes
+// ===========================================================================
+
+describe('[UT-ARC-01] video reject reports missing source clips explicitly', () => {
+  it('prints a missing-source message and does not claim archive success', async () => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'complete',
+        provider: 'runway-gen3',
+        provider_job_id: 'job-s001',
+        clip_path: 'video/clips/s001.mp4',
+        attempt_count: 1,
+        generated_at: STALE_UPDATED_AT,
+      }),
+    ]);
+
+    const cmd = await rejectCmd();
+    const restoreTTY = mockStdinTTY(true);
+    const c = beginCapture();
+    try {
+      await cmd({ project: tmpDir, shotId: 's001', reason: 'missing source', agent: false });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+      restoreTTY();
+    }
+
+    expect(c.exitCode).toBe(0);
+    expect(c.stdout).toContain('Clip missing at source:');
+    expect(c.stdout).toContain('no archive created');
+    expect(c.stdout).not.toContain('Clip archived to:');
+    const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
+      .split('\n').filter(Boolean).map(line => JSON.parse(line));
+    expect(records).toHaveLength(3);
+    expect(records[0].status).toBe('complete');
+    expect(records[1].status).toBe('rejected');
+    expect(records[2].status).toBe('pending');
+    expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'))).toBe(false);
+  });
+});
+
+describe('[UT-ARC-02] video reopen reports missing source clips explicitly', () => {
+  it('prints a missing-source message and still reopens the shot', async () => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'approved',
+        provider: 'runway-gen3',
+        provider_job_id: 'job-s001',
+        clip_path: 'video/clips/s001.mp4',
+        attempt_count: 1,
+        approved_at: STALE_UPDATED_AT,
+        generated_at: STALE_UPDATED_AT,
+      }),
+    ]);
+
+    const cmd = await reopenCmd();
+    const restoreTTY = mockStdinTTY(true);
+    const c = beginCapture();
+    try {
+      await cmd({ project: tmpDir, shotId: 's001', reason: 'missing source', agent: false });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+      restoreTTY();
+    }
+
+    expect(c.exitCode).toBe(0);
+    expect(c.stdout).toContain('Approved clip missing at source:');
+    expect(c.stdout).toContain('no archive created');
+    expect(c.stdout).not.toContain('Approved clip archived to:');
+
+    const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
+      .split('\n').filter(Boolean).map(line => JSON.parse(line));
+    expect(records).toHaveLength(2);
+    expect(records[1].status).toBe('pending');
+    expect(records[1].clip_path).toBeNull();
+  });
+});
+
+describe('[UT-ARC-03] video reject archives an existing clip', () => {
+  it('moves the file to the attempt archive and reports the destination', async () => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'complete',
+        provider: 'runway-gen3',
+        provider_job_id: 'job-s001',
+        clip_path: 'video/clips/s001.mp4',
+        attempt_count: 1,
+        generated_at: STALE_UPDATED_AT,
+      }),
+    ]);
+    await writeClipFile(tmpDir, 'video/clips/s001.mp4');
+
+    const cmd = await rejectCmd();
+    const restoreTTY = mockStdinTTY(true);
+    const c = beginCapture();
+    try {
+      await cmd({ project: tmpDir, shotId: 's001', reason: 'archive move', agent: false });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+      restoreTTY();
+    }
+
+    const archivedPath = path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4');
+    expect(c.exitCode).toBe(0);
+    expect(c.stdout).toContain(`Clip archived to: ${archivedPath}`);
+    const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
+      .split('\n').filter(Boolean).map(line => JSON.parse(line));
+    expect(records).toHaveLength(3);
+    expect(records[0].status).toBe('complete');
+    expect(records[1].status).toBe('rejected');
+    expect(records[2].status).toBe('pending');
+    expect(fs.existsSync(archivedPath)).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001.mp4'))).toBe(false);
+  });
+});
+
+describe('[UT-ARC-04] video reopen archives an already-attempted clip', () => {
+  it('moves the file to the next attempt archive and reports the destination', async () => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'approved',
+        provider: 'runway-gen3',
+        provider_job_id: 'job-s001',
+        clip_path: 'video/clips/s001_attempt1.mp4',
+        attempt_count: 2,
+        approved_at: STALE_UPDATED_AT,
+        generated_at: STALE_UPDATED_AT,
+      }),
+    ]);
+    await writeClipFile(tmpDir, 'video/clips/s001_attempt1.mp4');
+
+    const cmd = await reopenCmd();
+    const restoreTTY = mockStdinTTY(true);
+    const c = beginCapture();
+    try {
+      await cmd({ project: tmpDir, shotId: 's001', reason: 'archive move', agent: false });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+      restoreTTY();
+    }
+
+    const archivedPath = path.join(tmpDir, 'video', 'clips', 's001_attempt1_attempt2.mp4');
+    expect(c.exitCode).toBe(0);
+    expect(c.stdout).toContain(`Approved clip archived to: ${archivedPath}`);
+    const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
+      .split('\n').filter(Boolean).map(line => JSON.parse(line));
+    expect(records).toHaveLength(2);
+    expect(records[0].status).toBe('approved');
+    expect(records[1].status).toBe('pending');
+    expect(records[1].rejection_reason).toBe('Reopened: archive move');
+    expect(fs.existsSync(archivedPath)).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'))).toBe(false);
+  });
+});
+
+describe('[UT-ARC-05] video reject leaves state untouched when clip rename fails', () => {
+  it('returns a general error and does not append a partial transition', async () => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'complete',
+        provider: 'runway-gen3',
+        provider_job_id: 'job-s001',
+        clip_path: 'video/clips/s001.mp4',
+        attempt_count: 1,
+        generated_at: STALE_UPDATED_AT,
+      }),
+    ]);
+    await writeClipFile(tmpDir, 'video/clips/s001.mp4');
+
+    const renameSpy = jest.spyOn(fs.promises, 'rename').mockImplementation(async () => {
+      const err = new Error('permission denied') as NodeJS.ErrnoException;
+      err.code = 'EACCES';
+      throw err;
+    });
+
+    const cmd = await rejectCmd();
+    const c = beginCapture();
+    try {
+      await cmd({ project: tmpDir, shotId: 's001', reason: 'blocked move', agent: true });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+      renameSpy.mockRestore();
+    }
+
+    expect(c.exitCode).toBe(1);
+    const env = JSON.parse(c.stdout.trim());
+    expect(env.status).toBe('error');
+    expect(env.errorCode).toBe('GENERAL_ERROR');
+
+    const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
+      .split('\n').filter(Boolean).map(line => JSON.parse(line));
+    expect(records).toHaveLength(1);
+    expect(records[0].status).toBe('complete');
+    expect(records[0].rejection_reason).toBeNull();
+    expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001.mp4'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'))).toBe(false);
+  });
+});
+
+describe('[UT-ARC-06] video reopen leaves state untouched when clip rename fails', () => {
+  it('returns a general error and does not append a partial transition', async () => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'approved',
+        provider: 'runway-gen3',
+        provider_job_id: 'job-s001',
+        clip_path: 'video/clips/s001_attempt1.mp4',
+        attempt_count: 2,
+        approved_at: STALE_UPDATED_AT,
+        generated_at: STALE_UPDATED_AT,
+      }),
+    ]);
+    await writeClipFile(tmpDir, 'video/clips/s001_attempt1.mp4');
+
+    const renameSpy = jest.spyOn(fs.promises, 'rename').mockImplementation(async () => {
+      const err = new Error('permission denied') as NodeJS.ErrnoException;
+      err.code = 'EACCES';
+      throw err;
+    });
+
+    const cmd = await reopenCmd();
+    const c = beginCapture();
+    try {
+      await cmd({ project: tmpDir, shotId: 's001', reason: 'blocked move', agent: true });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+      renameSpy.mockRestore();
+    }
+
+    expect(c.exitCode).toBe(1);
+    const env = JSON.parse(c.stdout.trim());
+    expect(env.status).toBe('error');
+    expect(env.errorCode).toBe('GENERAL_ERROR');
+
+    const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
+      .split('\n').filter(Boolean).map(line => JSON.parse(line));
+    expect(records).toHaveLength(1);
+    expect(records[0].status).toBe('approved');
+    expect(records[0].rejection_reason).toBeNull();
+    expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1_attempt2.mp4'))).toBe(false);
   });
 });
 

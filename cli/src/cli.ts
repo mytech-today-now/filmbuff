@@ -28,6 +28,7 @@ import { generateShotListCommand } from './commands/generate-shot-list';
 import { generateVideoCommand } from './commands/generate-video';
 import { checkUpdatesCommand } from './commands/check-updates';
 import { registerVideoCommands } from './commands/video/index';
+import { registerLifecycleCommands } from './commands/lifecycle';
 import { mcpServerCommand } from './commands/mcp-server';
 import { guiCommand } from './commands/gui';
 import { startCommand } from './commands/start';
@@ -161,8 +162,8 @@ program
   .option('--ai-summary', 'Generate an AI-friendly module summary')
   .option('--ai-context', 'Generate compact AI context for a module')
   .option('--compact', 'Use compact output for AI summary generation')
-  .option('--since <date>', 'Filter completed tasks since date (ISO 8601 format, e.g., 2026-01-01)')
-  .option('--until <date>', 'Filter completed tasks until date (ISO 8601 format, e.g., 2026-12-31)')
+  .option('--since <date>', 'Filter completed tasks since a UTC calendar day (YYYY-MM-DD) or ISO 8601 timestamp with timezone')
+  .option('--until <date>', 'Filter completed tasks until a UTC calendar day (YYYY-MM-DD) or ISO 8601 timestamp with timezone')
   .option('--limit <number>', 'Limit number of completed tasks shown', parseInt)
   .option('--completed-search <term>', 'Search completed tasks by title, description, or close reason')
   .option('--labels <labels>', 'Filter completed tasks by labels (comma-separated)')
@@ -673,6 +674,9 @@ program
 // 10 per-shot video generation commands: init, next, generate, retry, approve,
 // reject, status, compile, reopen, generate-all
 registerVideoCommands(program);
+
+// Workspace lifecycle management group
+registerLifecycleCommands(program);
 
 // MCP Tool Server (filmb-ai-p, Phase 6 — bd-ea74)
 program

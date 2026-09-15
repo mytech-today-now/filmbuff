@@ -21,7 +21,7 @@ export interface EditorOptions {
  */
 export function isVSCodeAvailable(): boolean {
   try {
-    child_process.execSync('code --version', { stdio: 'ignore' });
+    child_process.execFileSync('code', ['--version'], { stdio: 'ignore', windowsHide: true });
     return true;
   } catch (error) {
     return false;
@@ -71,7 +71,7 @@ export async function openInVSCode(filePath: string, options: EditorOptions = {}
 
   try {
     // Execute VS Code command
-    child_process.execSync(`code ${args.join(' ')}`, {
+    child_process.execFileSync('code', args, {
       stdio: 'ignore',
       windowsHide: true
     });
@@ -104,7 +104,7 @@ export function focusVSCode(): boolean {
   }
 
   try {
-    child_process.execSync('code -r', {
+    child_process.execFileSync('code', ['-r'], {
       stdio: 'ignore',
       windowsHide: true
     });
@@ -123,7 +123,7 @@ export function getVSCodeVersion(): string | null {
   }
 
   try {
-    const output = child_process.execSync('code --version', {
+    const output = child_process.execFileSync('code', ['--version'], {
       encoding: 'utf-8',
       windowsHide: true
     });

@@ -59,7 +59,7 @@ export async function versionInfoCommand(moduleName: string, options: VersionInf
 
     if (json) {
       console.log(JSON.stringify({
-        module: moduleName,
+        module: module.fullName,
         version: metadata.version,
         metadata: {
           deprecated: metadata.deprecated,

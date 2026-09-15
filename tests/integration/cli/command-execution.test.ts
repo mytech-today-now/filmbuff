@@ -767,12 +767,14 @@ describe('CLI Command Execution', () => {
 
     async function runShowCompleted(
       cwd: string,
-      args: string[] = []
+      args: string[] = [],
+      options: { env?: NodeJS.ProcessEnv } = {}
     ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
       return executeCommand(
         'node',
         [CLI_PATH, 'show', 'completed', ...args],
-        cwd
+        cwd,
+        options
       );
     }
 
@@ -793,32 +795,32 @@ describe('CLI Command Execution', () => {
       expect(output).not.toContain('bd-broken');
     }, 60_000);
 
-    it('keeps date-only filters aligned with local midnight boundaries', async () => {
+    it('keeps date-only filters aligned with UTC day boundaries', async () => {
       const project = await testEnv.createProject({ name: 'show-completed-date-boundaries' });
       await createResolvedCompletedProjectFixture(project.path, [
         {
           id: 'bd-3001',
-          title: 'Late-night finish',
-          description: 'Completed just before midnight',
+          title: 'UTC day start',
+          description: 'Completed at the start of the UTC day',
           status: 'closed',
-          closed_at: new Date(2026, 8, 11, 23, 59, 59, 999).toISOString(),
-          close_reason: 'Finished before midnight'
+          closed_at: '2026-09-11T00:00:00.000Z',
+          close_reason: 'Finished at UTC day start'
         },
         {
           id: 'bd-3002',
-          title: 'Just-after-midnight finish',
-          description: 'Completed right after midnight',
+          title: 'UTC day end',
+          description: 'Completed at the end of the UTC day',
           status: 'closed',
-          closed_at: new Date(2026, 8, 12, 0, 0, 0, 0).toISOString(),
-          close_reason: 'Finished after midnight'
+          closed_at: '2026-09-11T23:59:59.999Z',
+          close_reason: 'Finished at UTC day end'
         },
         {
           id: 'bd-3003',
-          title: 'Earlier finish',
-          description: 'Completed on the previous day',
+          title: 'Next UTC day',
+          description: 'Completed after the UTC day boundary',
           status: 'closed',
-          closed_at: new Date(2026, 8, 10, 12, 0, 0, 0).toISOString(),
-          close_reason: 'Finished earlier'
+          closed_at: '2026-09-12T00:00:00.000Z',
+          close_reason: 'Finished on the next UTC day'
         }
       ]);
 
@@ -840,12 +842,67 @@ describe('CLI Command Execution', () => {
       expect(day11Result.exitCode).toBe(0);
       expect(day12Result.exitCode).toBe(0);
       expect(JSON.parse(day11Result.stdout).map((task: { id: string }) => task.id)).toEqual([
-        'bd-3001'
-      ]);
-      expect(JSON.parse(day12Result.stdout).map((task: { id: string }) => task.id)).toEqual([
+        'bd-3001',
         'bd-3002'
       ]);
-    }, 30_000);
+      expect(JSON.parse(day12Result.stdout).map((task: { id: string }) => task.id)).toEqual([
+        'bd-3003'
+      ]);
+    }, 60_000);
+
+    it('keeps date-only filters stable across timezones', async () => {
+      const project = await testEnv.createProject({ name: 'show-completed-timezone-stability' });
+      await createResolvedCompletedProjectFixture(project.path, [
+        {
+          id: 'bd-3101',
+          title: 'UTC day start',
+          description: 'Completed at the start of the UTC day',
+          status: 'closed',
+          closed_at: '2026-09-11T00:00:00.000Z',
+          close_reason: 'UTC start'
+        },
+        {
+          id: 'bd-3102',
+          title: 'UTC day end',
+          description: 'Completed at the end of the UTC day',
+          status: 'closed',
+          closed_at: '2026-09-11T23:59:59.999Z',
+          close_reason: 'UTC end'
+        },
+        {
+          id: 'bd-3103',
+          title: 'Next UTC day',
+          description: 'Completed after the UTC day boundary',
+          status: 'closed',
+          closed_at: '2026-09-12T00:00:00.000Z',
+          close_reason: 'Next day'
+        }
+      ]);
+
+      const filterArgs = [
+        '--since',
+        '2026-09-11',
+        '--until',
+        '2026-09-11',
+        '--json'
+      ];
+
+      const utcResult = await runShowCompleted(project.path, filterArgs, {
+        env: { TZ: 'UTC' }
+      });
+      const losAngelesResult = await runShowCompleted(project.path, filterArgs, {
+        env: { TZ: 'America/Los_Angeles' }
+      });
+
+      expect(utcResult.exitCode).toBe(0);
+      expect(losAngelesResult.exitCode).toBe(0);
+
+      const utcIds = JSON.parse(utcResult.stdout).map((task: { id: string }) => task.id);
+      const losAngelesIds = JSON.parse(losAngelesResult.stdout).map((task: { id: string }) => task.id);
+
+      expect(utcIds).toEqual(['bd-3101', 'bd-3102']);
+      expect(losAngelesIds).toEqual(utcIds);
+    }, 60_000);
 
     it('finds the same completed tasks from the repository root and a nested directory', async () => {
       const project = await testEnv.createProject({ name: 'show-completed-root-resolution' });

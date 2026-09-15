@@ -12,7 +12,7 @@
  *   - getLatestState()    → Map<shotId, record>  (last record per shot_id, O(n))
  *   - appendRecord(r)     → void  (file-locked, atomic append)
  *   - appendRecords(rs)   → void  (file-locked, batch append)
- *   - renameClipForRetry  → void  (atomic rename; never copy+delete)
+ *   - renameClipForRetry  → RenameClipForRetryOutcome  (atomic rename; never copy+delete)
  *
  * Lock mechanism: exclusive write lock via a .lock file with ownership
  * metadata. Locks are only reclaimed when the owner process is confirmed dead;
@@ -57,6 +57,24 @@ export class StatusFileBusyError extends Error {
     this.name = 'StatusFileBusyError';
   }
 }
+
+export type RenameClipForRetryOutcome =
+  | {
+    kind: 'moved';
+    sourcePath: string;
+    destinationPath: string;
+  }
+  | {
+    kind: 'missing';
+    sourcePath: string;
+    destinationPath: string;
+  }
+  | {
+    kind: 'failed';
+    sourcePath: string;
+    destinationPath: string;
+    error: NodeJS.ErrnoException;
+  };
 
 function isErrnoCode(err: unknown, code: string): boolean {
   return typeof err === 'object'
@@ -276,21 +294,38 @@ export async function appendRecords(
  * video/clips/s001.mp4  →  video/clips/s001_attempt{N}.mp4
  *
  * Must be atomic (rename, not copy+delete) per spec to avoid data loss on failure.
- * No-ops if the source file does not exist.
+ * Returns a structured outcome describing whether the rename moved the file,
+ * found the source missing, or failed for another filesystem reason.
  */
 export async function renameClipForRetry(
   clipPath: string,
   attemptCount: number,
-): Promise<string> {
+): Promise<RenameClipForRetryOutcome> {
   const ext  = path.extname(clipPath);
   const base = path.basename(clipPath, ext);
   const dir  = path.dirname(clipPath);
   const dest = path.join(dir, `${base}_attempt${attemptCount}${ext}`);
   try {
     await fsPromises.rename(clipPath, dest);
+    return {
+      kind: 'moved',
+      sourcePath: clipPath,
+      destinationPath: dest,
+    };
   } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
-    // Source file absent — nothing to rename
+    if (isErrnoCode(err, 'ENOENT')) {
+      return {
+        kind: 'missing',
+        sourcePath: clipPath,
+        destinationPath: dest,
+      };
+    }
+
+    return {
+      kind: 'failed',
+      sourcePath: clipPath,
+      destinationPath: dest,
+      error: err as NodeJS.ErrnoException,
+    };
   }
-  return dest;
 }

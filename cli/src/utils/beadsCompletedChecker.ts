@@ -97,7 +97,7 @@ export class InvalidCompletedDateFilterError extends Error {
 
   constructor(filterName: 'since' | 'until', value: string) {
     super(
-      `Invalid --${filterName} value "${value}". Use YYYY-MM-DD for a local calendar day or an ISO 8601 timestamp with timezone, such as 2026-09-12T00:00:00Z.`
+      `Invalid --${filterName} value "${value}". Use YYYY-MM-DD for a UTC calendar day or an ISO 8601 timestamp with timezone, such as 2026-09-12T00:00:00Z.`
     );
     this.name = 'InvalidCompletedDateFilterError';
     this.filterName = filterName;
@@ -122,7 +122,7 @@ function parseCompletedDateBoundary(
     const year = Number(dateOnlyMatch[1]);
     const month = Number(dateOnlyMatch[2]);
     const day = Number(dateOnlyMatch[3]);
-    const date = new Date(
+    const date = new Date(Date.UTC(
       year,
       month - 1,
       day,
@@ -130,12 +130,12 @@ function parseCompletedDateBoundary(
       boundary === 'start' ? 0 : 59,
       boundary === 'start' ? 0 : 59,
       boundary === 'start' ? 0 : 999
-    );
+    ));
 
     if (
-      date.getFullYear() !== year ||
-      date.getMonth() !== month - 1 ||
-      date.getDate() !== day
+      date.getUTCFullYear() !== year ||
+      date.getUTCMonth() !== month - 1 ||
+      date.getUTCDate() !== day
     ) {
       throw new InvalidCompletedDateFilterError(filterName, value);
     }

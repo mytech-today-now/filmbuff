@@ -64,26 +64,41 @@ export async function videoRejectCommand(opts: VideoRejectOptions): Promise<void
     throw err;
   }
 
-  await appendRecords(projectPath, rejectRecords);
-
   // ── Rename existing clip (atomic rename; never copy+delete) ───────────────
   const clipPath = record.clip_path
     ? path.resolve(projectPath, record.clip_path)
     : path.join(projectPath, 'video', 'clips', `${opts.shotId}.mp4`);
 
   const attemptN   = record.attempt_count;
-  const archivedTo = await renameClipForRetry(clipPath, attemptN);
+  const archiveOutcome = await renameClipForRetry(clipPath, attemptN);
+
+  if (archiveOutcome.kind === 'failed') {
+    const msg = `Failed to archive clip for shot "${opts.shotId}" from "${archiveOutcome.sourcePath}" to "${archiveOutcome.destinationPath}": ${archiveOutcome.error.message}`;
+    if (agentMode) { agentError(EXIT.GENERAL_ERROR, msg, { shotId: opts.shotId }); } else { console.error(`✗ ${msg}`); }
+    process.exit(EXIT.GENERAL_ERROR);
+  }
+
+  await appendRecords(projectPath, rejectRecords);
 
   humanLog(`✓ Shot "${opts.shotId}" rejected.`, agentMode);
   humanLog(`  Reason: ${rejectionReason}`, agentMode);
-  humanLog(`  Clip archived to: ${archivedTo}`, agentMode);
+  if (archiveOutcome.kind === 'moved') {
+    humanLog(`  Clip archived to: ${archiveOutcome.destinationPath}`, agentMode);
+  } else {
+    humanLog(`  Clip missing at source: ${archiveOutcome.sourcePath} (no archive created).`, agentMode);
+  }
   humanLog(`  Shot reverted to pending.`, agentMode);
 
   if (agentMode) {
     agentSuccess({
       shot_id:          opts.shotId,
       rejection_reason: rejectionReason,
-      archived_clip:    archivedTo,
+      archived_clip:    archiveOutcome.kind === 'moved' ? archiveOutcome.destinationPath : null,
+      archive_result: {
+        kind: archiveOutcome.kind,
+        source_path: archiveOutcome.sourcePath,
+        destination_path: archiveOutcome.destinationPath,
+      },
       new_status:       'pending',
     }, { shotId: opts.shotId });
   }

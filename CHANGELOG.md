@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.5] - 2026-09-15
+
+### Added
+- **Workspace lifecycle commands** - Added `filmbuff lifecycle` for status, install, reinstall, upgrade, diagnose, recover, repair, rollback, and uninstall flows with backup-aware recovery.
+
+### Fixed
+- **Module maintenance** - `update`, `pin`, `upgrade`, and `version-info` now preserve canonical module names when resolving aliases and syncing linked-module records.
+- **Completed history handling** - Invalid completed-date filters and corrupted completed history now stop early with clearer errors instead of continuing into later processing.
+- **Process safety** - VS Code launches now pass exact argv entries, and status-file and archive workflows use safer lock and extraction handling.
+
 ## [2.5.4] - 2026-09-11
 
 ### Fixed

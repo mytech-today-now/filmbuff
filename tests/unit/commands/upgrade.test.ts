@@ -143,7 +143,13 @@ describe('upgradeCommand', () => {
     writeFileSyncMock.mockReset().mockImplementation(() => undefined);
 
     discoverModulesMock.mockReset().mockReturnValue([mockModule]);
-    findModuleMock.mockReset().mockReturnValue(mockModule);
+    findModuleMock.mockReset().mockImplementation((name: string) => {
+      if (name === canonicalModuleName || name === moduleName) {
+        return mockModule;
+      }
+
+      return null;
+    });
     findProjectRootMock.mockReset().mockReturnValue(projectRoot);
     versionManagerGetVersionMock.mockReset().mockReturnValue({ version: '1.0.0' });
     moduleLoaderLoadMock.mockReset().mockReturnValue(defaultLatestResult);
@@ -177,6 +183,55 @@ describe('upgradeCommand', () => {
 
     expect(consoleLogSpy.mock.calls.flat().join(' ')).toContain('Successfully upgraded action');
     expect(consoleLogSpy.mock.calls.flat().join(' ')).toContain('Config updated');
+    expect(processExitSpy).not.toHaveBeenCalled();
+  });
+
+  it('rewrites legacy alias records with the canonical module name and keeps the JSON report intact', async () => {
+    readFileSyncMock.mockReturnValueOnce(JSON.stringify({
+      version: '1.0.0',
+      modules: [
+        {
+          name: moduleName,
+          version: '1.0.0',
+          type: 'writing-standards',
+          description: 'Legacy action guidance'
+        }
+      ]
+    }));
+
+    await upgradeCommand(canonicalModuleName, { json: true });
+
+    expect(findModuleMock).toHaveBeenCalledWith(canonicalModuleName);
+    expect(existsSyncMock).toHaveBeenCalledWith(configPath);
+    expect(writeFileSyncMock).toHaveBeenCalledTimes(1);
+    expect(writeFileSyncMock).toHaveBeenCalledWith(
+      configPath,
+      expect.any(String),
+      'utf-8'
+    );
+
+    const [, writtenConfigText] = writeFileSyncMock.mock.calls[0];
+    const writtenConfig = JSON.parse(writtenConfigText as string);
+    expect(writtenConfig.modules[0]).toEqual(expect.objectContaining({
+      name: canonicalModuleName,
+      version: latestVersion
+    }));
+    expect(writtenConfig.modules[0].upgradedAt).toEqual(expect.any(String));
+
+    const jsonCall = consoleLogSpy.mock.calls.find(([arg]) => typeof arg === 'string' && arg.trim().startsWith('{'));
+    expect(jsonCall).toBeDefined();
+
+    const parsed = JSON.parse(jsonCall![0] as string);
+    expect(parsed).toMatchObject({
+      success: true,
+      module: canonicalModuleName,
+      previousVersion: '1.0.0',
+      newVersion: latestVersion,
+      breaking: false,
+      deprecated: false,
+      configUpdated: true
+    });
+
     expect(processExitSpy).not.toHaveBeenCalled();
   });
 

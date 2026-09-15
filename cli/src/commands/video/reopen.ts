@@ -51,14 +51,6 @@ export async function videoReopenCommand(opts: VideoReopenOptions): Promise<void
     process.exit(EXIT.NOT_FOUND);
   }
 
-  // ── Archive the approved clip before transitioning ─────────────────────────
-  const existingClipPath = record.clip_path
-    ? path.resolve(projectPath, record.clip_path)
-    : path.join(projectPath, 'video', 'clips', `${opts.shotId}.mp4`);
-
-  const attemptN    = record.attempt_count;
-  const archivedTo  = await renameClipForRetry(existingClipPath, attemptN);
-
   // ── Transition: approved → pending ────────────────────────────────────────
   let reopenRecords: ReturnType<typeof transition>;
   try {
@@ -82,17 +74,40 @@ export async function videoReopenCommand(opts: VideoReopenOptions): Promise<void
     }
   }
 
+  // ── Archive the approved clip before persisting the transition ────────────
+  const existingClipPath = record.clip_path
+    ? path.resolve(projectPath, record.clip_path)
+    : path.join(projectPath, 'video', 'clips', `${opts.shotId}.mp4`);
+
+  const attemptN    = record.attempt_count;
+  const archiveOutcome  = await renameClipForRetry(existingClipPath, attemptN);
+
+  if (archiveOutcome.kind === 'failed') {
+    const msg = `Failed to archive approved clip for shot "${opts.shotId}" from "${archiveOutcome.sourcePath}" to "${archiveOutcome.destinationPath}": ${archiveOutcome.error.message}`;
+    if (agentMode) { agentError(EXIT.GENERAL_ERROR, msg, { shotId: opts.shotId }); } else { console.error(`✗ ${msg}`); }
+    process.exit(EXIT.GENERAL_ERROR);
+  }
+
   await appendRecords(projectPath, reopenRecords);
 
   humanLog(`✓ Shot "${opts.shotId}" re-opened and reverted to pending.`, agentMode);
   if (opts.reason) humanLog(`  Reason: ${opts.reason}`, agentMode);
-  humanLog(`  Approved clip archived to: ${archivedTo}`, agentMode);
+  if (archiveOutcome.kind === 'moved') {
+    humanLog(`  Approved clip archived to: ${archiveOutcome.destinationPath}`, agentMode);
+  } else {
+    humanLog(`  Approved clip missing at source: ${archiveOutcome.sourcePath} (no archive created).`, agentMode);
+  }
 
   if (agentMode) {
     agentSuccess({
       shot_id:       opts.shotId,
       new_status:    'pending',
-      archived_clip: archivedTo,
+      archived_clip: archiveOutcome.kind === 'moved' ? archiveOutcome.destinationPath : null,
+      archive_result: {
+        kind: archiveOutcome.kind,
+        source_path: archiveOutcome.sourcePath,
+        destination_path: archiveOutcome.destinationPath,
+      },
       reason:        opts.reason ?? null,
     }, { shotId: opts.shotId });
   }

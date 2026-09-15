@@ -149,10 +149,16 @@ export async function upgradeCommand(moduleName: string, options: UpgradeCommand
           throw new Error('Invalid config format: expected .augment/extensions.json to contain a modules array');
         }
 
-        const moduleIndex = config.modules.findIndex((m: any) => m.name === module.fullName);
+        const moduleIndex = config.modules.findIndex((entry: unknown) => resolveConfiguredModuleName(entry) === module.fullName);
         if (moduleIndex >= 0) {
-          config.modules[moduleIndex].version = latestVersion;
-          config.modules[moduleIndex].upgradedAt = new Date().toISOString();
+          const existingEntry = config.modules[moduleIndex];
+          const existingObject = existingEntry && typeof existingEntry === 'object' ? existingEntry : {};
+          config.modules[moduleIndex] = {
+            ...existingObject,
+            name: module.fullName,
+            version: latestVersion,
+            upgradedAt: new Date().toISOString()
+          };
           fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
           upgraded = true;
         }
@@ -211,4 +217,26 @@ export async function upgradeCommand(moduleName: string, options: UpgradeCommand
     }
     process.exit(1);
   }
+}
+
+function resolveConfiguredModuleName(entry: unknown): string | null {
+  const storedName = getConfiguredModuleName(entry);
+  if (!storedName) {
+    return null;
+  }
+
+  return findModule(storedName)?.fullName ?? null;
+}
+
+function getConfiguredModuleName(entry: unknown): string | null {
+  if (typeof entry === 'string') {
+    return entry.trim() || null;
+  }
+
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  const candidate = (entry as { name?: unknown; id?: unknown }).name ?? (entry as { id?: unknown }).id;
+  return typeof candidate === 'string' && candidate.trim() ? candidate.trim() : null;
 }

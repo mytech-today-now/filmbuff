@@ -120,6 +120,7 @@ interface FfmpegInvocation {
   outputPath?: string;
   drawtextFilter?: string;
   textFileContents?: string;
+  shell?: boolean | string;
 }
 
 const tempDirs: string[] = [];
@@ -215,8 +216,28 @@ const HTML_ENTITY_MAP: Record<string, string> = {
   '&#39;': '\'',
 };
 
-function formatConcatEntry(filePath: string): string {
-  return `file '${filePath.replace(/'/g, "'\\''")}'`;
+function parseConcatEntry(entry: string): string {
+  const prefix = 'file ';
+  expect(entry.startsWith(prefix)).toBe(true);
+
+  const quotedPath = entry.slice(prefix.length);
+  expect(quotedPath.startsWith("'")).toBe(true);
+  expect(quotedPath.endsWith("'")).toBe(true);
+
+  let parsed = '';
+  for (let index = 1; index < quotedPath.length - 1; index += 1) {
+    const char = quotedPath[index];
+
+    if (char === "'" && quotedPath.slice(index, index + 4) === "'\\''") {
+      parsed += "'";
+      index += 3;
+      continue;
+    }
+
+    parsed += char;
+  }
+
+  return parsed;
 }
 
 function decodeHtmlEntities(value: string): string {
@@ -337,6 +358,7 @@ async function handleMockExecFile(
     outputPath,
     drawtextFilter,
     textFileContents,
+    shell: options.shell,
   });
 }
 
@@ -447,6 +469,7 @@ describe('[UT-VCOMP-01] compile viewer paths match the packaged clips folder', (
 
     const titleCardCalls = result.ffmpegInvocations.filter((call) => call.drawtextFilter !== undefined);
     expect(titleCardCalls).toHaveLength(1);
+    expect(result.ffmpegInvocations.every((call) => call.shell === false)).toBe(true);
     expect(titleCardCalls[0].cwd).toBe(result.outputDir);
     expect(titleCardCalls[0].drawtextFilter).toContain('textfile=title_0000.txt');
     expect(titleCardCalls[0].textFileContents).toBe('INT. EDIT SUITE - DAY');
@@ -507,6 +530,7 @@ describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, unicode, an
 
     const titleCardCalls = result.ffmpegInvocations.filter((call) => call.drawtextFilter !== undefined);
     expect(titleCardCalls).toHaveLength(1);
+    expect(result.ffmpegInvocations.every((call) => call.shell === false)).toBe(true);
     expect(titleCardCalls[0].drawtextFilter).toBe(
       'drawtext=fontsize=64:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2:expansion=none:textfile=title_0000.txt',
     );
@@ -515,12 +539,13 @@ describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, unicode, an
     );
     expect(titleCardCalls[0].cwd).toBe(result.outputDir);
 
-    const expectedConcatEntries = [
-      formatConcatEntry(path.join(result.outputDir, 'title_0000.mp4')),
-      formatConcatEntry(path.resolve(result.projectDir, path.join('video', 'clips', "nested/Lead Clip's Master ✨.mp4"))),
-      formatConcatEntry(path.resolve(result.projectDir, path.join('video', 'clips', 'nested/final reel/Final Clip ß.mp4'))),
+    const expectedConcatPaths = [
+      path.join(result.outputDir, 'title_0000.mp4'),
+      path.resolve(result.projectDir, path.join('video', 'clips', "nested/Lead Clip's Master ✨.mp4")),
+      path.resolve(result.projectDir, path.join('video', 'clips', 'nested/final reel/Final Clip ß.mp4')),
     ];
-    expect(result.concatText.trim().split('\n')).toEqual(expectedConcatEntries);
+    const parsedConcatPaths = result.concatText.trim().split('\n').map(parseConcatEntry);
+    expect(parsedConcatPaths).toEqual(expectedConcatPaths);
     expect(result.concatText).toContain("'\\''");
     expect(getExecMock()).not.toHaveBeenCalled();
   });
@@ -574,6 +599,7 @@ describe('[UT-VCOMP-04] title cards keep scene text literal', () => {
     expect(titleCardCalls[0].textFileContents).toBe(hostileScene);
     expect(titleCardCalls[0].drawtextFilter).not.toContain(hostileScene);
     expect(titleCardCalls[0].cwd).toBe(result.outputDir);
+    expect(titleCardCalls[0].shell).toBe(false);
     expect(getExecMock()).not.toHaveBeenCalled();
   });
 });

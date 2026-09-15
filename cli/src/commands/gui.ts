@@ -56,7 +56,9 @@ export async function guiCommand(options: Record<string, unknown> = {}): Promise
       process.exit(1);
     }
 
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as {
+      modules?: Array<{ name?: unknown }>;
+    };
     const linkedModules: string[] = Array.isArray(config.modules)
       ? config.modules
           .map((m: { name?: unknown }) => m?.name)
@@ -458,7 +460,7 @@ async function listSubmodulesInteractive(
   const linkedModuleNames = new Set(relevantLinkedStates.map(state => state.canonicalName));
   const unresolvedStates = linkedStates.filter(state => !state.resolvedModule);
 
-  const choices = entries.map(e => {
+  const choices: any[] = entries.map(e => {
     const alias = chalk.cyan(e.name.padEnd(26));
     const desc = e.description.length > 50 ? e.description.slice(0, 47) + '...' : e.description;
     return {

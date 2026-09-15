@@ -9,11 +9,14 @@ type ManifestModule = {
   version: string;
   type: string;
   description: string;
+  [key: string]: unknown;
 };
+
+type ManifestEntry = ManifestModule | string;
 
 type Manifest = {
   version: string;
-  modules: ManifestModule[];
+  modules: ManifestEntry[];
 };
 
 function stripAnsi(value: string): string {
@@ -60,6 +63,20 @@ async function readManifest(configPath: string): Promise<{ raw: string; data: Ma
     raw,
     data: JSON.parse(raw) as Manifest
   };
+}
+
+async function writeManifest(configPath: string, modules: ManifestEntry[]): Promise<void> {
+  await writeFile(
+    configPath,
+    JSON.stringify(
+      {
+        version: '1.0.0',
+        modules
+      },
+      null,
+      2
+    )
+  );
 }
 
 async function createLocalModuleFixture(
@@ -125,25 +142,20 @@ describe('pin command', () => {
     const project = await testEnv.createProject({ name: 'pin-project' });
     const module = await createLocalModuleFixture(project.path);
 
-    const manifestBefore: Manifest = {
-      version: '1.0.0',
-      modules: [
-        {
-          name: module.fullName,
-          version: '1.0.0',
-          type: 'domain-rules',
-          description: 'Original module description'
-        },
-        {
-          name: 'workflows/unrelated-module',
-          version: '3.1.4',
-          type: 'workflows',
-          description: 'Unrelated module record'
-        }
-      ]
-    };
-
-    await writeFile(project.configPath, JSON.stringify(manifestBefore, null, 2));
+    await writeManifest(project.configPath, [
+      {
+        name: module.fullName,
+        version: '1.0.0',
+        type: 'domain-rules',
+        description: 'Original module description'
+      },
+      {
+        name: 'workflows/unrelated-module',
+        version: '3.1.4',
+        type: 'workflows',
+        description: 'Unrelated module record'
+      }
+    ]);
 
     const result = await executeCommand(
       process.execPath,
@@ -156,9 +168,12 @@ describe('pin command', () => {
     expect(result.stdout).toContain(`Pinned ${module.fullName} to version ${module.version}`);
 
     const manifestAfter = await readManifest(project.configPath);
-    const pinnedModule = manifestAfter.data.modules.find((entry) => entry.name === module.fullName);
+    const pinnedModule = manifestAfter.data.modules.find(
+      (entry): entry is ManifestModule => typeof entry !== 'string' && entry.name === module.fullName
+    );
     const unrelatedModule = manifestAfter.data.modules.find(
-      (entry) => entry.name === 'workflows/unrelated-module'
+      (entry): entry is ManifestModule =>
+        typeof entry !== 'string' && entry.name === 'workflows/unrelated-module'
     );
 
     expect(pinnedModule).toBeDefined();
@@ -172,28 +187,83 @@ describe('pin command', () => {
     });
   }, 30_000);
 
+  it('rewrites string alias records to the canonical module id when pinning', async () => {
+    const project = await testEnv.createProject({ name: 'pin-string-alias-project' });
+    const module = await createLocalModuleFixture(project.path);
+
+    await writeManifest(project.configPath, ['pinned-module']);
+
+    const result = await executeCommand(
+      process.execPath,
+      [binPath, 'pin', 'pinned-module', module.version],
+      project.path
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toContain(`Pinned ${module.fullName} to version ${module.version}`);
+
+    const manifestAfter = await readManifest(project.configPath);
+
+    expect(manifestAfter.data.modules).toEqual([
+      {
+        name: module.fullName,
+        version: module.version,
+        type: 'domain-rules',
+        description: 'Pinned module fixture'
+      }
+    ]);
+  }, 30_000);
+
+  it('rewrites object alias records to the canonical module id when pinning', async () => {
+    const project = await testEnv.createProject({ name: 'pin-object-alias-project' });
+    const module = await createLocalModuleFixture(project.path);
+
+    await writeManifest(project.configPath, [
+      {
+        name: 'pinned-module',
+        version: module.version,
+        type: 'domain-rules',
+        description: 'Legacy alias module description',
+        pinned: true
+      }
+    ]);
+
+    const result = await executeCommand(
+      process.execPath,
+      [binPath, 'pin', 'pinned-module', module.version],
+      project.path
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toBe('');
+    expect(result.stdout).toContain(`Pinned ${module.fullName} to version ${module.version}`);
+
+    const manifestAfter = await readManifest(project.configPath);
+
+    expect(manifestAfter.data.modules).toEqual([
+      {
+        name: module.fullName,
+        version: module.version,
+        type: 'domain-rules',
+        description: 'Legacy alias module description',
+        pinned: true
+      }
+    ]);
+  }, 30_000);
+
   it('keeps the manifest stable when pinning the same version twice', async () => {
     const project = await testEnv.createProject({ name: 'pin-repeat-project' });
     const module = await createLocalModuleFixture(project.path);
 
-    await writeFile(
-      project.configPath,
-      JSON.stringify(
-        {
-          version: '1.0.0',
-          modules: [
-            {
-              name: module.fullName,
-              version: '1.0.0',
-              type: 'domain-rules',
-              description: 'Original module description'
-            }
-          ]
-        },
-        null,
-        2
-      )
-    );
+    await writeManifest(project.configPath, [
+      {
+        name: module.fullName,
+        version: '1.0.0',
+        type: 'domain-rules',
+        description: 'Original module description'
+      }
+    ]);
 
     const firstRun = await executeCommand(
       process.execPath,
@@ -241,24 +311,14 @@ describe('pin command', () => {
     const project = await testEnv.createProject({ name: 'pin-missing-version-project' });
     const module = await createLocalModuleFixture(project.path);
 
-    await writeFile(
-      project.configPath,
-      JSON.stringify(
-        {
-          version: '1.0.0',
-          modules: [
-            {
-              name: module.fullName,
-              version: '1.0.0',
-              type: 'domain-rules',
-              description: 'Original module description'
-            }
-          ]
-        },
-        null,
-        2
-      )
-    );
+    await writeManifest(project.configPath, [
+      {
+        name: module.fullName,
+        version: '1.0.0',
+        type: 'domain-rules',
+        description: 'Original module description'
+      }
+    ]);
 
     const result = await executeCommand(
       process.execPath,

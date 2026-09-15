@@ -140,7 +140,7 @@ describe('versionInfoCommand', () => {
     return JSON.parse(jsonCall![0] as string) as Record<string, unknown>;
   }
 
-  it('routes canonical full names through the shared finder and preserves JSON shape', async () => {
+  it('routes canonical full names through the shared finder and reports the canonical module id in JSON', async () => {
     await versionInfoCommand(canonicalModuleName, { json: true });
 
     expect(findModuleMock).toHaveBeenCalledWith(canonicalModuleName);
@@ -169,7 +169,7 @@ describe('versionInfoCommand', () => {
     expect(processExitSpy).not.toHaveBeenCalled();
   });
 
-  it('routes alias input through the shared finder and preserves JSON shape', async () => {
+  it('routes alias input through the shared finder and reports the canonical module id in JSON', async () => {
     await versionInfoCommand(aliasModuleName, { json: true });
 
     expect(findModuleMock).toHaveBeenCalledWith(aliasModuleName);
@@ -177,7 +177,7 @@ describe('versionInfoCommand', () => {
 
     const payload = readJsonPayload();
     expect(payload).toMatchObject({
-      module: aliasModuleName,
+      module: canonicalModuleName,
       version: defaultVersionMetadata.version,
       metadata: {
         deprecated: defaultVersionMetadata.deprecated,
@@ -190,6 +190,16 @@ describe('versionInfoCommand', () => {
       compatibility: defaultCompatibilityResult,
       changelog: defaultChangelog
     });
+    expect(processExitSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps the human-readable output tied to the requested module string', async () => {
+    await versionInfoCommand(aliasModuleName, {});
+
+    expect(findModuleMock).toHaveBeenCalledWith(aliasModuleName);
+    expect(discoverModulesMock).not.toHaveBeenCalled();
+    expect(consoleLogSpy.mock.calls[0]?.[0]).toEqual(expect.stringContaining(aliasModuleName));
+    expect(consoleLogSpy.mock.calls.flat().join(' ')).toContain(defaultVersionMetadata.version);
     expect(processExitSpy).not.toHaveBeenCalled();
   });
 

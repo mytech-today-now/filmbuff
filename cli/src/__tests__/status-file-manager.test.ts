@@ -133,17 +133,69 @@ describe('renameClipForRetry()', () => {
     const clipPath = path.join(clipsDir, 's001.mp4');
     await fs.writeFile(clipPath, 'fake mp4 data');
 
-    const dest = await renameClipForRetry(clipPath, 1);
-    expect(dest).toMatch(/s001_attempt1\.mp4$/);
+    const outcome = await renameClipForRetry(clipPath, 1);
+    expect(outcome.kind).toBe('moved');
+    expect(outcome.sourcePath).toBe(clipPath);
+    expect(outcome.destinationPath).toMatch(/s001_attempt1\.mp4$/);
     // Original gone; renamed file exists
     await expect(fs.access(clipPath)).rejects.toThrow();
-    await expect(fs.access(dest)).resolves.toBeUndefined();
+    await expect(fs.access(outcome.destinationPath)).resolves.toBeUndefined();
+  });
+
+  it('renames an already-attempted clip to the next attempt suffix', async () => {
+    const clipsDir = path.join(tmpDir, 'video', 'clips');
+    await fs.mkdir(clipsDir, { recursive: true });
+    const clipPath = path.join(clipsDir, 's001_attempt1.mp4');
+    await fs.writeFile(clipPath, 'fake mp4 data');
+
+    const outcome = await renameClipForRetry(clipPath, 2);
+    expect(outcome.kind).toBe('moved');
+    expect(outcome.sourcePath).toBe(clipPath);
+    expect(outcome.destinationPath).toMatch(/s001_attempt1_attempt2\.mp4$/);
+    await expect(fs.access(clipPath)).rejects.toThrow();
+    await expect(fs.access(outcome.destinationPath)).resolves.toBeUndefined();
   });
 
   it('no-ops gracefully when source file does not exist', async () => {
     const clipPath = path.join(tmpDir, 'video', 'clips', 'ghost.mp4');
-    // Should not throw
-    await expect(renameClipForRetry(clipPath, 2)).resolves.not.toThrow();
+    const outcome = await renameClipForRetry(clipPath, 2);
+    expect(outcome.kind).toBe('missing');
+    expect(outcome.sourcePath).toBe(clipPath);
+    expect(outcome.destinationPath).toMatch(/ghost_attempt2\.mp4$/);
+  });
+
+  it('reports filesystem failures as failed outcomes', async () => {
+    const clipPath = path.join(tmpDir, 'video', 'clips', 'locked.mp4');
+    const err = new Error('permission denied') as NodeJS.ErrnoException;
+    err.code = 'EACCES';
+    const renameMock = jest.fn(async () => {
+      throw err;
+    });
+
+    jest.resetModules();
+    jest.doMock('fs/promises', () => {
+      const actual = jest.requireActual('fs/promises') as typeof import('fs/promises');
+      return {
+        __esModule: true,
+        ...actual,
+        rename: renameMock,
+      };
+    });
+
+    try {
+      const { renameClipForRetry: mockedRenameClipForRetry } = await import('../lib/status-file-manager');
+      const outcome = await mockedRenameClipForRetry(clipPath, 3);
+      expect(outcome.kind).toBe('failed');
+      if (outcome.kind === 'failed') {
+        expect(outcome.error.code).toBe('EACCES');
+        expect(outcome.error.message).toBe('permission denied');
+      }
+      expect(outcome.sourcePath).toBe(clipPath);
+      expect(outcome.destinationPath).toMatch(/locked_attempt3\.mp4$/);
+      expect(renameMock).toHaveBeenCalledWith(clipPath, expect.stringMatching(/locked_attempt3\.mp4$/));
+    } finally {
+      jest.dontMock('fs/promises');
+    }
   });
 });
 

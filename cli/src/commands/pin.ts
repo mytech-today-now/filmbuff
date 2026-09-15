@@ -101,12 +101,17 @@ export async function pinCommand(moduleName: string, version: string): Promise<v
     } else if (linkedModule && typeof linkedModule === 'object') {
       const record = linkedModule as Record<string, unknown>;
 
-      if (record.version === version) {
+      if (record.name === canonicalModuleId && record.version === version) {
         console.log(chalk.gray(`Module already pinned: ${canonicalModuleId} (v${version})`));
         return;
       }
 
-      record.version = version;
+      // Rewrite legacy aliases in-place so future commands resolve the canonical id.
+      linkedModules[moduleIndex] = {
+        ...record,
+        name: canonicalModuleId,
+        version
+      };
     }
 
     config.modules = linkedModules;

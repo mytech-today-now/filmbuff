@@ -3,7 +3,11 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import { TestEnvironment } from '../../helpers/test-env';
 import { ModuleFactory } from '../../helpers/factories';
-import { validateModuleMetadata, validateModuleStructure } from '../../../cli/src/utils/module-system';
+import {
+  validateModuleMetadata,
+  validateModuleStructure,
+  validateProjectAgnostic
+} from '../../../cli/src/utils/module-system';
 
 describe('Configuration Validation Tests', () => {
   let testEnv: TestEnvironment;
@@ -387,6 +391,78 @@ describe('Configuration Validation Tests', () => {
       const result = validateModuleStructure(testModulePath);
 
       expect(result.warnings).toContain('Optional directory missing: examples/');
+    });
+  });
+
+  describe('Project Agnostic Validation', () => {
+    it('scans markdown, JSON, and TypeScript source while ignoring irrelevant files', async () => {
+      await fs.mkdir(path.join(testModulePath, 'utils'), { recursive: true });
+
+      await fs.writeFile(path.join(testModulePath, 'README.md'), `
+# Test Module
+
+## Overview
+
+This module references C:\\Users\\tester\\notes for documentation purposes.
+
+## Contents
+
+- Overview
+- Usage
+
+## Character Count
+
+~5,000
+
+## Usage
+
+Use the helper from the module tree.
+
+## Installation
+
+Install it as part of the local workspace.
+
+\`\`\`ts
+console.log('ready');
+\`\`\`
+`);
+
+      await fs.writeFile(path.join(testModulePath, 'module.json'), JSON.stringify({
+        name: 'test-module',
+        version: '1.0.0',
+        displayName: 'Test Module',
+        description: 'A test module for validating project agnostic scanning',
+        type: 'coding-standards',
+        sourceUrl: 'https://example.com/module'
+      }, null, 2));
+
+      await fs.writeFile(
+        path.join(testModulePath, 'utils', 'file-organization.ts'),
+        String.raw`export const localPath = "C:\Users\tester\workspace\module";
+export const localUrl = "https://example.com/source";
+`
+      );
+
+      await fs.writeFile(
+        path.join(testModulePath, 'utils', 'notes.txt'),
+        String.raw`C:\Users\tester\ignored\path
+https://example.com/ignored
+`
+      );
+
+      const result = validateProjectAgnostic(testModulePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.warnings).toHaveLength(4);
+      expect(result.warnings).toEqual(expect.arrayContaining([
+        expect.stringContaining('README.md'),
+        expect.stringContaining('module.json'),
+        expect.stringContaining('file-organization.ts'),
+        expect.stringContaining('C:\\'),
+        expect.stringContaining('https://example.com')
+      ]));
+      expect(result.warnings.some(warning => warning.includes('notes.txt'))).toBe(false);
     });
   });
 });

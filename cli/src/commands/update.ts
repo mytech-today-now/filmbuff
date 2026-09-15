@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
-import { compareSemanticVersions, findProjectRoot, getModulesDir } from '../utils/module-system';
+import { compareSemanticVersions, findModule, findProjectRoot, type Module } from '../utils/module-system';
 
 interface UpdateOptions {
   module?: string;
@@ -11,10 +11,19 @@ interface UpdateOptions {
 }
 
 interface LinkedModule {
-  name: string;
-  version: string;
-  type: string;
-  description: string;
+  name?: string;
+  id?: string;
+  version?: string;
+  type?: string;
+  description?: string;
+}
+
+interface ResolvedLinkedModule {
+  index: number;
+  entry: LinkedModule | string;
+  storedName: string;
+  canonicalName: string;
+  sourceModule: Module | null;
 }
 
 export async function updateCommand(options: UpdateOptions): Promise<void> {
@@ -46,9 +55,20 @@ export async function updateCommand(options: UpdateOptions): Promise<void> {
       return;
     }
 
-    const modulesToUpdate = options.module
-      ? config.modules.filter((m: LinkedModule) => m.name === options.module)
-      : config.modules;
+    const requestedModuleName = options.module?.trim();
+    const requestedModule = requestedModuleName ? findModule(requestedModuleName) : null;
+    const requestedCanonicalName = requestedModule?.fullName ?? requestedModuleName;
+    const linkedModules = config.modules as Array<LinkedModule | string>;
+    const resolvedModules: ResolvedLinkedModule[] = linkedModules
+      .map((entry, index) => resolveLinkedModule(entry, index))
+      .filter((entry): entry is ResolvedLinkedModule => entry !== null);
+
+    const modulesToUpdate = requestedCanonicalName
+      ? resolvedModules.filter((module) =>
+          module.canonicalName === requestedCanonicalName ||
+          module.storedName === requestedCanonicalName
+        )
+      : resolvedModules;
 
     if (modulesToUpdate.length === 0) {
       console.error(chalk.red(`Module not found: ${options.module}`));
@@ -153,47 +173,89 @@ async function updateCLI(): Promise<void> {
   }
 }
 
-async function updateModule(linkedModule: LinkedModule, config: any): Promise<'updated' | 'up-to-date' | 'error'> {
+async function updateModule(linkedModule: ResolvedLinkedModule, config: any): Promise<'updated' | 'up-to-date' | 'error'> {
   try {
-    const modulesDir = getModulesDir();
+    const modulePath = linkedModule.sourceModule?.path;
+    if (!modulePath) {
+      console.log(chalk.gray(`○ ${linkedModule.storedName}: No local source (externally managed, skipping)`));
+      return 'up-to-date';
+    }
 
-    const modulePath = path.join(modulesDir, linkedModule.name);
     const moduleJsonPath = path.join(modulePath, 'module.json');
 
     if (!fs.existsSync(moduleJsonPath)) {
       // Module has no local source — it was linked externally. Treat as up-to-date.
-      console.log(chalk.gray(`○ ${linkedModule.name}: No local source (externally managed, skipping)`));
+      console.log(chalk.gray(`○ ${linkedModule.storedName}: No local source (externally managed, skipping)`));
       return 'up-to-date';
     }
 
     const moduleData = JSON.parse(fs.readFileSync(moduleJsonPath, 'utf-8'));
     const latestVersion = moduleData.version;
-    const currentVersion = linkedModule.version;
+    const currentVersion = linkedModule.entry && typeof linkedModule.entry === 'object' &&
+      typeof linkedModule.entry.version === 'string' &&
+      linkedModule.entry.version.trim()
+      ? linkedModule.entry.version.trim()
+      : '0.0.0';
 
     if (latestVersion === currentVersion) {
-      console.log(chalk.gray(`○ ${linkedModule.name}: Already up to date (v${currentVersion})`));
+      console.log(chalk.gray(`○ ${linkedModule.canonicalName}: Already up to date (v${currentVersion})`));
       return 'up-to-date';
     }
 
     // Check if it's a newer version
     if (compareSemanticVersions(latestVersion, currentVersion) > 0) {
       // Update in config
-      const moduleIndex = config.modules.findIndex((m: LinkedModule) => m.name === linkedModule.name);
-      if (moduleIndex >= 0) {
-        config.modules[moduleIndex].version = latestVersion;
-        config.modules[moduleIndex].description = moduleData.description;
+      const moduleIndex = linkedModule.index;
+      if (moduleIndex >= 0 && moduleIndex < config.modules.length) {
+        const existingEntry = config.modules[moduleIndex];
+        const existingObject = existingEntry && typeof existingEntry === 'object' ? existingEntry : {};
+        config.modules[moduleIndex] = {
+          ...existingObject,
+          name: linkedModule.canonicalName,
+          version: latestVersion,
+          description: moduleData.description
+        };
       }
 
-      console.log(chalk.green(`✓ ${linkedModule.name}: Updated ${currentVersion} → ${latestVersion}`));
+      console.log(chalk.green(`✓ ${linkedModule.canonicalName}: Updated ${currentVersion} → ${latestVersion}`));
       return 'updated';
     } else {
-      console.log(chalk.yellow(`⚠ ${linkedModule.name}: Current version (${currentVersion}) is newer than available (${latestVersion})`));
+      console.log(chalk.yellow(`⚠ ${linkedModule.canonicalName}: Current version (${currentVersion}) is newer than available (${latestVersion})`));
       return 'up-to-date';
     }
 
   } catch (error) {
-    console.log(chalk.red(`✗ ${linkedModule.name}: Error updating - ${error}`));
+    console.log(chalk.red(`✗ ${linkedModule.canonicalName}: Error updating - ${error}`));
     return 'error';
   }
+}
+
+function getLinkedModuleName(entry: unknown): string | null {
+  if (typeof entry === 'string') {
+    return entry.trim() || null;
+  }
+
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+
+  const value = (entry as LinkedModule).name ?? (entry as LinkedModule).id;
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function resolveLinkedModule(entry: unknown, index: number): ResolvedLinkedModule | null {
+  const storedName = getLinkedModuleName(entry);
+  if (!storedName) {
+    return null;
+  }
+
+  const sourceModule = findModule(storedName);
+  return {
+    index,
+    entry: entry as LinkedModule | string,
+    storedName,
+    canonicalName: sourceModule?.fullName ?? storedName,
+    sourceModule
+  };
 }
 

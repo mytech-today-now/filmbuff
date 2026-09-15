@@ -10,6 +10,7 @@ import {
   getCompletedTaskHistory,
   isTaskCompleted,
   InvalidCompletedDateFilterError,
+  parseCompletedDateRange,
   filterTasksByDateRange
 } from '@cli/utils/beadsCompletedChecker';
 
@@ -41,6 +42,18 @@ function createTask(id: string, closedAt: Date): CompletedTask {
     closed_at: closedAt.toISOString(),
     close_reason: 'Completed'
   };
+}
+
+function utcDate(
+  year: number,
+  month: number,
+  day: number,
+  hour: number = 0,
+  minute: number = 0,
+  second: number = 0,
+  millisecond: number = 0
+): Date {
+  return new Date(Date.UTC(year, month - 1, day, hour, minute, second, millisecond));
 }
 
 function taskIds(tasks: CompletedTask[]): string[] {
@@ -167,7 +180,7 @@ describe('beads completed checker', () => {
 
   describe('date range filtering', () => {
     it('rejects invalid date filters before applying the range', () => {
-      const tasks = [createTask('bd-2001', new Date(2026, 8, 11, 12, 0, 0, 0))];
+      const tasks = [createTask('bd-2001', utcDate(2026, 9, 11, 12, 0, 0, 0))];
 
       expect(() => filterTasksByDateRange(tasks, '2026-02-30')).toThrow(
         InvalidCompletedDateFilterError
@@ -177,12 +190,19 @@ describe('beads completed checker', () => {
       );
     });
 
-    it('treats bare dates as local-day windows and keeps open-ended filters working', () => {
+    it('normalizes bare dates to UTC calendar-day boundaries', () => {
+      const range = parseCompletedDateRange('2026-09-11', '2026-09-11');
+
+      expect(range.since?.toISOString()).toBe('2026-09-11T00:00:00.000Z');
+      expect(range.until?.toISOString()).toBe('2026-09-11T23:59:59.999Z');
+    });
+
+    it('treats bare dates as UTC-day windows and keeps open-ended filters working', () => {
       const tasks = [
-        createTask('bd-2002', new Date(2026, 8, 10, 18, 0, 0, 0)),
-        createTask('bd-2003', new Date(2026, 8, 11, 0, 15, 0, 0)),
-        createTask('bd-2004', new Date(2026, 8, 11, 23, 30, 0, 0)),
-        createTask('bd-2005', new Date(2026, 8, 12, 0, 15, 0, 0))
+        createTask('bd-2002', utcDate(2026, 9, 10, 23, 59, 59, 999)),
+        createTask('bd-2003', utcDate(2026, 9, 11, 0, 0, 0, 0)),
+        createTask('bd-2004', utcDate(2026, 9, 11, 23, 59, 59, 999)),
+        createTask('bd-2005', utcDate(2026, 9, 12, 0, 0, 0, 0))
       ];
 
       expect(taskIds(filterTasksByDateRange(tasks, '2026-09-11', '2026-09-11'))).toEqual([
@@ -203,16 +223,24 @@ describe('beads completed checker', () => {
       ]);
     });
 
-    it('keeps midnight-edge tasks inside the correct local day and rejects timezone-free timestamps', () => {
+    it('keeps midnight-edge tasks inside the correct UTC day and accepts timezone-bearing timestamps', () => {
       const tasks = [
-        createTask('bd-2006', new Date(2026, 8, 11, 23, 59, 59, 999)),
-        createTask('bd-2007', new Date(2026, 8, 12, 0, 0, 0, 0)),
-        createTask('bd-2008', new Date(2026, 8, 12, 0, 0, 0, 1))
+        createTask('bd-2006', utcDate(2026, 9, 11, 23, 59, 59, 999)),
+        createTask('bd-2007', utcDate(2026, 9, 12, 0, 0, 0, 0)),
+        createTask('bd-2008', utcDate(2026, 9, 12, 0, 0, 0, 1))
       ];
 
       expect(() => filterTasksByDateRange(tasks, '2026-09-11T00:00:00')).toThrow(
         InvalidCompletedDateFilterError
       );
+
+      expect(taskIds(filterTasksByDateRange(
+        tasks,
+        '2026-09-11T00:00:00Z',
+        '2026-09-11T23:59:59.999Z'
+      ))).toEqual([
+        'bd-2006'
+      ]);
 
       expect(taskIds(filterTasksByDateRange(tasks, '2026-09-11', '2026-09-11'))).toEqual([
         'bd-2006'

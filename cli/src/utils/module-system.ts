@@ -1232,6 +1232,18 @@ export function validateProjectAgnostic(modulePath: string): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  // Only scan authored text and source files that can reasonably carry
+  // hardcoded paths or URLs. This keeps generated or binary artifacts out of
+  // the validation pass while covering the module code path that was missed.
+  const projectAgnosticFileExtensions = new Set([
+    '.md',
+    '.json',
+    '.ts',
+    '.tsx',
+    '.mts',
+    '.cts'
+  ]);
+
   // Patterns to detect project-specific content
   const pathPatterns = [
     /[A-Z]:\\/g,  // Windows absolute paths (C:\, D:\, etc.)
@@ -1263,6 +1275,10 @@ export function validateProjectAgnostic(modulePath: string): ValidationResult {
     }
   }
 
+  function shouldScanFile(filePath: string): boolean {
+    return projectAgnosticFileExtensions.has(path.extname(filePath).toLowerCase());
+  }
+
   function scanDirectory(dir: string) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
 
@@ -1271,7 +1287,7 @@ export function validateProjectAgnostic(modulePath: string): ValidationResult {
 
       if (entry.isDirectory()) {
         scanDirectory(fullPath);
-      } else if (entry.isFile() && (entry.name.endsWith('.md') || entry.name.endsWith('.json'))) {
+      } else if (entry.isFile() && shouldScanFile(fullPath)) {
         scanFile(fullPath);
       }
     }
