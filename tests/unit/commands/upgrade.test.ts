@@ -177,7 +177,9 @@ describe('upgradeCommand', () => {
     const writtenConfig = JSON.parse(writtenConfigText as string);
     expect(writtenConfig.modules[0]).toEqual(expect.objectContaining({
       name: canonicalModuleName,
-      version: latestVersion
+      version: latestVersion,
+      type: mockModule.metadata.type,
+      description: mockModule.metadata.description
     }));
     expect(writtenConfig.modules[0].upgradedAt).toEqual(expect.any(String));
 
@@ -214,7 +216,9 @@ describe('upgradeCommand', () => {
     const writtenConfig = JSON.parse(writtenConfigText as string);
     expect(writtenConfig.modules[0]).toEqual(expect.objectContaining({
       name: canonicalModuleName,
-      version: latestVersion
+      version: latestVersion,
+      type: 'writing-standards',
+      description: 'Legacy action guidance'
     }));
     expect(writtenConfig.modules[0].upgradedAt).toEqual(expect.any(String));
 

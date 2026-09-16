@@ -219,4 +219,20 @@ describe('versionInfoCommand', () => {
     expect(consoleLogs).toContain('Available modules:');
     expect(consoleLogs).toContain(canonicalModuleName);
   });
+
+  it('returns the existing not-found JSON error without falling back to module discovery', async () => {
+    findModuleMock.mockReturnValue(null);
+
+    await versionInfoCommand('missing-module', { json: true });
+
+    expect(findModuleMock).toHaveBeenCalledWith('missing-module');
+    expect(discoverModulesMock).not.toHaveBeenCalled();
+    expect(processExitSpy).toHaveBeenCalledWith(1);
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+    const payload = readJsonPayload();
+    expect(payload).toEqual({
+      error: 'Module not found: missing-module'
+    });
+  });
 });

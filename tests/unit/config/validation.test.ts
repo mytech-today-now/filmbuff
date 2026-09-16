@@ -464,5 +464,66 @@ https://example.com/ignored
       ]));
       expect(result.warnings.some(warning => warning.includes('notes.txt'))).toBe(false);
     });
+
+    it('keeps clean source trees free of project-agnostic warnings', async () => {
+      await fs.mkdir(path.join(testModulePath, 'utils'), { recursive: true });
+
+      await fs.writeFile(path.join(testModulePath, 'README.md'), `
+# Test Module
+
+## Overview
+
+This module stays portable and avoids environment-specific references.
+
+## Contents
+
+- Overview
+- Usage
+- Source helpers
+
+## Character Count
+
+~5,000
+
+## Usage
+
+Use the module helpers directly.
+
+## Installation
+
+Install it as part of the local workspace.
+
+\`\`\`ts
+console.log('ready');
+\`\`\`
+`);
+
+      await fs.writeFile(path.join(testModulePath, 'module.json'), JSON.stringify({
+        name: 'test-module',
+        version: '1.0.0',
+        displayName: 'Test Module',
+        description: 'A clean test module for validating project agnostic scanning',
+        type: 'coding-standards'
+      }, null, 2));
+
+      await fs.writeFile(
+        path.join(testModulePath, 'utils', 'file-organization.ts'),
+        String.raw`export const portable = true;
+`
+      );
+
+      await fs.writeFile(
+        path.join(testModulePath, 'utils', 'notes.txt'),
+        String.raw`C:\Users\tester\ignored\path
+https://example.com/ignored
+`
+      );
+
+      const result = validateProjectAgnostic(testModulePath);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+      expect(result.warnings).toHaveLength(0);
+    });
   });
 });

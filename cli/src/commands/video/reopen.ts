@@ -18,6 +18,7 @@
  */
 
 import * as path from 'path';
+import * as fsPromises from 'fs/promises';
 import { getLatestState, appendRecords, renameClipForRetry } from '../../lib/status-file-manager.js';
 import { transition, StateConflictError } from '../../lib/shot-state-machine.js';
 import {
@@ -88,7 +89,25 @@ export async function videoReopenCommand(opts: VideoReopenOptions): Promise<void
     process.exit(EXIT.GENERAL_ERROR);
   }
 
-  await appendRecords(projectPath, reopenRecords);
+  try {
+    await appendRecords(projectPath, reopenRecords);
+  } catch (err) {
+    const appendMessage = err instanceof Error ? err.message : String(err);
+    let msg = `Failed to record reopen transition for shot "${opts.shotId}" after archiving the clip: ${appendMessage}`;
+
+    if (archiveOutcome.kind === 'moved') {
+      try {
+        await fsPromises.rename(archiveOutcome.destinationPath, archiveOutcome.sourcePath);
+        msg += ' The clip was restored to its original location.';
+      } catch (rollbackErr) {
+        const rollbackMessage = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
+        msg += ` Rollback also failed: ${rollbackMessage}`;
+      }
+    }
+
+    if (agentMode) { agentError(EXIT.GENERAL_ERROR, msg, { shotId: opts.shotId }); } else { console.error(`✗ ${msg}`); }
+    process.exit(EXIT.GENERAL_ERROR);
+  }
 
   humanLog(`✓ Shot "${opts.shotId}" re-opened and reverted to pending.`, agentMode);
   if (opts.reason) humanLog(`  Reason: ${opts.reason}`, agentMode);

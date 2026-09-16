@@ -61,8 +61,19 @@ function taskIds(tasks: CompletedTask[]): string[] {
 }
 
 describe('beads completed checker', () => {
-  it('returns clean negatives for empty files and resolves valid records', () => {
+  it('returns clean negatives for empty files', () => {
     const completedPath = createCompletedHistory([]);
+
+    expect(isTaskCompleted('bd-1001', completedPath)).toBe(false);
+    expect(getCompletedTask('bd-1001', completedPath)).toBeNull();
+    expect(getAllCompletedTasks(completedPath)).toEqual([]);
+    expect(getCompletedTaskHistory(completedPath)).toEqual({
+      tasks: [],
+      corruption: null
+    });
+  });
+
+  it('resolves valid completed records on a clean history file', () => {
     const task = {
       id: 'bd-1001',
       title: 'Finish the draft',
@@ -70,16 +81,15 @@ describe('beads completed checker', () => {
       closed_at: '2026-09-07T12:00:00.000Z',
       close_reason: 'Done'
     };
-
-    expect(isTaskCompleted('bd-1001', completedPath)).toBe(false);
-    expect(getCompletedTask('bd-1001', completedPath)).toBeNull();
-    expect(getAllCompletedTasks(completedPath)).toEqual([]);
-
-    fs.writeFileSync(completedPath, JSON.stringify(task), 'utf-8');
+    const completedPath = createCompletedHistory([JSON.stringify(task)]);
 
     expect(isTaskCompleted('bd-1001', completedPath)).toBe(true);
     expect(getCompletedTask('bd-1001', completedPath)).toEqual(task);
     expect(getAllCompletedTasks(completedPath)).toEqual([task]);
+    expect(getCompletedTaskHistory(completedPath)).toEqual({
+      tasks: [task],
+      corruption: null
+    });
   });
 
   it('skips blank lines between valid completed records', () => {
@@ -139,17 +149,25 @@ describe('beads completed checker', () => {
     expect(allTasks.find((task) => task.id === 'bd-1004')).toEqual(unrelatedTask);
   });
 
-  it('reports corruption without dropping valid completed records', () => {
-    const validTask = {
+  it('keeps recovering valid records after a bad JSON line in a mixed history', () => {
+    const firstTask = {
       id: 'bd-1005',
-      title: 'Valid completed record',
+      title: 'Valid completed record before corruption',
       status: 'closed' as const,
       closed_at: '2026-09-11T12:00:00.000Z',
-      close_reason: 'Completed'
+      close_reason: 'Completed before corruption'
+    };
+    const secondTask = {
+      id: 'bd-1006',
+      title: 'Valid completed record after corruption',
+      status: 'closed' as const,
+      closed_at: '2026-09-12T12:00:00.000Z',
+      close_reason: 'Completed after corruption'
     };
     const completedPath = createCompletedHistory([
+      JSON.stringify(firstTask),
       '{"id":"bd-broken"',
-      JSON.stringify(validTask)
+      JSON.stringify(secondTask)
     ]);
 
     const assertCorruption = (lookup: () => unknown): void => {
@@ -160,7 +178,7 @@ describe('beads completed checker', () => {
         expect(error).toBeInstanceOf(CompletedHistoryCorruptionError);
         if (error instanceof CompletedHistoryCorruptionError) {
           expect(error.completedPath).toBe(completedPath);
-          expect(error.lineNumber).toBe(1);
+          expect(error.lineNumber).toBe(2);
         }
       }
     };
@@ -170,11 +188,11 @@ describe('beads completed checker', () => {
     assertCorruption(() => getAllCompletedTasks(completedPath));
 
     const history = getCompletedTaskHistory(completedPath);
-    expect(history.tasks).toEqual([validTask]);
+    expect(history.tasks).toEqual([firstTask, secondTask]);
     expect(history.corruption).toBeInstanceOf(CompletedHistoryCorruptionError);
     if (history.corruption instanceof CompletedHistoryCorruptionError) {
       expect(history.corruption.completedPath).toBe(completedPath);
-      expect(history.corruption.lineNumber).toBe(1);
+      expect(history.corruption.lineNumber).toBe(2);
     }
   }, 20_000);
 

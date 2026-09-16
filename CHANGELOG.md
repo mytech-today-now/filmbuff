@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.6] - 2026-09-16
+
+### Fixed
+- **Version info JSON** - Alias lookups now serialize the resolved canonical module id in JSON while preserving the requested alias in human-readable output. Not-found JSON responses keep the existing error envelope.
+
 ## [2.5.5] - 2026-09-15
 
 ### Added

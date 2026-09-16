@@ -677,6 +677,183 @@ describe('[UT-ARC-02] video reopen reports missing source clips explicitly', () 
   });
 });
 
+describe('[UT-ARC-07] video reject agent payload reports missing source clips without an archive', () => {
+  it('returns a success envelope with missing archive metadata', async () => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'complete',
+        provider: 'runway-gen3',
+        provider_job_id: 'job-s001',
+        clip_path: 'video/clips/s001.mp4',
+        attempt_count: 1,
+        generated_at: STALE_UPDATED_AT,
+      }),
+    ]);
+
+    const cmd = await rejectCmd();
+    const c = beginCapture();
+    try {
+      await cmd({ project: tmpDir, shotId: 's001', reason: 'missing source', agent: true });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+    }
+
+    const env = JSON.parse(c.stdout.trim());
+    expect(c.exitCode).toBe(0);
+    expect(env.status).toBe('success');
+    expect(env.shotId).toBe('s001');
+    expect(env.data?.archived_clip).toBeNull();
+    expect(env.data?.archive_result?.kind).toBe('missing');
+    expect(env.data?.archive_result?.source_path).toBe(path.join(tmpDir, 'video', 'clips', 's001.mp4'));
+    expect(env.data?.archive_result?.destination_path).toBe(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'));
+    expect(env.data?.new_status).toBe('pending');
+  });
+});
+
+describe('[UT-ARC-08] video reopen agent payload reports missing source clips without an archive', () => {
+  it('returns a success envelope with missing archive metadata', async () => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'approved',
+        provider: 'runway-gen3',
+        provider_job_id: 'job-s001',
+        clip_path: 'video/clips/s001.mp4',
+        attempt_count: 1,
+        approved_at: STALE_UPDATED_AT,
+        generated_at: STALE_UPDATED_AT,
+      }),
+    ]);
+
+    const cmd = await reopenCmd();
+    const c = beginCapture();
+    try {
+      await cmd({ project: tmpDir, shotId: 's001', reason: 'missing source', agent: true });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+    }
+
+    const env = JSON.parse(c.stdout.trim());
+    expect(c.exitCode).toBe(0);
+    expect(env.status).toBe('success');
+    expect(env.shotId).toBe('s001');
+    expect(env.data?.archived_clip).toBeNull();
+    expect(env.data?.archive_result?.kind).toBe('missing');
+    expect(env.data?.archive_result?.source_path).toBe(path.join(tmpDir, 'video', 'clips', 's001.mp4'));
+    expect(env.data?.archive_result?.destination_path).toBe(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'));
+    expect(env.data?.reason).toBe('missing source');
+    expect(env.data?.new_status).toBe('pending');
+  });
+});
+
+describe('[UT-ARC-09] video reject rolls back an archived clip when status append fails', () => {
+  it('restores the source clip and keeps the status file unchanged', async () => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'complete',
+        provider: 'runway-gen3',
+        provider_job_id: 'job-s001',
+        clip_path: 'video/clips/s001.mp4',
+        attempt_count: 1,
+        generated_at: STALE_UPDATED_AT,
+      }),
+    ]);
+    await writeClipFile(tmpDir, 'video/clips/s001.mp4');
+
+    const appendSpy = jest.spyOn(fs.promises, 'appendFile').mockImplementation(async () => {
+      const err = new Error('disk full') as NodeJS.ErrnoException;
+      err.code = 'ENOSPC';
+      throw err;
+    });
+
+    const cmd = await rejectCmd();
+    const c = beginCapture();
+    try {
+      await cmd({ project: tmpDir, shotId: 's001', reason: 'archive move', agent: true });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+      appendSpy.mockRestore();
+    }
+
+    expect(c.exitCode).toBe(1);
+    const env = JSON.parse(c.stdout.trim());
+    expect(env.status).toBe('error');
+    expect(env.errorCode).toBe('GENERAL_ERROR');
+    expect(env.shotId).toBe('s001');
+
+    const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
+      .split('\n').filter(Boolean).map(line => JSON.parse(line));
+    expect(records).toHaveLength(1);
+    expect(records[0].status).toBe('complete');
+    expect(records[0].clip_path).toBe('video/clips/s001.mp4');
+    expect(records[0].rejection_reason).toBeNull();
+    expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001.mp4'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'))).toBe(false);
+  });
+});
+
+describe('[UT-ARC-10] video reopen rolls back an archived clip when status append fails', () => {
+  it('restores the source clip and keeps the status file unchanged', async () => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    await writeStatusFile(tmpDir, [
+      makeStatusRecord({
+        shot_id: 's001',
+        status: 'approved',
+        provider: 'runway-gen3',
+        provider_job_id: 'job-s001',
+        clip_path: 'video/clips/s001_attempt1.mp4',
+        attempt_count: 2,
+        approved_at: STALE_UPDATED_AT,
+        generated_at: STALE_UPDATED_AT,
+      }),
+    ]);
+    await writeClipFile(tmpDir, 'video/clips/s001_attempt1.mp4');
+
+    const appendSpy = jest.spyOn(fs.promises, 'appendFile').mockImplementation(async () => {
+      const err = new Error('disk full') as NodeJS.ErrnoException;
+      err.code = 'ENOSPC';
+      throw err;
+    });
+
+    const cmd = await reopenCmd();
+    const c = beginCapture();
+    try {
+      await cmd({ project: tmpDir, shotId: 's001', reason: 'archive move', agent: true });
+    } catch (e) {
+      if (!(e instanceof ExitError)) throw e;
+    } finally {
+      c.restore();
+      appendSpy.mockRestore();
+    }
+
+    expect(c.exitCode).toBe(1);
+    const env = JSON.parse(c.stdout.trim());
+    expect(env.status).toBe('error');
+    expect(env.errorCode).toBe('GENERAL_ERROR');
+    expect(env.shotId).toBe('s001');
+
+    const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
+      .split('\n').filter(Boolean).map(line => JSON.parse(line));
+    expect(records).toHaveLength(1);
+    expect(records[0].status).toBe('approved');
+    expect(records[0].clip_path).toBe('video/clips/s001_attempt1.mp4');
+    expect(records[0].rejection_reason).toBeNull();
+    expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'))).toBe(true);
+    expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1_attempt2.mp4'))).toBe(false);
+  });
+});
+
 describe('[UT-ARC-03] video reject archives an existing clip', () => {
   it('moves the file to the attempt archive and reports the destination', async () => {
     tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);

@@ -5,11 +5,30 @@ import {
   detectTools,
   detectSubcommands,
   generateMarkdown,
+  extractHelpRecursive,
   Tool,
   HelpNode
 } from '@cli/utils/extractCommandHelp';
 
 const packageVersion = (packageJson as { version: string }).version;
+let helpByCommand: Record<string, string> = {};
+let seenCommands: string[] = [];
+
+vi.mock('child_process', () => ({
+  exec: Object.assign(vi.fn(), {
+    [Symbol.for('nodejs.util.promisify.custom')](command: string) {
+      const stdout = helpByCommand[command];
+
+      seenCommands.push(command);
+
+      if (stdout === undefined) {
+        throw new Error(`Unexpected help command: ${command}`);
+      }
+
+      return Promise.resolve({ stdout, stderr: '' });
+    }
+  })
+}));
 
 vi.mock('fs', () => ({
   existsSync: vi.fn()
@@ -276,6 +295,79 @@ Commands:
       expect(result).toContain('### test --help');
       expect(result).toContain('#### test sub1 --help');
       expect(result).toContain('##### test sub1 subsub1 --help');
+    });
+  });
+
+  describe('extractHelpRecursive', () => {
+    it('should keep hyphenated nested subcommands visible in the recursive help output', async () => {
+      helpByCommand = {
+        'filmbuff --help': `
+Usage: filmbuff [command]
+
+Commands:
+  generate-video  Generate a video pipeline
+  mcp-server      Start the MCP tool server
+
+Options:
+  --help    Show help
+`,
+        'filmbuff generate-video --help': `
+Usage: filmbuff generate-video [command]
+
+Commands:
+  check-updates  Check for updates
+
+Options:
+  --help    Show help
+`,
+        'filmbuff generate-video check-updates --help': `
+Usage: filmbuff generate-video check-updates
+
+Options:
+  --help    Show help
+`,
+        'filmbuff mcp-server --help': `
+Usage: filmbuff mcp-server
+
+Options:
+  --help    Show help
+`,
+      };
+      seenCommands = [];
+
+      const helpNode = await extractHelpRecursive('filmbuff');
+
+      expect(helpNode.command).toBe('filmbuff');
+      expect(helpNode.children).toHaveLength(2);
+      expect(helpNode.children.map(child => child.command)).toEqual([
+        'filmbuff generate-video',
+        'filmbuff mcp-server'
+      ]);
+      expect(helpNode.children[0].children.map(child => child.command)).toEqual([
+        'filmbuff generate-video check-updates'
+      ]);
+      expect(seenCommands[0]).toBe('filmbuff --help');
+      expect(seenCommands).toHaveLength(4);
+      expect(seenCommands).toEqual(expect.arrayContaining([
+        'filmbuff --help',
+        'filmbuff generate-video --help',
+        'filmbuff generate-video check-updates --help',
+        'filmbuff mcp-server --help'
+      ]));
+
+      const helpMap = new Map<Tool, HelpNode>();
+      helpMap.set(
+        { name: 'filmbuff', command: 'filmbuff', directory: '.augment' },
+        helpNode
+      );
+
+      const markdown = generateMarkdown(helpMap, packageVersion);
+
+      expect(markdown).toContain('## filmbuff Commands (filmbuff)');
+      expect(markdown).toContain('### filmbuff --help');
+      expect(markdown).toContain('#### filmbuff generate-video --help');
+      expect(markdown).toContain('##### filmbuff generate-video check-updates --help');
+      expect(markdown).toContain('#### filmbuff mcp-server --help');
     });
   });
 

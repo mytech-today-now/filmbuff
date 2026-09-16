@@ -184,6 +184,49 @@ describe('update command CLI regression', () => {
     expect(output).toContain('Updated: 1');
   }, 60_000);
 
+  it('rewrites a legacy slug entry during the normal discovery flow', async () => {
+    const project = await testEnv.createProject({ name: 'update-legacy-slug' });
+    await createLegacyAliasFixture(project.path);
+
+    await writeFile(
+      project.configPath,
+      JSON.stringify(
+        {
+          version: '1.0.0',
+          modules: [
+            {
+              name: 'screenplay-genre-action',
+              version: '1.0.0',
+              type: 'writing-standards',
+              description: 'Legacy action guidance'
+            }
+          ]
+        },
+        null,
+        2
+      )
+    );
+
+    const before = await readManifest(project.configPath);
+    const result = await executeCommand(['update'], project.path);
+    const after = await readManifest(project.configPath);
+    const output = `${result.stdout}${result.stderr}`;
+
+    expect(result.exitCode).toBe(0);
+    expect(after.raw).not.toBe(before.raw);
+    expect(after.data.modules).toHaveLength(1);
+    expect(after.data.modules[0]).toEqual(
+      expect.objectContaining({
+        name: 'writing-standards/screenplay/genres/action',
+        version: '2.0.0',
+        type: 'writing-standards',
+        description: 'Updated action guidance'
+      })
+    );
+    expect(output).toContain('Update complete');
+    expect(output).toContain('Updated: 1');
+  }, 60_000);
+
   it('rewrites a legacy alias entry when the local source folder has been renamed', async () => {
     const project = await testEnv.createProject({ name: 'update-renamed-source' });
     await createRenamedSourceFixture(project.path);

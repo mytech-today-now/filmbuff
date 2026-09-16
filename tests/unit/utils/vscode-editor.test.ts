@@ -18,11 +18,14 @@ vi.mock('child_process', () => ({
 
 const tempDirs: string[] = [];
 
-function makeSpecialFilePath(): string {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "filmbuff vscode's & editor-"));
+function makeSpecialFilePath(
+  fileName = "draft scene's & notes.txt",
+  tempDirPrefix = "filmbuff vscode's & editor-"
+): string {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), tempDirPrefix));
   tempDirs.push(tempDir);
 
-  const filePath = path.join(tempDir, "draft scene's & notes.txt");
+  const filePath = path.join(tempDir, fileName);
   fs.writeFileSync(filePath, 'test');
   return filePath;
 }
@@ -72,6 +75,27 @@ describe('vscode-editor', () => {
       2,
       'code',
       [`${filePath}:12:4`],
+      expect.objectContaining({ stdio: 'ignore', windowsHide: true })
+    );
+  });
+
+  it('keeps additional shell metacharacters as literal argv data', async () => {
+    const filePath = makeSpecialFilePath("draft scene's & notes (final);.txt", "filmbuff vscode's & shell-");
+    const execFileSyncSpy = mockCodeCli();
+
+    await openInVSCode(filePath, { reuse: true });
+
+    expect(execFileSyncSpy).toHaveBeenCalledTimes(2);
+    expect(execFileSyncSpy).toHaveBeenNthCalledWith(
+      1,
+      'code',
+      ['--version'],
+      expect.objectContaining({ stdio: 'ignore', windowsHide: true })
+    );
+    expect(execFileSyncSpy).toHaveBeenNthCalledWith(
+      2,
+      'code',
+      ['-r', filePath],
       expect.objectContaining({ stdio: 'ignore', windowsHide: true })
     );
   });

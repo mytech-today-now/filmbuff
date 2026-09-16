@@ -144,15 +144,24 @@ async function createCorruptedCompletedTasksFixture(projectPath: string): Promis
   await writeFile(
     join(scriptsDir, 'completed.jsonl'),
     [
-      '{"id":"bd-broken"',
       JSON.stringify({
         id: 'bd-1001',
-        title: 'Split the search flags',
-        description: 'Give module content and completed tasks separate search options.',
+        title: 'Recovered before corruption',
+        description: 'This record should still be listed before the bad line.',
         status: 'closed',
         priority: 2,
         closed_at: '2026-09-07T12:00:00.000Z',
-        close_reason: 'Completed with distinct CLI flags'
+        close_reason: 'Completed before the bad line'
+      }),
+      '{"id":"bd-broken"',
+      JSON.stringify({
+        id: 'bd-1002',
+        title: 'Recovered after corruption',
+        description: 'This record should still be listed after the bad line.',
+        status: 'closed',
+        priority: 3,
+        closed_at: '2026-09-08T12:00:00.000Z',
+        close_reason: 'Completed after the bad line'
       })
     ].join('\n')
   );
@@ -787,11 +796,13 @@ describe('CLI Command Execution', () => {
       const completedFilePath = join('scripts', 'completed.jsonl');
 
       expect(result.exitCode).toBe(0);
-      expect(output).toContain(`Completed history in ${completedFilePath} is corrupted at line 1.`);
+      expect(output).toContain(`Completed history in ${completedFilePath} is corrupted at line 2.`);
       expect(output).toContain('Showing recovered records only.');
-      expect(output).toContain('Completed Tasks (1)');
+      expect(output).toContain('Completed Tasks (2)');
       expect(output).toContain('bd-1001');
-      expect(output).toContain('Split the search flags');
+      expect(output).toContain('bd-1002');
+      expect(output).toContain('Recovered before corruption');
+      expect(output).toContain('Recovered after corruption');
       expect(output).not.toContain('bd-broken');
     }, 60_000);
 
@@ -920,6 +931,13 @@ describe('CLI Command Execution', () => {
         normalizeOutput(nestedResult.stdout + nestedResult.stderr)
       );
       expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).toContain('Completed Tasks (3)');
+      expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).toContain('Total: 3 completed tasks');
+      expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).not.toContain(
+        'Showing recovered records only.'
+      );
+      expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).not.toContain(
+        'corrupted at line'
+      );
       expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).toContain('bd-2001');
       expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).toContain('bd-2002');
       expect(normalizeOutput(rootResult.stdout + rootResult.stderr)).toContain('bd-2003');

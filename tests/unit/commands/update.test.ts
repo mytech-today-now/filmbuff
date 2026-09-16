@@ -13,6 +13,7 @@ const {
   canonicalModule,
   canonicalModuleJson,
   existsSyncMock,
+  discoverModulesMock,
   readFileSyncMock,
   writeFileSyncMock,
   findModuleMock,
@@ -40,17 +41,18 @@ const {
     type: 'writing-standards'
   };
 
-  return {
-    projectRoot,
-    canonicalModuleName,
-    legacyAliasName,
-    canonicalModule,
-    canonicalModuleJson,
-    existsSyncMock: vi.fn(),
-    readFileSyncMock: vi.fn(),
-    writeFileSyncMock: vi.fn(),
-    findModuleMock: vi.fn(),
-    findProjectRootMock: vi.fn()
+    return {
+      projectRoot,
+      canonicalModuleName,
+      legacyAliasName,
+      canonicalModule,
+      canonicalModuleJson,
+      existsSyncMock: vi.fn(),
+      discoverModulesMock: vi.fn(),
+      readFileSyncMock: vi.fn(),
+      writeFileSyncMock: vi.fn(),
+      findModuleMock: vi.fn(),
+      findProjectRootMock: vi.fn()
   };
 });
 
@@ -97,6 +99,7 @@ vi.mock('../../../cli/src/utils/module-system', async () => {
 
   return {
     ...actual,
+    discoverModules: discoverModulesMock,
     findModule: findModuleMock,
     findProjectRoot: findProjectRootMock
   };
@@ -145,6 +148,7 @@ describe('updateCommand linked module canonicalization', () => {
 
       return null;
     });
+    discoverModulesMock.mockReset().mockReturnValue([]);
 
     existsSyncMock.mockReset().mockImplementation((filePath: string) => {
       return filePath === configPath || filePath === canonicalModuleJsonPath;
@@ -226,6 +230,38 @@ describe('updateCommand linked module canonicalization', () => {
     expect(output).toContain('Updated: 1');
   });
 
+  it('resolves legacy slug records when targeting the canonical module name', async () => {
+    setConfigEntry({
+      name: 'screenplay-genre-action',
+      version: '1.0.0',
+      type: 'writing-standards',
+      description: 'Legacy action guidance'
+    });
+
+    discoverModulesMock.mockReturnValue([canonicalModule]);
+
+    await updateCommand({ module: canonicalModuleName });
+
+    expect(processExitSpy).not.toHaveBeenCalled();
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(discoverModulesMock).toHaveBeenCalledTimes(1);
+    expect(writeFileSyncMock).toHaveBeenCalledTimes(1);
+
+    const [, writtenConfigText] = writeFileSyncMock.mock.calls[0];
+    const writtenConfig = JSON.parse(writtenConfigText as string) as Manifest;
+
+    expect(writtenConfig.modules[0]).toEqual(expect.objectContaining({
+      name: canonicalModuleName,
+      version: '2.0.0',
+      description: 'Updated action guidance',
+      type: 'writing-standards'
+    }));
+
+    const output = consoleLogSpy.mock.calls.flat().join(' ');
+    expect(output).toContain('Update complete');
+    expect(output).toContain('Updated: 1');
+  });
+
   it('keeps legacy alias records untouched when no local source exists', async () => {
     setConfigEntry({
       name: legacyAliasName,
@@ -235,6 +271,7 @@ describe('updateCommand linked module canonicalization', () => {
     });
 
     findModuleMock.mockReset().mockReturnValue(null);
+    discoverModulesMock.mockReturnValue([]);
     existsSyncMock.mockReset().mockImplementation((filePath: string) => filePath === configPath);
 
     await updateCommand({});

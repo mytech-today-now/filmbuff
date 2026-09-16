@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import * as fs from 'fs';
 import * as path from 'path';
 import { execSync } from 'child_process';
-import { compareSemanticVersions, findModule, findProjectRoot, type Module } from '../utils/module-system';
+import { compareSemanticVersions, discoverModules, findModule, findProjectRoot, type Module } from '../utils/module-system';
 
 interface UpdateOptions {
   module?: string;
@@ -249,7 +249,7 @@ function resolveLinkedModule(entry: unknown, index: number): ResolvedLinkedModul
     return null;
   }
 
-  const sourceModule = findModule(storedName);
+  const sourceModule = findModule(storedName) ?? findLegacyLinkedModule(storedName);
   return {
     index,
     entry: entry as LinkedModule | string,
@@ -257,5 +257,12 @@ function resolveLinkedModule(entry: unknown, index: number): ResolvedLinkedModul
     canonicalName: sourceModule?.fullName ?? storedName,
     sourceModule
   };
+}
+
+function findLegacyLinkedModule(storedName: string): Module | null {
+  // Legacy manifests can still store module.json.name values, so resolve an exact
+  // metadata.name match before falling back to the external-module skip path.
+  const matches = discoverModules().filter((module) => module.metadata.name === storedName);
+  return matches.length === 1 ? matches[0] : null;
 }
 
