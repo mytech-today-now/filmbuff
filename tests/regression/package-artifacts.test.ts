@@ -1,26 +1,41 @@
 import { describe, expect, it } from 'vitest';
 import { spawnSync } from 'child_process';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 
 const repoRoot = path.resolve(__dirname, '../..');
 const npmCli = process.env.npm_execpath;
-const npmCommand = npmCli ? process.execPath : (process.platform === 'win32' ? 'npm.cmd' : 'npm');
-const npmArgs = (args: string[]) => (npmCli ? [npmCli, ...args] : args);
+const npmCommand = npmCli
+  ? process.execPath
+  : (process.platform === 'win32' ? (process.env.ComSpec || 'cmd.exe') : 'npm');
+const npmArgs = (args: string[]) => {
+  if (npmCli) return [npmCli, ...args];
+  if (process.platform === 'win32') return ['/d', '/s', '/c', 'npm.cmd', ...args];
+  return args;
+};
 
 describe('package artifacts regression', () => {
   it('keeps the launcher and built CLI files in the npm package', () => {
-    const result = spawnSync(npmCommand, npmArgs(['pack', '--dry-run', '--json', '--ignore-scripts']), {
-      cwd: repoRoot,
-      encoding: 'utf-8',
-      maxBuffer: 20 * 1024 * 1024
-    });
+    const npmCache = fs.mkdtempSync(path.join(os.tmpdir(), 'filmbuff-npm-cache-'));
+    let result;
+    try {
+      result = spawnSync(npmCommand, npmArgs([
+        'pack', '--dry-run', '--json', '--ignore-scripts', '--cache', npmCache
+      ]), {
+        cwd: repoRoot,
+        encoding: 'utf-8',
+        maxBuffer: 20 * 1024 * 1024
+      });
+    } finally {
+      fs.rmSync(npmCache, { recursive: true, force: true });
+    }
 
     if (result.error) {
       throw result.error;
     }
 
-    expect(result.status).toBe(0);
+    expect(result.status, result.error?.message || result.stderr || result.stdout).toBe(0);
 
     const output = result.stdout.trim();
     expect(output).toBeTruthy();
@@ -47,6 +62,15 @@ describe('package artifacts regression', () => {
     expect(packageJson.bin?.filmbuff).toBe('bin/filmbuff.js');
     expect(fs.existsSync(launcherPath)).toBe(true);
     expect(fs.existsSync(path.join(repoRoot, 'cli', 'dist', 'cli.js'))).toBe(true);
+  });
+
+  it('declares MCP runtime imports as production dependencies', () => {
+    const packageJson = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf-8'));
+
+    expect(packageJson.dependencies).toMatchObject({
+      '@modelcontextprotocol/sdk': expect.any(String),
+      zod: expect.any(String)
+    });
   });
 
   it('resolves the package root to the shipped CLI entrypoint', () => {
