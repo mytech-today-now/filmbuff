@@ -1,0 +1,1 @@
+When a group of communists are discovered on a decrepit spacecraft, the USS Reagan's Star-captain must take drastic measures to maintain order and defend StarFleet against their attempted revolt. The commies are jettisoned into space, saving the ship from certain chaos.

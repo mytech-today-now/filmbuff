@@ -1,0 +1,8 @@
+## Synopsis
+In the midst of a chaotic national convention, Vermin Supreame, a dark horse candidate, pulls off a shocking upset by winning the Libertarian Presidential nomination. As the news spreads, the convention center erupts into a frenzy of confusion, excitement, and outrage. The unexpected turn of events sets off a chain reaction of absurd and hilarious incidents, drawing in a cast of eccentric characters.
+
+At the center of the chaos is Adrian Vega, a charismatic and unconventional figure who becomes embroiled in a series of outrageous misadventures. As the situation spirals out of control, Adrian finds himself caught up in a series of bizarre and comedic escapades, including a notorious cock-sucking incident in the convention center restrooms.
+
+Meanwhile, a team of bumbling authorities, reminiscent of the Keystone Cops, attempts to restore order to the convention. Their inept efforts only add to the chaos, as they invade the convention center, causing more problems than they solve. The ensuing pandemonium features a series of slapstick mishaps, satirical send-ups of political conventions, and comedic critiques of libertarian ideology.
+
+As the chaos reaches its peak, Vermin Supreame's campaign team struggles regain control and to capitalize on their unexpected victory, while Adrian Vega's antics threaten to upstage the entire convention. Will the Libertarian Party be able to survive the chaos and emerge with a credible candidate, or will the convention descend into complete anarchy, as they always hoped? The outcome is far from certain in this hilarious and satirical take on American politics.

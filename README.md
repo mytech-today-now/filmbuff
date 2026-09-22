@@ -124,6 +124,25 @@ After all steps, a summary panel shows your choices and the equivalent one-liner
 
 Press `Ctrl-C` at any prompt to cancel cleanly without writing to the database.
 
+### Project Document Sequence
+
+`filmbuff start` collects the project settings in the wizard, then seeds the project pipeline. The documents are created and advanced in this order:
+
+| # | Document | Default file | Notes |
+|---|----------|--------------|-------|
+| 1 | Logline | `logline.md` | One-to-two sentence film premise |
+| 2 | Synopsis | `synopsis.md` | Short narrative summary |
+| 3 | Treatment | `treatment.md` | Scene-by-scene narrative outline |
+| 4 | Beat sheet | `beat-sheet.md` | Story beats mapped to structure |
+| 5 | Screenplay | `screenplay.fountain` | Full feature-length screenplay |
+| 6 | Shooting script | `shooting-script.fountain` | Locked shooting draft with scene numbers |
+| 7 | Script breakdown | `script-breakdown.json` | Breakdown of every scene element |
+| 8 | Storyboards | `storyboards.md` | Visual panel descriptions per scene |
+| 9 | Shot list | `shot-list.json` | Detailed shot list for production |
+| 10 | Final screenplay | `final-screenplay.fountain` | Distribution-ready final screenplay |
+
+The first four documents are planning and story-development drafts, the middle three move into production preparation, and the final document is the delivery-ready screenplay. Use `filmbuff continue --project <slug>` to advance to the next pending document, and `filmbuff complete` to accept each one before moving on.
+
 ### Non-Interactive / CI Mode
 
 Supply `--title` and `--genre` to skip the wizard entirely:

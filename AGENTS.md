@@ -19,6 +19,17 @@ This repository provides AI-powered writing and screenplay tools with extension 
 - Ask for confirmation only before destructive actions, credential changes, external communication, or actions blocked by permissions.
 - At the end, summarize commands executed, files changed, tests performed, and any remaining issues.
 
+## VS Code-Level Tools
+
+Codex can use these VS Code-facing surfaces in this repository:
+
+- `.vscode/mcp.json` - Workspace MCP configuration for Beads integration. It starts `python -m beads_mcp` and exposes task-query capabilities such as `tasks/list`, `tasks/get`, `tasks/search`, `tasks/dependencies`, `tasks/status`, and `tasks/query`.
+- `.vscode/MCP_SETUP.md` - Setup and usage guide for the MCP integration.
+- `vscode/filmbuff-module-inspector/package.json` - VS Code extension manifest for the FilmBuff Module Inspector. It contributes the commands `filmbuff.inspectModule`, `filmbuff.inspectModuleOptimizations`, and `filmbuff.showWebviewReport`, plus explorer/editor context menus and keyboard shortcuts.
+- `vscode/filmbuff-module-inspector/extension.js` - Extension runtime that resolves the selected module, runs the FilmBuff CLI, and opens inspection reports, optimization suggestions, or the interactive webview.
+- `vscode/filmbuff-module-inspector/utils.js` - Shared helpers for module discovery, CLI invocation, and markdown rendering used by the extension.
+- `tests/unit/vscode/module-inspector-extension.test.ts` - Unit test coverage for the VS Code extension behavior.
+
 ## For AI Agents
 
 ### Discovery
@@ -1383,3 +1394,4 @@ Stop implementation and ask or escalate when:
 Measure success by defect rate, rework, review time, deployment stability, and delivery of working increments. Do not measure success by volume of generated code.
 
 Human judgment closes the loop. Fluency is not evidence.
+
