@@ -176,10 +176,40 @@ describe('status-file-manager', () => {
     const clipPath = path.join(clipsDir, 's001.mp4');
     await fs.writeFile(clipPath, 'fake mp4 data', 'utf-8');
 
-    const dest = await renameClipForRetry(clipPath, 2);
-    expect(dest).toMatch(/s001_attempt2\.mp4$/);
+    const outcome = await renameClipForRetry(clipPath, 2);
+    expect(outcome).toMatchObject({ kind: 'moved', sourcePath: clipPath });
+    expect(outcome.destinationPath).toMatch(/s001_attempt2\.mp4$/);
     await expect(fs.stat(clipPath)).rejects.toMatchObject({ code: 'ENOENT' });
-    await expect(fs.stat(dest)).resolves.toBeDefined();
+    await expect(fs.stat(outcome.destinationPath)).resolves.toBeDefined();
+    await expect(fs.readFile(outcome.destinationPath, 'utf-8')).resolves.toBe('fake mp4 data');
+  });
+
+  it('returns missing when the source clip does not exist', async () => {
+    const clipsDir = path.join(tmpDir, 'video', 'clips');
+    await fs.mkdir(clipsDir, { recursive: true });
+    const clipPath = path.join(clipsDir, 's001.mp4');
+
+    const outcome = await renameClipForRetry(clipPath, 2);
+    expect(outcome).toMatchObject({ kind: 'missing', sourcePath: clipPath });
+    expect(outcome.destinationPath).toMatch(/s001_attempt2\.mp4$/);
+    await expect(fs.stat(outcome.destinationPath)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('returns failed for filesystem errors without claiming the clip moved', async () => {
+    const clipsDir = path.join(tmpDir, 'video', 'clips');
+    await fs.mkdir(clipsDir, { recursive: true });
+    const clipPath = path.join(clipsDir, 's001.mp4');
+    const destinationPath = path.join(clipsDir, 's001_attempt2.mp4');
+    const conflictFilePath = path.join(destinationPath, 'existing.txt');
+    await fs.writeFile(clipPath, 'fake mp4 data', 'utf-8');
+    await fs.mkdir(destinationPath);
+    await fs.writeFile(conflictFilePath, 'keep existing destination', 'utf-8');
+
+    const outcome = await renameClipForRetry(clipPath, 2);
+    expect(outcome).toMatchObject({ kind: 'failed', sourcePath: clipPath, destinationPath });
+    expect('error' in outcome ? outcome.error : undefined).toBeInstanceOf(Error);
+    await expect(fs.readFile(clipPath, 'utf-8')).resolves.toBe('fake mp4 data');
+    await expect(fs.readFile(conflictFilePath, 'utf-8')).resolves.toBe('keep existing destination');
   });
 
   it('returns the status file path with the expected filename', () => {
