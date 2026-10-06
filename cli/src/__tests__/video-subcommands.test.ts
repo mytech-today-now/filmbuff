@@ -628,10 +628,11 @@ describe('[UT-ARC-01] video reject reports missing source clips explicitly', () 
     expect(c.stdout).not.toContain('Clip archived to:');
     const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
       .split('\n').filter(Boolean).map(line => JSON.parse(line));
-    expect(records).toHaveLength(3);
+    expect(records).toHaveLength(4);
     expect(records[0].status).toBe('complete');
-    expect(records[1].status).toBe('rejected');
-    expect(records[2].status).toBe('pending');
+    expect(records[1].lifecycle_operation.kind).toBe('intent');
+    expect(records[2].status).toBe('rejected');
+    expect(records[3].status).toBe('pending');
     expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'))).toBe(false);
   });
 });
@@ -671,9 +672,10 @@ describe('[UT-ARC-02] video reopen reports missing source clips explicitly', () 
 
     const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
       .split('\n').filter(Boolean).map(line => JSON.parse(line));
-    expect(records).toHaveLength(2);
-    expect(records[1].status).toBe('pending');
-    expect(records[1].clip_path).toBeNull();
+    expect(records).toHaveLength(3);
+    expect(records[1].lifecycle_operation.kind).toBe('intent');
+    expect(records[2].status).toBe('pending');
+    expect(records[2].clip_path).toBeNull();
   });
 });
 
@@ -887,10 +889,11 @@ describe('[UT-ARC-03] video reject archives an existing clip', () => {
     expect(c.stdout).toContain(`Clip archived to: ${archivedPath}`);
     const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
       .split('\n').filter(Boolean).map(line => JSON.parse(line));
-    expect(records).toHaveLength(3);
+    expect(records).toHaveLength(4);
     expect(records[0].status).toBe('complete');
-    expect(records[1].status).toBe('rejected');
-    expect(records[2].status).toBe('pending');
+    expect(records[1].lifecycle_operation.kind).toBe('intent');
+    expect(records[2].status).toBe('rejected');
+    expect(records[3].status).toBe('pending');
     expect(fs.existsSync(archivedPath)).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001.mp4'))).toBe(false);
   });
@@ -930,10 +933,11 @@ describe('[UT-ARC-04] video reopen archives an already-attempted clip', () => {
     expect(c.stdout).toContain(`Approved clip archived to: ${archivedPath}`);
     const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
       .split('\n').filter(Boolean).map(line => JSON.parse(line));
-    expect(records).toHaveLength(2);
+    expect(records).toHaveLength(3);
     expect(records[0].status).toBe('approved');
-    expect(records[1].status).toBe('pending');
-    expect(records[1].rejection_reason).toBe('Reopened: archive move');
+    expect(records[1].lifecycle_operation.kind).toBe('intent');
+    expect(records[2].status).toBe('pending');
+    expect(records[2].rejection_reason).toBe('Reopened: archive move');
     expect(fs.existsSync(archivedPath)).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'))).toBe(false);
   });
@@ -955,7 +959,7 @@ describe('[UT-ARC-05] video reject leaves state untouched when clip rename fails
     ]);
     await writeClipFile(tmpDir, 'video/clips/s001.mp4');
 
-    const renameSpy = jest.spyOn(fs.promises, 'rename').mockImplementation(async () => {
+    const linkSpy = jest.spyOn(fs.promises, 'link').mockImplementation(async () => {
       const err = new Error('permission denied') as NodeJS.ErrnoException;
       err.code = 'EACCES';
       throw err;
@@ -969,7 +973,7 @@ describe('[UT-ARC-05] video reject leaves state untouched when clip rename fails
       if (!(e instanceof ExitError)) throw e;
     } finally {
       c.restore();
-      renameSpy.mockRestore();
+      linkSpy.mockRestore();
     }
 
     expect(c.exitCode).toBe(1);
@@ -979,9 +983,12 @@ describe('[UT-ARC-05] video reject leaves state untouched when clip rename fails
 
     const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
       .split('\n').filter(Boolean).map(line => JSON.parse(line));
-    expect(records).toHaveLength(1);
+    expect(records).toHaveLength(3);
     expect(records[0].status).toBe('complete');
-    expect(records[0].rejection_reason).toBeNull();
+    expect(records[1].lifecycle_operation.kind).toBe('intent');
+    expect(records[2].lifecycle_operation.kind).toBe('aborted');
+    expect(records[2].status).toBe('complete');
+    expect(records[2].rejection_reason).toBeNull();
     expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001.mp4'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'))).toBe(false);
   });
@@ -1004,7 +1011,7 @@ describe('[UT-ARC-06] video reopen leaves state untouched when clip rename fails
     ]);
     await writeClipFile(tmpDir, 'video/clips/s001_attempt1.mp4');
 
-    const renameSpy = jest.spyOn(fs.promises, 'rename').mockImplementation(async () => {
+    const linkSpy = jest.spyOn(fs.promises, 'link').mockImplementation(async () => {
       const err = new Error('permission denied') as NodeJS.ErrnoException;
       err.code = 'EACCES';
       throw err;
@@ -1018,7 +1025,7 @@ describe('[UT-ARC-06] video reopen leaves state untouched when clip rename fails
       if (!(e instanceof ExitError)) throw e;
     } finally {
       c.restore();
-      renameSpy.mockRestore();
+      linkSpy.mockRestore();
     }
 
     expect(c.exitCode).toBe(1);
@@ -1028,9 +1035,12 @@ describe('[UT-ARC-06] video reopen leaves state untouched when clip rename fails
 
     const records = fs.readFileSync(path.join(tmpDir, '08-video-status.jsonl'), 'utf-8')
       .split('\n').filter(Boolean).map(line => JSON.parse(line));
-    expect(records).toHaveLength(1);
+    expect(records).toHaveLength(3);
     expect(records[0].status).toBe('approved');
-    expect(records[0].rejection_reason).toBeNull();
+    expect(records[1].lifecycle_operation.kind).toBe('intent');
+    expect(records[2].lifecycle_operation.kind).toBe('aborted');
+    expect(records[2].status).toBe('approved');
+    expect(records[2].rejection_reason).toBeNull();
     expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1.mp4'))).toBe(true);
     expect(fs.existsSync(path.join(tmpDir, 'video', 'clips', 's001_attempt1_attempt2.mp4'))).toBe(false);
   });

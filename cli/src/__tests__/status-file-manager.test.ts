@@ -123,7 +123,7 @@ describe('[IT-SM-02] getLatestState — last record per shot_id wins', () => {
 });
 
 // ---------------------------------------------------------------------------
-// renameClipForRetry — atomic rename
+// renameClipForRetry — exclusive archive move
 // ---------------------------------------------------------------------------
 
 describe('renameClipForRetry()', () => {
@@ -168,7 +168,7 @@ describe('renameClipForRetry()', () => {
     const clipPath = path.join(tmpDir, 'video', 'clips', 'locked.mp4');
     const err = new Error('permission denied') as NodeJS.ErrnoException;
     err.code = 'EACCES';
-    const renameMock = jest.fn(async () => {
+    const linkMock = jest.fn(async () => {
       throw err;
     });
 
@@ -178,7 +178,7 @@ describe('renameClipForRetry()', () => {
       return {
         __esModule: true,
         ...actual,
-        rename: renameMock,
+        link: linkMock,
       };
     });
 
@@ -192,7 +192,7 @@ describe('renameClipForRetry()', () => {
       }
       expect(outcome.sourcePath).toBe(clipPath);
       expect(outcome.destinationPath).toMatch(/locked_attempt3\.mp4$/);
-      expect(renameMock).toHaveBeenCalledWith(clipPath, expect.stringMatching(/locked_attempt3\.mp4$/));
+      expect(linkMock).toHaveBeenCalledWith(clipPath, expect.stringMatching(/locked_attempt3\.mp4$/));
     } finally {
       jest.dontMock('fs/promises');
     }

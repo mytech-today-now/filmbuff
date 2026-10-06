@@ -38,8 +38,8 @@ export type ShotEvent =
   | 'REJECT'
   | 'REOPEN';
 
-/** A single record appended to 08-video-status.jsonl. */
-export interface VideoStatusRecord {
+/** The state fields shared by ordinary status records and recovery intents. */
+export interface VideoStatusSnapshot {
   shot_id:          string;
   status:           ShotStatus;
   provider:         string | null;
@@ -53,6 +53,38 @@ export interface VideoStatusRecord {
   failed_at:        string | null;
   credits_spent:    number;
   updated_at:       string;
+}
+
+export interface LifecycleClipIdentity {
+  device: number;
+  inode: number;
+  size: number;
+  modified_at_ms: number;
+}
+
+/** Durable, append-only intent for reject/reopen's clip and status update. */
+export interface LifecycleTransitionIntent {
+  operation_id: string;
+  shot_id: string;
+  operation: 'reject' | 'reopen';
+  source_clip_path: string;
+  archive_clip_path: string;
+  source_identity: LifecycleClipIdentity | null;
+  prior_record: VideoStatusSnapshot;
+  planned_records: VideoStatusSnapshot[];
+}
+
+export type LifecycleOperationMarker =
+  | { kind: 'intent'; intent: LifecycleTransitionIntent }
+  | { kind: 'commit'; operation_id: string; step: number }
+  | { kind: 'aborted'; operation_id: string; reason: string };
+
+/**
+ * A single append-only record in 08-video-status.jsonl.
+ * `lifecycle_operation` is optional so existing status records remain valid.
+ */
+export interface VideoStatusRecord extends VideoStatusSnapshot {
+  lifecycle_operation?: LifecycleOperationMarker;
 }
 
 /** Payload supplied alongside a transition event. */
@@ -144,6 +176,8 @@ export function transition(
     failed_at:        null,
     updated_at:       now,
   };
+  // Recovery metadata describes a completed operation, not the next state.
+  delete base.lifecycle_operation;
 
   switch (event) {
     case 'SUBMIT':

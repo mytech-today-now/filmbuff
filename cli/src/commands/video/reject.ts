@@ -3,8 +3,8 @@
  *
  * `filmbuff video reject` — mark a shot rejected; rename clip; revert to pending.
  *
- * Renames video/clips/{id}.mp4 → video/clips/{id}_attempt{N}.mp4 (atomic rename).
- * Appends: complete→rejected (with reason) and rejected→pending.
+ * Archives video/clips/{id}.mp4 as video/clips/{id}_attempt{N}.mp4.
+ * Appends a durable intent, then complete→rejected (with reason) and rejected→pending.
  *
  * Exit codes:
  *   0  SUCCESS       — shot rejected and reverted to pending
@@ -17,8 +17,11 @@
  */
 
 import * as path from 'path';
-import * as fsPromises from 'fs/promises';
-import { getLatestState, appendRecords, renameClipForRetry } from '../../lib/status-file-manager.js';
+import {
+  archiveClipAndAppendLifecycleTransition,
+  getLatestState,
+  LifecycleTransitionError,
+} from '../../lib/status-file-manager.js';
 import { transition, StateConflictError } from '../../lib/shot-state-machine.js';
 import {
   EXIT, isAgentMode, agentSuccess, agentError, humanLog,
@@ -42,7 +45,15 @@ export async function videoRejectCommand(opts: VideoRejectOptions): Promise<void
     process.exit(EXIT.INVALID_ARGS);
   }
 
-  const statusMap = await getLatestState(projectPath);
+  let statusMap: Awaited<ReturnType<typeof getLatestState>>;
+  try {
+    statusMap = await getLatestState(projectPath);
+  } catch (err: unknown) {
+    if (!(err instanceof LifecycleTransitionError)) throw err;
+    if (agentMode) { agentError(EXIT.GENERAL_ERROR, err.message, { shotId: err.shotId }); }
+    else { console.error(`✗ ${err.message}`); }
+    process.exit(EXIT.GENERAL_ERROR);
+  }
   const record    = statusMap.get(opts.shotId);
 
   if (!record) {
@@ -65,36 +76,18 @@ export async function videoRejectCommand(opts: VideoRejectOptions): Promise<void
     throw err;
   }
 
-  // ── Rename existing clip (atomic rename; never copy+delete) ───────────────
-  const clipPath = record.clip_path
-    ? path.resolve(projectPath, record.clip_path)
-    : path.join(projectPath, 'video', 'clips', `${opts.shotId}.mp4`);
-
-  const attemptN   = record.attempt_count;
-  const archiveOutcome = await renameClipForRetry(clipPath, attemptN);
-
-  if (archiveOutcome.kind === 'failed') {
-    const msg = `Failed to archive clip for shot "${opts.shotId}" from "${archiveOutcome.sourcePath}" to "${archiveOutcome.destinationPath}": ${archiveOutcome.error.message}`;
-    if (agentMode) { agentError(EXIT.GENERAL_ERROR, msg, { shotId: opts.shotId }); } else { console.error(`✗ ${msg}`); }
-    process.exit(EXIT.GENERAL_ERROR);
-  }
-
+  let archiveOutcome: Awaited<ReturnType<typeof archiveClipAndAppendLifecycleTransition>>['archiveOutcome'];
   try {
-    await appendRecords(projectPath, rejectRecords);
+    ({ archiveOutcome } = await archiveClipAndAppendLifecycleTransition(
+      projectPath,
+      record,
+      'reject',
+      rejectRecords,
+    ));
   } catch (err) {
-    const appendMessage = err instanceof Error ? err.message : String(err);
-    let msg = `Failed to record reject transition for shot "${opts.shotId}" after archiving the clip: ${appendMessage}`;
-
-    if (archiveOutcome.kind === 'moved') {
-      try {
-        await fsPromises.rename(archiveOutcome.destinationPath, archiveOutcome.sourcePath);
-        msg += ' The clip was restored to its original location.';
-      } catch (rollbackErr) {
-        const rollbackMessage = rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr);
-        msg += ` Rollback also failed: ${rollbackMessage}`;
-      }
-    }
-
+    const msg = err instanceof Error
+      ? err.message
+      : `Failed to record reject transition for shot "${opts.shotId}": ${String(err)}`;
     if (agentMode) { agentError(EXIT.GENERAL_ERROR, msg, { shotId: opts.shotId }); } else { console.error(`✗ ${msg}`); }
     process.exit(EXIT.GENERAL_ERROR);
   }

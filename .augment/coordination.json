@@ -222,6 +222,25 @@
       ],
       "dependencies": []
     },
+    "reject-reopen-crash-recovery": {
+      "path": "openspec/changes/archive/2026-10-06-reject-reopen-crash-recovery/proposal.md",
+      "status": "archived",
+      "relatedTasks": [],
+      "relatedRules": ["coordination-system.md", "no-unnecessary-docs.md"],
+      "affectedFiles": [
+        "cli/src/commands/video/reject.ts",
+        "cli/src/commands/video/reopen.ts",
+        "cli/src/lib/shot-state-machine.ts",
+        "cli/src/lib/status-file-manager.ts",
+        "cli/src/__tests__/status-file-manager.test.ts",
+        "cli/src/__tests__/video-subcommands.test.ts",
+        "tests/unit/commands/video-lifecycle-recovery.test.ts",
+        "openspec/changes/archive/2026-10-06-reject-reopen-crash-recovery/**/*",
+        "openspec/specs/video-lifecycle-recovery/spec.md",
+        ".augment/coordination.json"
+      ],
+      "dependencies": []
+    },
     "pika-video-provider": {
       "path": "openspec/changes/archive/2026-09-09-pika-video-provider/proposal.md",
       "status": "archived",
