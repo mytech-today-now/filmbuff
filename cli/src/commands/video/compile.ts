@@ -30,7 +30,7 @@ import { getLatestState } from '../../lib/status-file-manager.js';
 import { readAll } from '../../lib/shot-list-reader.js';
 import type { VideoStatusRecord } from '../../lib/shot-state-machine.js';
 import {
-  EXIT, isAgentMode, agentSuccess, agentError, humanLog,
+  EXIT, isAgentMode, agentSuccess, agentError, humanLog, warnLog,
 } from '../../lib/agent-mode.js';
 
 type IncludeMode = 'approved' | 'all-complete' | 'all';
@@ -217,7 +217,12 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
         ], { cwd: outputDir });
         concatLines.push(formatConcatEntry(titleFile));
       } catch {
-        /* ffmpeg not found or title render failed — skip title card */
+        warnLog(
+          '⚠  Could not render requested title card for scene '
+            + JSON.stringify(shot.scene)
+            + '; the card was omitted. Check ffmpeg, drawtext, font, and codec support, then re-run compile.',
+          agentMode,
+        );
       } finally {
         await fsPromises.unlink(titleTextFile).catch(() => undefined);
       }
