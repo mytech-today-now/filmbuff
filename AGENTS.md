@@ -214,28 +214,27 @@ Use 'bd' for task tracking
 
 ### Beads Workflow
 
-1. **Create Task**: Append to `.beads/issues.jsonl` with unique hash-based ID
-2. **Add Dependencies**: Use `blocks` and `blocked_by` fields
-3. **Find Ready Tasks**: Tasks with no open blockers
-4. **Work on Task**: Update status to `in_progress`, add comments
-5. **Close Task**: Update status to `closed`
+Use the `bd` CLI for reads and writes. The Dolt database is authoritative; do not
+append directly to the JSONL export or edit it to change issue state.
+
+1. **Find ready tasks**: `bd ready --json`
+2. **Create a task**: `bd create "Task title" --description="Details" -t task -p 2 --json`
+3. **Claim and update**: `bd update <id> --claim --json`
+4. **Close completed work**: `bd close <id> --reason "Completed" --json`
 
 ### Beads Files
 
-- `.beads/issues.jsonl` - All issues (append-only JSONL log)
-- `.beads/config.json` - Beads configuration
-- `.beads/cache.db` - SQLite cache (gitignored, CLI only)
+- `.beads/embeddeddolt/` - Local Dolt database managed by `bd` (gitignored)
+- `.beads/issues.jsonl` - Interchange/export file; the database remains authoritative
+- `.beads/config.yaml` - Repository-level Beads configuration
 
 ### For AI Agents
 
 When tracking work:
-1. Create tasks by appending JSON to `.beads/issues.jsonl`
-2. Use hash-based IDs with **"bd-" prefix**: `bd-<hash>` (e.g., `bd-a1b2`)
-   - All issue IDs MUST use "bd-" prefix (see `openspec/specs/beads/naming-convention.md`)
-   - Valid formats: `bd-<hash>`, `bd-<name>`, `bd-<hash>.<number>`
-3. Track dependencies with `blocks`/`blocked_by` fields
-4. Find ready tasks (status: "open", no blockers)
-5. Update status and add comments as work progresses
+1. Create and update tasks through `bd`; let it generate and validate IDs.
+2. Keep the repository's **`bd-` ID prefix** (see `openspec/specs/beads/naming-convention.md`).
+3. Use Beads dependencies and comments through the CLI rather than editing exported JSONL.
+4. Use `bd ready --json` to find open work without blockers.
 
 **Task States**: `open`, `in_progress`, `blocked`, `closed`
 

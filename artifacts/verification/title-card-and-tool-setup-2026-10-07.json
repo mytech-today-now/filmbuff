@@ -1,0 +1,116 @@
+{
+  "schema_version": 1,
+  "test_run_id": "filmbuff-title-card-and-tool-setup-2026-10-07",
+  "recorded_at_utc": "2026-10-07T03:54:32Z",
+  "feature": "Video compile title-card failure visibility and Beads/OpenSpec repository setup",
+  "environment": {
+    "platform": "Windows",
+    "shell": "PowerShell",
+    "node": "v24.14.1",
+    "vitest": "4.1.10",
+    "bd": "1.3.1",
+    "openspec": "1.14.1",
+    "git_head_at_verification": "33667048494195b39d74cbe797cad2b142056787"
+  },
+  "initial_conditions": {
+    "title_cards_enabled_by_default": true,
+    "scene_specific_warning_implementation_already_present": true,
+    "focused_regression_test_already_present": true,
+    "legacy_beads_workspace_version": "0.60.0",
+    "legacy_dolt_snapshot_and_restored_copy_verified": true,
+    "openspec_repo_workspace_already_initialized": true
+  },
+  "actions": [
+    {
+      "test_id": "video-compile-title-cards",
+      "command": "node scripts/run-vitest.js run tests/unit/commands/video-compile-title-cards.test.ts",
+      "status": "passed",
+      "test_files": 1,
+      "tests": 3,
+      "duration_seconds": 1.03
+    },
+    {
+      "test_id": "video-command-unit-tests",
+      "command": "node scripts/run-vitest.js run tests/unit/commands/video-compile-title-cards.test.ts tests/unit/commands/video-lifecycle-recovery.test.ts tests/unit/commands/generate-video.test.ts",
+      "status": "passed",
+      "test_files": 3,
+      "tests": 32,
+      "duration_seconds": 3.81
+    },
+    {
+      "test_id": "beads-embedded-mode-checks",
+      "commands": [
+        "bd -C . status --json",
+        "bd -C . doctor --check artifacts --json",
+        "bd -C . doctor --check conventions --json",
+        "bd -C . doctor --check pollution --json",
+        "bd -C . export --all --output <temporary-file>"
+      ],
+      "status": "passed",
+      "issue_count_after_tracking": 576,
+      "legacy_issues_preserved_exactly": 574,
+      "comments_preserved": 92,
+      "dependencies_preserved": 629,
+      "labels_preserved": 1697
+    },
+    {
+      "test_id": "openspec-workspace-check",
+      "commands": [
+        "openspec --version",
+        "openspec list"
+      ],
+      "status": "passed",
+      "version": "1.14.1"
+    }
+  ],
+  "assertions": [
+    {
+      "expected": "A failed requested title card names its scene in a visible warning for human and agent callers, even when concat succeeds.",
+      "observed": "The controlled ffmpeg stub failed only the title-card invocation; tests observed the scene-specific warning, successful concat, and final compile state.",
+      "status": "passed"
+    },
+    {
+      "expected": "Successful title cards render once at each scene boundary; shots within one scene share one card; explicit no-title-cards renders no cards or warning.",
+      "observed": "All baseline cases are asserted by the focused test.",
+      "status": "passed"
+    },
+    {
+      "expected": "Cross-era migration preserves the authoritative legacy Dolt issue records and associated data.",
+      "observed": "All 574 issue IDs and checked issue fields, labels, dependencies, and comment payloads matched the normalized legacy export exactly.",
+      "status": "passed"
+    }
+  ],
+  "beads_migration": {
+    "active_backend": "embedded Dolt",
+    "active_issue_prefix": "bd",
+    "dolt_remote_configured": true,
+    "tracked_issues_jsonl_changed": false,
+    "jsonl_only_unique_ids_preserved_but_not_imported": 85,
+    "jsonl_only_latest_status_counts": {
+      "closed": 75,
+      "open": 8,
+      "blank": 2
+    },
+    "reconciliation_follow_up_issue": "bd-8qvs",
+    "title_card_issue_closed_after_verification": "bd-d2r7"
+  },
+  "warnings_and_limits": [
+    "The first targeted Vitest attempt failed before test discovery because the default sandbox returned spawn EPERM; the identical command passed with process-execution escalation.",
+    "bd doctor --check validate is unsupported in embedded mode; the supported artifacts, conventions, and pollution checks exited successfully.",
+    "Vitest emitted Node loader and Vite config-loader deprecation warnings; tests passed.",
+    "The tracked legacy JSONL has 85 unique IDs absent from the authoritative Dolt database. It remains unchanged; a follow-up issue tracks review before any import.",
+    "Automatic review rejected bd dolt push because it would publish potentially sensitive issue data to GitHub. No tracker payload was sent."
+  ],
+  "reproduction_commands": [
+    "node scripts/run-vitest.js run tests/unit/commands/video-compile-title-cards.test.ts",
+    "node scripts/run-vitest.js run tests/unit/commands/video-compile-title-cards.test.ts tests/unit/commands/video-lifecycle-recovery.test.ts tests/unit/commands/generate-video.test.ts",
+    "bd -C . status --json",
+    "openspec list"
+  ],
+  "model_usage": {
+    "token_count": null,
+    "cost_usd": null,
+    "available": false
+  },
+  "test_status": "passed"
+}

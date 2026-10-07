@@ -1,5 +1,6 @@
 # Dolt database (managed by Dolt, not git)
 dolt/
+embeddeddolt/
 dolt-access.lock
 
 # Runtime files
@@ -19,6 +20,8 @@ redirect
 # These files are machine-specific and should not be shared across clones
 .sync.lock
 export-state/
+*.lock
+*.gate.lock*
 
 # Ephemeral store (SQLite - wisps/molecules, intentionally not versioned)
 ephemeral.sqlite3
