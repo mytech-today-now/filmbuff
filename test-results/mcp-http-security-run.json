@@ -1,0 +1,294 @@
+{
+  "numFailedTestSuites": 0,
+  "numFailedTests": 0,
+  "numPassedTestSuites": 1,
+  "numPassedTests": 10,
+  "numPendingTestSuites": 0,
+  "numPendingTests": 0,
+  "numRuntimeErrorTestSuites": 0,
+  "numTodoTests": 0,
+  "numTotalTestSuites": 1,
+  "numTotalTests": 10,
+  "openHandles": [],
+  "snapshot": {
+    "added": 0,
+    "didUpdate": false,
+    "failure": false,
+    "filesAdded": 0,
+    "filesRemoved": 0,
+    "filesRemovedList": [],
+    "filesUnmatched": 0,
+    "filesUpdated": 0,
+    "matched": 0,
+    "total": 0,
+    "unchecked": 0,
+    "uncheckedKeysByFile": [],
+    "unmatched": 0,
+    "updated": 0
+  },
+  "startTime": 1791935779407,
+  "success": true,
+  "testResults": [
+    {
+      "assertionResults": [
+        {
+          "ancestorTitles": [
+            "[UT-MCP-01] MCP server registers exactly 10 tools"
+          ],
+          "duration": 1716,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "[UT-MCP-01] MCP server registers exactly 10 tools registerTools() registers 10 tools on the McpServer",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 1,
+          "retryReasons": [],
+          "status": "passed",
+          "title": "registerTools() registers 10 tools on the McpServer"
+        },
+        {
+          "ancestorTitles": [
+            "[UT-MCP-06] Expected tool names match the spec list"
+          ],
+          "duration": 5,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "[UT-MCP-06] Expected tool names match the spec list EXPECTED_TOOLS list contains all 10 spec-defined tool names",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 11,
+          "retryReasons": [],
+          "status": "passed",
+          "title": "EXPECTED_TOOLS list contains all 10 spec-defined tool names"
+        },
+        {
+          "ancestorTitles": [
+            "[UT-MCP-06] Expected tool names match the spec list"
+          ],
+          "duration": 5,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "[UT-MCP-06] Expected tool names match the spec list mcp-server.ts source contains all 10 registerTool calls",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 10,
+          "retryReasons": [],
+          "status": "passed",
+          "title": "mcp-server.ts source contains all 10 registerTool calls"
+        },
+        {
+          "ancestorTitles": [
+            "[UT-MCP-02] video_status tool returns structured JSON"
+          ],
+          "duration": 185,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "[UT-MCP-02] video_status tool returns structured JSON videoStatusCommand in agent+json mode emits parseable envelope",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 4,
+          "retryReasons": [],
+          "status": "passed",
+          "title": "videoStatusCommand in agent+json mode emits parseable envelope"
+        },
+        {
+          "ancestorTitles": [
+            "[UT-MCP-03] video://status resource returns total_shots and counts"
+          ],
+          "duration": 108,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "[UT-MCP-03] video://status resource returns total_shots and counts getLatestState returns correct map after init",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 3,
+          "retryReasons": [],
+          "status": "passed",
+          "title": "getLatestState returns correct map after init"
+        },
+        {
+          "ancestorTitles": [
+            "[IT-MCP-04] HTTP transport refuses to start without a token"
+          ],
+          "duration": 9414,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "[IT-MCP-04] HTTP transport refuses to start without a token reports a stable startup error for an unset, empty, or whitespace token without project writes",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 12,
+          "retryReasons": [],
+          "status": "passed",
+          "title": "reports a stable startup error for an unset, empty, or whitespace token without project writes"
+        },
+        {
+          "ancestorTitles": [
+            "[IT-MCP-05] HTTP credentials gate production MCP requests"
+          ],
+          "duration": 2079,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "[IT-MCP-05] HTTP credentials gate production MCP requests rejects invalid credentials before initialize, tools/list, and a mutating tool call",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 47,
+          "retryReasons": [],
+          "status": "passed",
+          "title": "rejects invalid credentials before initialize, tools/list, and a mutating tool call"
+        },
+        {
+          "ancestorTitles": [
+            "[IT-MCP-06] HTTP listener failure handling"
+          ],
+          "duration": 1983,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "[IT-MCP-06] HTTP listener failure handling reports a bind failure without exposing the token or changing project files",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 4,
+          "retryReasons": [],
+          "status": "passed",
+          "title": "reports a bind failure without exposing the token or changing project files"
+        },
+        {
+          "ancestorTitles": [
+            "[UT-MCP-08] HTTP shutdown failures are sanitized"
+          ],
+          "duration": 254,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "[UT-MCP-08] HTTP shutdown failures are sanitized reports listener and MCP cleanup failures without printing the token",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 7,
+          "retryReasons": [],
+          "status": "passed",
+          "title": "reports listener and MCP cleanup failures without printing the token"
+        },
+        {
+          "ancestorTitles": [
+            "[IT-MCP-07] stdio transport remains compatible without an HTTP token"
+          ],
+          "duration": 1263,
+          "failureDetails": [],
+          "failureMessages": [],
+          "fullName": "[IT-MCP-07] stdio transport remains compatible without an HTTP token initializes, lists ten tools, and returns the existing status envelope",
+          "invocations": 1,
+          "location": null,
+          "numPassingAsserts": 8,
+          "retryReasons": [],
+          "status": "passed",
+          "title": "initializes, lists ten tools, and returns the existing status envelope"
+        }
+      ],
+      "endTime": 1791935804236,
+      "message": "",
+      "name": "C:\\GitHub\\filmbuff-project\\filmbuff\\cli\\src\\__tests__\\mcp-server.test.ts",
+      "startTime": 1791935780084,
+      "status": "passed",
+      "summary": ""
+    }
+  ],
+  "wasInterrupted": false,
+  "testId": "issue-01-mcp-http-auth-loopback",
+  "timestamp": "2026-10-13T23:56:19.407Z",
+  "feature": "HTTP MCP token enforcement, loopback binding, and stdio compatibility",
+  "commit": "a82f1077457c51306892e346f4f8bfb4b21993cc",
+  "environment": {
+    "os": "win32 x64",
+    "node": "v24.14.1",
+    "npm": "11.11.0",
+    "transport": "production mcpServerCommand in isolated child processes",
+    "httpHost": "127.0.0.1",
+    "httpPort": "0 (kernel assigned)",
+    "provider": "FILMBUFF_MOCK_PROVIDER=1"
+  },
+  "initialConditions": {
+    "project": "temporary disposable initialized two-shot project; snapshots use relative paths and SHA-256 content digests",
+    "credentials": "synthetic test-only token supplied through child environment; token value omitted from this artifact",
+    "network": "HTTP cases connect only to 127.0.0.1; no external service or production target",
+    "baselineProjectSnapshot": "captured before protected requests"
+  },
+  "actions": [
+    "Attempt HTTP startup with FILMBUFF_MCP_TOKEN unset, empty, and whitespace-only.",
+    "Start HTTP with a synthetic token and port 0; verify the reported bind address is 127.0.0.1.",
+    "Initialize an authenticated MCP session, then send initialize, tools/list, status, and mutating video_init requests with missing, incorrect, malformed, and wrong-scheme authorization.",
+    "Compare the disposable project snapshot after unauthorized requests and authenticated status.",
+    "Reserve a loopback port to induce EADDRINUSE and inspect sanitized startup failure.",
+    "Exercise shutdown cleanup failures with synthetic errors and inspect sanitized diagnostics.",
+    "Run stdio initialize, tools/list, and status with no HTTP token configured."
+  ],
+  "assertions": [
+    {
+      "name": "HTTP refuses unset, empty, and whitespace-only server tokens before writes",
+      "status": "passed"
+    },
+    {
+      "name": "HTTP binds to 127.0.0.1 on the kernel-assigned port",
+      "status": "passed"
+    },
+    {
+      "name": "Initialize, tools/list, status, and mutating tool calls reject missing or invalid credentials with 401 before MCP handling",
+      "status": "passed"
+    },
+    {
+      "name": "Unauthorized requests leave the disposable project file snapshot unchanged",
+      "status": "passed"
+    },
+    {
+      "name": "The configured Bearer token can initialize a session, list all ten tools, and call status",
+      "status": "passed"
+    },
+    {
+      "name": "Bind and shutdown failures are sanitized and do not expose token values",
+      "status": "passed"
+    },
+    {
+      "name": "stdio initializes, lists all ten tools, and returns status without an HTTP token",
+      "status": "passed"
+    }
+  ],
+  "commands": [
+    {
+      "command": "npm run test:jest -- --runInBand cli/src/__tests__/mcp-server.test.ts --json --outputFile=test-results/mcp-http-security-run.json",
+      "result": "passed",
+      "summary": "1/1 suite, 10/10 tests"
+    },
+    {
+      "command": "npm run build",
+      "result": "passed"
+    },
+    {
+      "command": "npm run lint",
+      "result": "passed",
+      "summary": "0 errors, 170 existing warnings"
+    },
+    {
+      "command": "openspec validate mcp-http-security --type spec --json",
+      "result": "passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed"
+    },
+    {
+      "command": "npm run test:jest -- --runInBand cli/src/__tests__/mcp-server.test.ts cli/src/commands/__tests__/mcp.test.ts",
+      "result": "failed-unrelated",
+      "summary": "Focused suite passed; legacy cli/src/commands/__tests__/mcp.test.ts failed compilation because its ../mcp import target is absent.",
+      "followUp": "bd-u4dz"
+    }
+  ],
+  "iterationCount": 1,
+  "tokenUsage": "not available from the test runner",
+  "modelCost": "not available from the test runner",
+  "finalStatus": "passed",
+  "remainingRisks": [
+    "Remote access through a TLS-terminating proxy was not exercised; the server itself accepts loopback connections only.",
+    "The unrelated legacy MCP test compile failure is tracked as bd-u4dz."
+  ],
+  "reproduction": [
+    "Run npm run test:jest -- --runInBand cli/src/__tests__/mcp-server.test.ts --json --outputFile=test-results/mcp-http-security-run.json from the repository root.",
+    "The tests create and remove disposable temporary projects and use loopback-only child processes."
+  ]
+}

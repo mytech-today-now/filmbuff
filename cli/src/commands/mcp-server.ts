@@ -7,11 +7,12 @@
  *
  * Usage:
  *   filmbuff mcp-server                                     # stdio
- *   filmbuff mcp-server --transport http --port 3742        # HTTP
+ *   filmbuff mcp-server --transport http --port 3742        # HTTP on loopback; requires FILMBUFF_MCP_TOKEN
  *   filmbuff mcp-server --project ./my-film --port 3742
  *
  * HTTP auth: Authorization: Bearer <FILMBUFF_MCP_TOKEN>
- *            Missing/invalid token → HTTP 401.
+ *            Missing server token → startup refused; invalid request token → HTTP 401.
+ *            HTTP binds only to 127.0.0.1.
  *
  * Spec: openspec/changes/filmb-ai-p/specs/agent-mode/spec.md §MCP Tool Server
  * Beads: bd-ea74 (Phase 6 — WS-4)
@@ -44,8 +45,101 @@ export interface McpServerOptions {
   port?:      number;
 }
 
+const HTTP_MCP_HOST = '127.0.0.1';
+const HTTP_MCP_TOKEN_ERROR =
+  'HTTP MCP transport is disabled because FILMBUFF_MCP_TOKEN is not configured.';
+
+function isConfiguredMcpToken(token: string | undefined): token is string {
+  return token !== undefined && token.trim().length > 0;
+}
+
+function hasValidBearerToken(authorization: string | undefined, expectedToken: string): boolean {
+  if (!authorization) return false;
+  const match = /^Bearer ([^\s]+)$/i.exec(authorization);
+  return match?.[1] === expectedToken;
+}
+
+function getSafeErrorCode(error: unknown): string | undefined {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return undefined;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string'
+    && /^[A-Z0-9_]+$/.test(code)
+    && code !== process.env['FILMBUFF_MCP_TOKEN']
+    ? code
+    : undefined;
+}
+
+function reportSafeFailure(action: string, error?: unknown): void {
+  const code = error === undefined ? undefined : getSafeErrorCode(error);
+  process.stderr.write(
+    `[filmbuff mcp-server] ${action}${code ? ` (${code})` : ''}\n`,
+  );
+}
+
+async function listenOnLoopback(server: http.Server, port: number): Promise<void> {
+  await new Promise<void>((resolve, reject) => {
+    const onError = (error: Error) => {
+      server.off('listening', onListening);
+      reject(error);
+    };
+    const onListening = () => {
+      server.off('error', onError);
+      resolve();
+    };
+
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(port, HTTP_MCP_HOST);
+  });
+}
+
+/** Close the HTTP listener and MCP transport without exposing raw error details. */
+export async function shutdownHttpMcpServer(
+  server: http.Server,
+  mcp: McpServer,
+): Promise<boolean> {
+  let succeeded = true;
+
+  if (server.listening) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => error ? reject(error) : resolve());
+      });
+    } catch (error: unknown) {
+      reportSafeFailure('HTTP listener shutdown failed', error);
+      try {
+        server.closeAllConnections();
+      } catch (cleanupError: unknown) {
+        reportSafeFailure('HTTP connection cleanup failed', cleanupError);
+      }
+      try {
+        server.unref();
+      } catch (cleanupError: unknown) {
+        reportSafeFailure('HTTP listener unref failed', cleanupError);
+      }
+      succeeded = false;
+    }
+  }
+
+  try {
+    await mcp.close();
+  } catch (error: unknown) {
+    reportSafeFailure('MCP transport shutdown failed', error);
+    succeeded = false;
+  }
+
+  return succeeded;
+}
+
 // re-export for use in runCommandCapture return type
 type McpCallResult = CallToolResult;
+
+class CapturedCommandExit extends Error {
+  constructor(readonly code: number) {
+    super('Captured command exit');
+    this.name = 'CapturedCommandExit';
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Tool invocation helper — calls command handlers and captures JSON output
@@ -69,17 +163,21 @@ async function runCommandCapture(fn: () => Promise<void>): Promise<McpCallResult
 
   const origExit = process.exit;
   (process as NodeJS.Process).exit = ((code?: number) => {
-    if ((code ?? 0) !== 0) isError = true;
+    throw new CapturedCommandExit(code ?? 0);
   }) as typeof process.exit;
 
   try {
     await fn();
   } catch (err) {
-    isError = true;
-    capturedText = JSON.stringify({
-      status: 'error', data: null, creditsSpent: 0, shotId: null,
-      errorCode: 'GENERAL_ERROR',
-    });
+    if (err instanceof CapturedCommandExit) {
+      isError = err.code !== 0;
+    } else {
+      isError = true;
+      capturedText = JSON.stringify({
+        status: 'error', data: null, creditsSpent: 0, shotId: null,
+        errorCode: 'GENERAL_ERROR',
+      });
+    }
   } finally {
     process.stdout.write = origWrite;
     (process as NodeJS.Process).exit = origExit;
@@ -202,6 +300,13 @@ function registerResources(mcp: McpServer, projectPath: string): void {
 export async function mcpServerCommand(opts: McpServerOptions): Promise<void> {
   const projectPath = path.resolve(opts.project);
   const transport   = opts.transport ?? 'stdio';
+  const mcpToken    = transport === 'http' ? process.env['FILMBUFF_MCP_TOKEN'] : undefined;
+
+  if (transport === 'http' && !isConfiguredMcpToken(mcpToken)) {
+    process.stderr.write(`${HTTP_MCP_TOKEN_ERROR}\n`);
+    process.exitCode = 1;
+    return;
+  }
 
   const mcp = new McpServer({ name: 'filmbuff', version: '1.0.0' });
 
@@ -210,7 +315,6 @@ export async function mcpServerCommand(opts: McpServerOptions): Promise<void> {
 
   if (transport === 'http') {
     const port    = opts.port ?? 3742;
-    const mcpToken = process.env['FILMBUFF_MCP_TOKEN'];
 
     const httpTransport = new StreamableHTTPServerTransport({
       sessionIdGenerator: () => crypto.randomUUID(),
@@ -218,25 +322,77 @@ export async function mcpServerCommand(opts: McpServerOptions): Promise<void> {
 
     const server = http.createServer(async (req, res) => {
       // ── Bearer token auth ─────────────────────────────────────────────
-      if (mcpToken) {
-        const authHeader = req.headers['authorization'] ?? '';
-        const provided   = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-        if (provided !== mcpToken) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'Unauthorized' }));
+      if (!hasValidBearerToken(req.headers['authorization'], mcpToken!)) {
+        res.writeHead(401, {
+          'Content-Type': 'application/json',
+          'WWW-Authenticate': 'Bearer',
+        });
+        res.end(JSON.stringify({ error: 'Unauthorized' }));
+        return;
+      }
+
+      try {
+        await httpTransport.handleRequest(req, res);
+      } catch (error: unknown) {
+        reportSafeFailure('HTTP MCP request failed', error);
+        if (res.headersSent) {
+          res.destroy();
           return;
         }
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Internal server error' }));
       }
-      await httpTransport.handleRequest(req, res);
     });
 
-    await mcp.connect(httpTransport);
-    server.listen(port, () => {
-      process.stderr.write(`[filmbuff mcp-server] HTTP transport listening on port ${port}\n`);
+    try {
+      await mcp.connect(httpTransport);
+      await listenOnLoopback(server, port);
+    } catch (error: unknown) {
+      await shutdownHttpMcpServer(server, mcp);
+      reportSafeFailure('HTTP listener startup failed', error);
+      process.exitCode = 1;
+      return;
+    }
+
+    const address = server.address();
+    if (!address || typeof address === 'string') {
+      await shutdownHttpMcpServer(server, mcp);
+      reportSafeFailure('HTTP listener startup failed');
+      process.exitCode = 1;
+      return;
+    }
+
+    process.stderr.write(
+      `[filmbuff mcp-server] HTTP transport listening on ${address.address}:${address.port}\n`,
+    );
+
+    let resolveStopped!: () => void;
+    let stopPromise: Promise<void> | undefined;
+    const stopped = new Promise<void>((resolve) => { resolveStopped = resolve; });
+    const stop = (): void => {
+      if (stopPromise) return;
+      stopPromise = shutdownHttpMcpServer(server, mcp).then((succeeded) => {
+        if (!succeeded) process.exitCode = 1;
+        resolveStopped();
+      });
+    };
+    const onShutdownSignal = () => stop();
+    let listenerReady = true;
+
+    process.once('SIGINT', onShutdownSignal);
+    process.once('SIGTERM', onShutdownSignal);
+    server.on('error', (error: Error) => {
+      if (!listenerReady) return;
+      listenerReady = false;
+      reportSafeFailure('HTTP listener failed', error);
+      process.exitCode = 1;
+      stop();
     });
 
-    // Keep alive
-    await new Promise<void>(() => { /* run until SIGINT */ });
+    await stopped;
+    listenerReady = false;
+    process.off('SIGINT', onShutdownSignal);
+    process.off('SIGTERM', onShutdownSignal);
   } else {
     // stdio transport (default)
     const stdioTransport = new StdioServerTransport();
