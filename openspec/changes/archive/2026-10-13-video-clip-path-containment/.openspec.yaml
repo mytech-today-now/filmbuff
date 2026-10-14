@@ -1,0 +1,4 @@
+schema: spec-driven
+created: 2026-10-13
+goal: Safely handle status-controlled media paths without changing valid
+  relative-path or lifecycle contracts.

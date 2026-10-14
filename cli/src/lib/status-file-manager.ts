@@ -29,6 +29,10 @@ import type {
   VideoStatusRecord,
   VideoStatusSnapshot,
 } from './shot-state-machine.js';
+import {
+  ProjectMediaPathError,
+  resolveProjectMediaPath,
+} from './project-media-path.js';
 
 export const STATUS_FILE_NAME = '08-video-status.jsonl';
 const LOCK_FILE_NAME          = '08-video-status.jsonl.lock';
@@ -99,15 +103,19 @@ export interface LifecycleTransitionFaultInjector {
 }
 
 export class LifecycleTransitionError extends Error {
+  public readonly code: string | undefined;
+
   constructor(
     public readonly shotId: string,
     public readonly operation: 'reject' | 'reopen' | 'unknown',
     public readonly phase: 'archive' | 'append' | 'recovery',
     message: string,
     public readonly recoveryRequired = false,
+    code?: string,
   ) {
     super(message);
     this.name = 'LifecycleTransitionError';
+    this.code = code;
   }
 }
 
@@ -370,11 +378,48 @@ type FileInspection =
 
 async function inspectFile(filePath: string): Promise<FileInspection> {
   try {
-    return { kind: 'present', identity: identityFromStats(await fsPromises.lstat(filePath)) };
+    const stats = await fsPromises.lstat(filePath);
+    if (stats.isSymbolicLink() || !stats.isFile()) throw new ProjectMediaPathError();
+    return { kind: 'present', identity: identityFromStats(stats) };
   } catch (err: unknown) {
     if (isErrnoCode(err, 'ENOENT')) return { kind: 'missing' };
     throw err;
   }
+}
+
+function mediaPathErrorCode(error: unknown): string | undefined {
+  return error instanceof ProjectMediaPathError ? error.code : undefined;
+}
+
+function lifecycleErrorDetail(error: unknown): string {
+  if (error instanceof ProjectMediaPathError) return `${error.code}: ${error.message}`;
+  return error instanceof Error ? error.message : String(error);
+}
+
+function sameFilesystemPath(left: string, right: string): boolean {
+  const normalizedLeft = path.normalize(left);
+  const normalizedRight = path.normalize(right);
+  return process.platform === 'win32'
+    ? normalizedLeft.toLowerCase() === normalizedRight.toLowerCase()
+    : normalizedLeft === normalizedRight;
+}
+
+async function resolveLifecyclePathPair(
+  projectPath: string,
+  sourceClipPath: string,
+  archiveClipPath: string,
+): Promise<{
+  sourcePath: string;
+  archivePath: string;
+}> {
+  const [source, archive] = await Promise.all([
+    resolveProjectMediaPath(projectPath, sourceClipPath),
+    resolveProjectMediaPath(projectPath, archiveClipPath),
+  ]);
+  if (source.projectRoot !== archive.projectRoot || sameFilesystemPath(source.absolutePath, archive.absolutePath)) {
+    throw new ProjectMediaPathError();
+  }
+  return { sourcePath: source.absolutePath, archivePath: archive.absolutePath };
 }
 
 async function appendRecordsLocked(projectPath: string, records: VideoStatusRecord[]): Promise<void> {
@@ -585,6 +630,7 @@ function operationError(
   phase: LifecycleTransitionError['phase'],
   detail: string,
   recoveryRequired = false,
+  code?: string,
 ): LifecycleTransitionError {
   const prefix = phase === 'recovery'
     ? `Cannot recover interrupted ${intent.operation} for shot "${intent.shot_id}"`
@@ -598,6 +644,7 @@ function operationError(
     phase,
     `${prefix}: ${detail}.${suffix}`,
     recoveryRequired,
+    code,
   );
 }
 
@@ -606,8 +653,11 @@ async function reconcileIntentArchive(
   intent: LifecycleTransitionIntent,
   move: typeof moveFileExclusive = moveFileExclusive,
 ): Promise<'moved' | 'missing'> {
-  const sourcePath = path.resolve(projectPath, intent.source_clip_path);
-  const archivePath = path.resolve(projectPath, intent.archive_clip_path);
+  const { sourcePath, archivePath } = await resolveLifecyclePathPair(
+    projectPath,
+    intent.source_clip_path,
+    intent.archive_clip_path,
+  );
   const source = await inspectFile(sourcePath);
   const archive = await inspectFile(archivePath);
 
@@ -688,8 +738,11 @@ async function isSafeToAbortIntent(
   projectPath: string,
   intent: LifecycleTransitionIntent,
 ): Promise<boolean> {
-  const sourcePath = path.resolve(projectPath, intent.source_clip_path);
-  const archivePath = path.resolve(projectPath, intent.archive_clip_path);
+  const { sourcePath, archivePath } = await resolveLifecyclePathPair(
+    projectPath,
+    intent.source_clip_path,
+    intent.archive_clip_path,
+  );
   const source = await inspectFile(sourcePath);
   const archive = await inspectFile(archivePath);
   if (!intent.source_identity) return source.kind === 'missing' && archive.kind === 'missing';
@@ -703,8 +756,11 @@ async function restoreSourceClip(
   intent: LifecycleTransitionIntent,
 ): Promise<void> {
   if (!intent.source_identity) return;
-  const sourcePath = path.resolve(projectPath, intent.source_clip_path);
-  const archivePath = path.resolve(projectPath, intent.archive_clip_path);
+  const { sourcePath, archivePath } = await resolveLifecyclePathPair(
+    projectPath,
+    intent.source_clip_path,
+    intent.archive_clip_path,
+  );
   const source = await inspectFile(sourcePath);
   const archive = await inspectFile(archivePath);
   if (source.kind !== 'missing' || archive.kind !== 'present') {
@@ -741,8 +797,8 @@ async function recoverPendingLifecycleTransitionsLocked(projectPath: string): Pr
       const allCommits = commitRecordsForIntent(intent);
       await appendRecordsLocked(projectPath, allCommits.slice(steps.length));
     } catch (err: unknown) {
-      const detail = err instanceof Error ? err.message : String(err);
-      throw operationError(intent, 'recovery', detail, true);
+      const detail = lifecycleErrorDetail(err);
+      throw operationError(intent, 'recovery', detail, true, mediaPathErrorCode(err));
     }
   }
 }
@@ -780,27 +836,44 @@ export async function archiveClipAndAppendLifecycleTransition(
       );
     }
 
-    const sourceAbsolutePath = path.resolve(
-      projectPath,
-      priorRecord.clip_path ?? path.join('video', 'clips', `${priorRecord.shot_id}.mp4`),
-    );
-    const extension = path.extname(sourceAbsolutePath);
-    const archiveAbsolutePath = path.join(
-      path.dirname(sourceAbsolutePath),
-      `${path.basename(sourceAbsolutePath, extension)}_attempt${priorRecord.attempt_count}${extension}`,
-    );
+    let sourceAbsolutePath: string;
+    let sourceRelativePath: string;
+    let archiveAbsolutePath: string;
+    let archiveRelativePath: string;
     let sourceInspection: FileInspection;
     let archiveInspection: FileInspection;
     try {
+      const sourceResolution = await resolveProjectMediaPath(
+        projectPath,
+        priorRecord.clip_path ?? path.join('video', 'clips', `${priorRecord.shot_id}.mp4`),
+      );
+      const extension = path.extname(sourceResolution.relativePath);
+      const archiveCandidate = path.join(
+        path.dirname(sourceResolution.relativePath),
+        `${path.basename(sourceResolution.relativePath, extension)}_attempt${priorRecord.attempt_count}${extension}`,
+      );
+      const archiveResolution = await resolveProjectMediaPath(projectPath, archiveCandidate);
+      if (
+        sourceResolution.projectRoot !== archiveResolution.projectRoot
+        || sameFilesystemPath(sourceResolution.absolutePath, archiveResolution.absolutePath)
+      ) {
+        throw new ProjectMediaPathError();
+      }
+      sourceAbsolutePath = sourceResolution.absolutePath;
+      sourceRelativePath = sourceResolution.relativePath;
+      archiveAbsolutePath = archiveResolution.absolutePath;
+      archiveRelativePath = archiveResolution.relativePath;
       sourceInspection = await inspectFile(sourceAbsolutePath);
       archiveInspection = await inspectFile(archiveAbsolutePath);
     } catch (err: unknown) {
-      const detail = err instanceof Error ? err.message : String(err);
+      const detail = lifecycleErrorDetail(err);
       throw new LifecycleTransitionError(
         priorRecord.shot_id,
         operation,
         'archive',
-        `Failed to inspect clip paths for shot "${priorRecord.shot_id}": ${detail}`,
+        `Failed to validate clip paths for shot "${priorRecord.shot_id}": ${detail}`,
+        false,
+        mediaPathErrorCode(err),
       );
     }
     if (archiveInspection.kind === 'present') {
@@ -816,8 +889,8 @@ export async function archiveClipAndAppendLifecycleTransition(
       operation_id: randomUUID(),
       shot_id: priorRecord.shot_id,
       operation,
-      source_clip_path: path.relative(projectPath, sourceAbsolutePath),
-      archive_clip_path: path.relative(projectPath, archiveAbsolutePath),
+      source_clip_path: sourceRelativePath,
+      archive_clip_path: archiveRelativePath,
       source_identity: sourceInspection.kind === 'present' ? sourceInspection.identity : null,
       prior_record: snapshotRecord(priorRecord),
       planned_records: plannedRecords.map(snapshotRecord),
@@ -853,8 +926,14 @@ export async function archiveClipAndAppendLifecycleTransition(
       try {
         safeToAbort = await isSafeToAbortIntent(projectPath, intent);
       } catch (inspectError: unknown) {
-        const inspectDetail = inspectError instanceof Error ? inspectError.message : String(inspectError);
-        throw operationError(intent, 'recovery', `archive failed (${detail}) and its paths could not be inspected (${inspectDetail})`, true);
+        const inspectDetail = lifecycleErrorDetail(inspectError);
+        throw operationError(
+          intent,
+          'recovery',
+          `archive failed (${detail}) and its paths could not be inspected (${inspectDetail})`,
+          true,
+          mediaPathErrorCode(inspectError) ?? mediaPathErrorCode(err),
+        );
       }
       if (safeToAbort) {
         try {
@@ -863,9 +942,9 @@ export async function archiveClipAndAppendLifecycleTransition(
           const abortDetail = abortError instanceof Error ? abortError.message : String(abortError);
           throw operationError(intent, 'recovery', `archive failed (${detail}) and its abort marker could not be recorded (${abortDetail})`, true);
         }
-        throw operationError(intent, 'archive', detail);
+        throw operationError(intent, 'archive', detail, false, mediaPathErrorCode(err));
       }
-      throw operationError(intent, 'recovery', detail, true);
+      throw operationError(intent, 'recovery', detail, true, mediaPathErrorCode(err));
     }
     await faultInjector?.afterCheckpoint?.('after-archive');
 
@@ -888,8 +967,14 @@ export async function archiveClipAndAppendLifecycleTransition(
         if (archiveKind === 'moved') await restoreSourceClip(projectPath, intent);
         await appendAbortedIntentLocked(projectPath, intent, `status append failed: ${appendDetail}`);
       } catch (rollbackError: unknown) {
-        const rollbackDetail = rollbackError instanceof Error ? rollbackError.message : String(rollbackError);
-        throw operationError(intent, 'append', `${appendDetail}; rollback also failed: ${rollbackDetail}`, true);
+        const rollbackDetail = lifecycleErrorDetail(rollbackError);
+        throw operationError(
+          intent,
+          'append',
+          `${appendDetail}; rollback also failed: ${rollbackDetail}`,
+          true,
+          mediaPathErrorCode(rollbackError),
+        );
       }
       throw operationError(
         intent,

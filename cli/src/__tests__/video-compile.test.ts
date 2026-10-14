@@ -7,6 +7,7 @@
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { createHash } from 'crypto';
 
 import type { ExecFileOptions } from 'child_process';
 import { DOMParser } from '@xmldom/xmldom';
@@ -25,6 +26,8 @@ const CLIP_FIXTURE = path.resolve(
   __dirname,
   '../../../output/wizard-in-the-engine-room/wizard-in-the-engine-room.mp4',
 );
+
+const mockArchiveEntries: Array<{ source: string; name: string }> = [];
 
 jest.mock('child_process', () => ({
   exec: jest.fn(),
@@ -50,6 +53,7 @@ jest.mock('archiver', () => {
       },
       file(source: string, meta: { name: string }) {
         entries.push({ source, name: meta.name });
+        mockArchiveEntries.push({ source, name: meta.name });
         return api;
       },
       finalize() {
@@ -89,6 +93,7 @@ interface CompileShot {
   shotId: string;
   scene?: string;
   clipName: string;
+  statusClipPath?: string;
   shotType?: string;
 }
 
@@ -304,7 +309,10 @@ async function createProject(
   })).join('\n') + '\n';
   await fs.promises.writeFile(path.join(projectDir, '08-shot-list.jsonl'), shotListLines, 'utf-8');
 
-  const records = shots.map((shot) => makeApprovedRecord(shot.shotId, shot.clipName));
+  const records = shots.map((shot) => ({
+    ...makeApprovedRecord(shot.shotId, shot.clipName),
+    ...(shot.statusClipPath === undefined ? {} : { clip_path: shot.statusClipPath }),
+  }));
   await fs.promises.writeFile(
     path.join(projectDir, '08-video-status.jsonl'),
     records.map((record) => JSON.stringify(record)).join('\n') + '\n',
@@ -415,6 +423,7 @@ async function compileScenario(scenario: CompileScenario): Promise<CompileResult
 beforeEach(() => {
   jest.resetModules();
   ffmpegInvocations.length = 0;
+  mockArchiveEntries.length = 0;
   getExecMock().mockImplementation(() => {
     throw new Error('exec() should not be called by video compile');
   });
@@ -555,6 +564,182 @@ describe('[UT-VCOMP-02] concat manifest escapes spaces, apostrophes, ampersands,
     expect(parsedConcatPaths).toEqual(expectedConcatPaths);
     expect(result.concatText).toContain("'\\''");
     expect(getExecMock()).not.toHaveBeenCalled();
+  });
+});
+
+describe('[UT-VCOMP-04] compile contains status-controlled media paths', () => {
+  it('rejects an escaped clip before ffmpeg, output creation, or ZIP entries', async () => {
+    const outsideDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'fb-compile-outside-'));
+    const outsidePath = path.join(outsideDir, 'sentinel.mp4');
+    const contents = 'temporary outside compile sentinel';
+    let capture: ReturnType<typeof beginCapture> | undefined;
+
+    try {
+      await fs.promises.writeFile(outsidePath, contents, 'utf-8');
+      const { projectDir, outputDir } = await createProject([{
+        shotId: 's001',
+        scene: 'A',
+        clipName: 'inside.mp4',
+      }]);
+      const statusPath = path.join(projectDir, '08-video-status.jsonl');
+      const record = makeApprovedRecord('s001', 'inside.mp4');
+      record.clip_path = path.relative(projectDir, outsidePath);
+      await fs.promises.writeFile(statusPath, `${JSON.stringify(record)}\n`, 'utf-8');
+      const maliciousStatus = await fs.promises.readFile(statusPath);
+      const outsideHashBefore = createHash('sha256').update(await fs.promises.readFile(outsidePath)).digest('hex');
+
+      capture = beginCapture();
+      try {
+        const { videoCompileCommand } = await import('../commands/video/compile');
+        await videoCompileCommand({ project: projectDir, outputDir, agent: true });
+      } catch (error) {
+        if (!(error instanceof ExitError)) throw error;
+      } finally {
+        capture.restore();
+      }
+
+      expect(capture.exitCode).toBe(6);
+      const envelope = JSON.parse(capture.stdout.trim());
+      expect(envelope).toMatchObject({ status: 'error', data: null, errorCode: 'INVALID_ARGS' });
+      const stderrError = JSON.parse(capture.stderr.trim());
+      expect(stderrError.error.message).toContain('INVALID_PROJECT_MEDIA_PATH');
+      expect(stderrError.error.message).not.toContain(path.basename(outsideDir));
+      expect(ffmpegInvocations).toHaveLength(0);
+      expect(mockArchiveEntries.some(entry => entry.source === outsidePath)).toBe(false);
+      expect(fs.existsSync(outputDir)).toBe(false);
+      expect(fs.existsSync(path.join(outputDir, 'project.zip'))).toBe(false);
+      expect(await fs.promises.readFile(statusPath)).toEqual(maliciousStatus);
+      expect(createHash('sha256').update(await fs.promises.readFile(outsidePath)).digest('hex'))
+        .toBe(outsideHashBefore);
+    } finally {
+      capture?.restore();
+      await fs.promises.rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a symlinked clip directory before ffmpeg or ZIP entry creation', async () => {
+    const outsideDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'fb-compile-link-'));
+    const outsidePath = path.join(outsideDir, 'linked.mp4');
+    const contents = 'temporary symlink target';
+    let capture: ReturnType<typeof beginCapture> | undefined;
+
+    try {
+      await fs.promises.writeFile(outsidePath, contents, 'utf-8');
+      const { projectDir, outputDir } = await createProject([{
+        shotId: 's001',
+        scene: 'A',
+        clipName: 'linked.mp4',
+      }]);
+      const statusPath = path.join(projectDir, '08-video-status.jsonl');
+      const statusBefore = await fs.promises.readFile(statusPath);
+      await fs.promises.rm(path.join(projectDir, 'video', 'clips'), { recursive: true, force: true });
+      await fs.promises.symlink(
+        outsideDir,
+        path.join(projectDir, 'video', 'clips'),
+        process.platform === 'win32' ? 'junction' : 'dir',
+      );
+      const outsideHashBefore = createHash('sha256').update(await fs.promises.readFile(outsidePath)).digest('hex');
+
+      capture = beginCapture();
+      try {
+        const { videoCompileCommand } = await import('../commands/video/compile');
+        await videoCompileCommand({ project: projectDir, outputDir, agent: true });
+      } catch (error) {
+        if (!(error instanceof ExitError)) throw error;
+      } finally {
+        capture.restore();
+      }
+
+      expect(capture.exitCode).toBe(6);
+      expect(JSON.parse(capture.stderr.trim()).error.message).toContain('INVALID_PROJECT_MEDIA_PATH');
+      expect(ffmpegInvocations).toHaveLength(0);
+      expect(mockArchiveEntries.some(entry => entry.source === outsidePath)).toBe(false);
+      expect(fs.existsSync(outputDir)).toBe(false);
+      expect(await fs.promises.readFile(statusPath)).toEqual(statusBefore);
+      expect(createHash('sha256').update(await fs.promises.readFile(outsidePath)).digest('hex'))
+        .toBe(outsideHashBefore);
+    } finally {
+      capture?.restore();
+      await fs.promises.rm(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('preflights all inputs and reports a missing in-project clip before creating outputs', async () => {
+    const { projectDir, outputDir } = await createProject([{
+      shotId: 's001',
+      scene: 'A',
+      clipName: 'missing.mp4',
+    }]);
+    await fs.promises.unlink(path.join(projectDir, 'video', 'clips', 'missing.mp4'));
+    const capture = beginCapture();
+    try {
+      const { videoCompileCommand } = await import('../commands/video/compile');
+      await videoCompileCommand({ project: projectDir, outputDir, agent: true });
+    } catch (error) {
+      if (!(error instanceof ExitError)) throw error;
+    } finally {
+      capture.restore();
+    }
+
+    expect(capture.exitCode).toBe(2);
+    expect(JSON.parse(capture.stdout.trim())).toMatchObject({ status: 'error', errorCode: 'NOT_FOUND' });
+    expect(JSON.parse(capture.stderr.trim()).error.message).toContain('missing');
+    expect(ffmpegInvocations).toHaveLength(0);
+    expect(mockArchiveEntries).toHaveLength(0);
+    expect(fs.existsSync(outputDir)).toBe(false);
+  });
+
+  it('accepts historical nested paths written with Windows separators', async () => {
+    const result = await compileScenario({
+      shots: [{
+        shotId: 's001',
+        scene: 'A',
+        clipName: path.join('nested', 'legacy.mp4'),
+        statusClipPath: 'video\\clips\\nested\\legacy.mp4',
+      }],
+    });
+    expect(result.envelope.status).toBe('success');
+    expect(result.zipEntries).toContain('clips/legacy.mp4');
+    expect(result.videoSrcs).toEqual(['clips/legacy.mp4']);
+  });
+
+  it('reports a ZIP input filesystem failure instead of returning compile success', async () => {
+    const { projectDir, outputDir } = await createProject([{
+      shotId: 's001',
+      scene: 'A',
+      clipName: 'vanishing.mp4',
+    }]);
+    const sourcePath = path.join(projectDir, 'video', 'clips', 'vanishing.mp4');
+    getExecFileMock().mockImplementationOnce((
+      command: string,
+      args: string[],
+      options: ExecFileOptions,
+      callback: ExecCallback,
+    ) => {
+      void handleMockExecFile(command, args, options)
+        .then(async () => {
+          await fs.promises.unlink(sourcePath);
+          callback(null, '', '');
+        })
+        .catch(error => callback(error as Error, '', ''));
+    });
+
+    const capture = beginCapture();
+    try {
+      const { videoCompileCommand } = await import('../commands/video/compile');
+      await videoCompileCommand({ project: projectDir, outputDir, titleCards: false, agent: true });
+    } catch (error) {
+      if (!(error instanceof ExitError)) throw error;
+    } finally {
+      capture.restore();
+    }
+
+    expect(capture.exitCode).toBe(1);
+    expect(JSON.parse(capture.stdout.trim())).toMatchObject({ status: 'error', errorCode: 'GENERAL_ERROR' });
+    const message = JSON.parse(capture.stderr.trim()).error.message as string;
+    expect(message).toContain('Could not create project.zip');
+    expect(message).not.toContain(projectDir);
+    expect(capture.stdout).not.toContain('Compile complete');
   });
 });
 

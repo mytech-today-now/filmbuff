@@ -26,7 +26,15 @@ import * as fs from 'fs';
 import * as fsPromises from 'fs/promises';
 import * as path from 'path';
 import * as child_process from 'child_process';
-import { getLatestState } from '../../lib/status-file-manager.js';
+import {
+  getLatestState,
+  LifecycleTransitionError,
+} from '../../lib/status-file-manager.js';
+import {
+  INVALID_PROJECT_MEDIA_PATH,
+  ProjectMediaPathError,
+  resolveProjectMediaPath,
+} from '../../lib/project-media-path.js';
 import { readAll } from '../../lib/shot-list-reader.js';
 import type { VideoStatusRecord } from '../../lib/shot-state-machine.js';
 import {
@@ -102,7 +110,16 @@ function formatConcatEntry(filePath: string): string {
 }
 
 function packagedClipPath(clipPath: string): string {
-  return path.posix.join('clips', path.basename(clipPath));
+  return path.posix.join('clips', path.posix.basename(clipPath.replace(/\\/g, '/')));
+}
+
+function isMissingArchiverPackage(error: unknown): boolean {
+  return typeof error === 'object'
+    && error !== null
+    && 'code' in error
+    && (error as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND'
+    && error instanceof Error
+    && /Cannot find module ['"]archiver['"]/.test(error.message);
 }
 
 /** Build a simple self-contained HTML5 video viewer for a list of clips. */
@@ -158,7 +175,15 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
     process.exit(EXIT.NOT_FOUND);
   }
 
-  const statusMap = await getLatestState(projectPath);
+  let statusMap: Awaited<ReturnType<typeof getLatestState>>;
+  try {
+    statusMap = await getLatestState(projectPath);
+  } catch (error: unknown) {
+    if (!(error instanceof LifecycleTransitionError) || error.code !== INVALID_PROJECT_MEDIA_PATH) throw error;
+    if (agentMode) { agentError(EXIT.INVALID_ARGS, error.message, { shotId: error.shotId }); }
+    else { console.error(`✗ ${error.message}`); }
+    process.exit(EXIT.INVALID_ARGS);
+  }
 
   // Filter shots by include mode (preserving JSONL order)
   const eligible = shots
@@ -177,6 +202,29 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
     process.exit(EXIT.STATE_CONFLICT);
   }
 
+  const validatedClipPaths = new Map<VideoStatusRecord, { absolutePath: string; relativePath: string }>();
+  for (const { shot, record } of eligible) {
+    try {
+      const resolution = await resolveProjectMediaPath(projectPath, record!.clip_path!);
+      if (resolution.kind === 'missing') {
+        const msg = `Clip source for shot "${shot.shot_id}" is missing. Restore the project-relative clip or correct its status record, then retry. No compile outputs were created.`;
+        if (agentMode) { agentError(EXIT.NOT_FOUND, msg, { shotId: shot.shot_id }); }
+        else { console.error(`✗ ${msg}`); }
+        process.exit(EXIT.NOT_FOUND);
+      }
+      validatedClipPaths.set(record!, {
+        absolutePath: resolution.absolutePath,
+        relativePath: resolution.relativePath,
+      });
+    } catch (error: unknown) {
+      if (!(error instanceof ProjectMediaPathError)) throw error;
+      const msg = `${error.code}: ${error.message}`;
+      if (agentMode) { agentError(EXIT.INVALID_ARGS, msg, { shotId: shot.shot_id }); }
+      else { console.error(`✗ ${msg}`); }
+      process.exit(EXIT.INVALID_ARGS);
+    }
+  }
+
   await fsPromises.mkdir(outputDir, { recursive: true });
 
   // ── Build ffmpeg concat list ──────────────────────────────────────────────
@@ -188,7 +236,8 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
   let titleCardIndex = 0;
 
   for (const { shot, record } of eligible) {
-    const absClip = path.resolve(projectPath, record!.clip_path!);
+    const resolvedClip = validatedClipPaths.get(record!)!;
+    const absClip = resolvedClip.absolutePath;
 
     if (titleCards && shot.scene && shot.scene !== lastScene) {
       // Write a literal title card file and pass it to ffmpeg as an argument.
@@ -233,7 +282,7 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
     clipItems.push({
       shotId: shot.shot_id,
       scene: shot.scene,
-      clipFile: packagedClipPath(record!.clip_path!),
+      clipFile: packagedClipPath(resolvedClip.relativePath),
     });
   }
 
@@ -269,29 +318,47 @@ export async function videoCompileCommand(opts: VideoCompileOptions): Promise<vo
 
   // ── Write project.zip ─────────────────────────────────────────────────────
   const zipPath = path.join(outputDir, 'project.zip');
-  // Use built-in archiver if available; otherwise shell out to zip
+  // Use the optional archiver package when installed; otherwise omit project.zip.
+  let archiver: ((format: string, opts?: object) => {
+    on: (event: string, callback: (error?: Error) => void) => void;
+    pipe: (destination: NodeJS.WritableStream) => void;
+    file: (filePath: string, entry: { name: string }) => void;
+    finalize: () => void;
+  }) | undefined;
   try {
-    const archiver = require('archiver') as { (format: string, opts?: object): { on: (e: string, cb: (err?: Error) => void) => void; pipe: (d: NodeJS.WritableStream) => void; file: (p: string, n: object) => void; finalize: () => void } };
-    const output   = fs.createWriteStream(zipPath);
-    const instance = archiver('zip', { zlib: { level: 9 } });
-    await new Promise<void>((resolve, reject) => {
-      instance.on('error', (err?: Error) => reject(err));
-      output.on('close', () => resolve());
-      instance.pipe(output);
-      eligible.forEach(({ record }) => {
-        const absClip = path.resolve(projectPath, record!.clip_path!);
-        instance.file(absClip, { name: packagedClipPath(absClip) });
-      });
-      instance.file(indexPath, { name: 'index.html' });
-      instance.file(combinedPath, { name: 'combined.mp4' });
-      for (const f of fs.readdirSync(projectPath).filter((fn: string) => fn.endsWith('.md') || fn.endsWith('.fountain') || fn.endsWith('.jsonl'))) {
-        instance.file(path.join(projectPath, f), { name: f });
-      }
-      instance.finalize();
-    });
-  } catch {
-    // archiver not available — skip zip (non-fatal)
+    archiver = require('archiver') as NonNullable<typeof archiver>;
+  } catch (error: unknown) {
+    if (!isMissingArchiverPackage(error)) throw error;
+  }
+
+  if (!archiver) {
     humanLog('⚠  archiver package not available; skipping project.zip', agentMode);
+  } else {
+    try {
+      const output   = fs.createWriteStream(zipPath);
+      const instance = archiver('zip', { zlib: { level: 9 } });
+      await new Promise<void>((resolve, reject) => {
+        instance.on('error', (err?: Error) => reject(err));
+        output.on('error', (err?: Error) => reject(err));
+        output.on('close', () => resolve());
+        instance.pipe(output);
+        eligible.forEach(({ record }) => {
+          const resolvedClip = validatedClipPaths.get(record!)!;
+          instance.file(resolvedClip.absolutePath, { name: packagedClipPath(resolvedClip.relativePath) });
+        });
+        instance.file(indexPath, { name: 'index.html' });
+        instance.file(combinedPath, { name: 'combined.mp4' });
+        for (const f of fs.readdirSync(projectPath).filter((fn: string) => fn.endsWith('.md') || fn.endsWith('.fountain') || fn.endsWith('.jsonl'))) {
+          instance.file(path.join(projectPath, f), { name: f });
+        }
+        instance.finalize();
+      });
+    } catch {
+      const msg = 'Could not create project.zip because a project or output file could not be read or written. Check project file permissions and the output directory, then retry.';
+      if (agentMode) { agentError(EXIT.GENERAL_ERROR, msg); }
+      else { console.error(`✗ ${msg}`); }
+      process.exit(EXIT.GENERAL_ERROR);
+    }
   }
 
   humanLog(`✓ Compile complete.`, agentMode);

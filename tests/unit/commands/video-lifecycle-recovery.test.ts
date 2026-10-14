@@ -1,6 +1,7 @@
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
+import { createHash } from 'crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   archiveClipAndAppendLifecycleTransition,
@@ -295,6 +296,67 @@ describe('reject and reopen crash recovery', () => {
     });
     await expect(fs.readFile(project.clipPath, 'utf-8')).resolves.toBe('preserved clip bytes');
     await expect(fs.readFile(project.archivePath, 'utf-8')).resolves.toBe('unrelated archive bytes');
+  });
+
+  it('refuses to recover an interrupted intent whose source path escapes the project', async () => {
+    const project = await createProject('reject');
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fb-video-recovery-outside-'));
+    const outsidePath = path.join(outsideDir, 'sentinel.mp4');
+    const contents = 'temporary recovery sentinel';
+
+    try {
+      await fs.writeFile(outsidePath, contents, 'utf-8');
+      const stats = await fs.lstat(outsidePath);
+      const sourceIdentity = {
+        device: Number(stats.dev),
+        inode: Number(stats.ino),
+        size: Number(stats.size),
+        modified_at_ms: Number(stats.mtimeMs),
+      };
+      const intentRecord = {
+        ...project.record,
+        lifecycle_operation: {
+          kind: 'intent',
+          intent: {
+            operation_id: 'outside-path-recovery-test',
+            shot_id: project.record.shot_id,
+            operation: 'reject',
+            source_clip_path: path.relative(project.root, outsidePath),
+            archive_clip_path: path.relative(project.root, project.archivePath),
+            source_identity: sourceIdentity,
+            prior_record: project.record,
+            planned_records: plannedRecords('reject', project.record),
+          },
+        },
+      };
+      const statusPath = path.join(project.root, '08-video-status.jsonl');
+      await fs.writeFile(statusPath, `${JSON.stringify(intentRecord)}\n`, 'utf-8');
+      const statusBefore = await fs.readFile(statusPath);
+      const outsideHashBefore = createHash('sha256').update(await fs.readFile(outsidePath)).digest('hex');
+
+      let recoveryError: unknown;
+      try {
+        await getLatestState(project.root);
+      } catch (error: unknown) {
+        recoveryError = error;
+      }
+      expect(recoveryError).toMatchObject({
+        name: 'LifecycleTransitionError',
+        code: 'INVALID_PROJECT_MEDIA_PATH',
+        phase: 'recovery',
+        recoveryRequired: true,
+      });
+      expect(recoveryError).toBeInstanceOf(Error);
+      expect((recoveryError as Error).message).not.toContain(outsidePath);
+
+      expect(await fs.readFile(statusPath)).toEqual(statusBefore);
+      expect(createHash('sha256').update(await fs.readFile(outsidePath)).digest('hex'))
+        .toBe(outsideHashBefore);
+      await expect(fs.stat(project.archivePath)).rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(fs.readFile(outsidePath, 'utf-8')).resolves.toBe(contents);
+    } finally {
+      await fs.rm(outsideDir, { recursive: true, force: true });
+    }
   });
 
   it('shows the recovery state and shot ID in the reject command error', async () => {

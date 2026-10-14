@@ -11,16 +11,22 @@
 import * as os from 'os';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { createHash } from 'crypto';
 import {
   readAllRecords,
   getLatestState,
   appendRecord,
   appendRecords,
+  archiveClipAndAppendLifecycleTransition,
   renameClipForRetry,
   getStatusFilePath,
   STATUS_FILE_NAME,
 } from '../lib/status-file-manager';
 import type { VideoStatusRecord } from '../lib/shot-state-machine';
+import {
+  ProjectMediaPathError,
+  resolveProjectMediaPath,
+} from '../lib/project-media-path';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -119,6 +125,109 @@ describe('[IT-SM-02] getLatestState — last record per shot_id wins', () => {
     const map = await getLatestState(tmpDir);
     expect(map.get('s001')?.status).toBe('generating');
     expect(map.get('s002')?.status).toBe('complete');
+  });
+});
+
+describe('archiveClipAndAppendLifecycleTransition path containment', () => {
+  it('rejects a parent-relative clip path before moving a sibling sentinel or appending status', async () => {
+    const outsidePath = path.join(path.dirname(tmpDir), `${path.basename(tmpDir)}-outside.mp4`);
+    const outsideArchivePath = path.join(
+      path.dirname(outsidePath),
+      `${path.basename(outsidePath, path.extname(outsidePath))}_attempt1.mp4`,
+    );
+    const contents = 'disposable outside sentinel bytes';
+    await fs.writeFile(outsidePath, contents, 'utf-8');
+
+    try {
+      const prior = makeRecord({
+        status: 'complete',
+        clip_path: path.relative(tmpDir, outsidePath),
+        attempt_count: 1,
+      });
+      await appendRecord(tmpDir, prior);
+      const statusPath = getStatusFilePath(tmpDir);
+      const statusBefore = await fs.readFile(statusPath);
+      const outsideHashBefore = createHash('sha256').update(await fs.readFile(outsidePath)).digest('hex');
+
+      await expect(archiveClipAndAppendLifecycleTransition(
+        tmpDir,
+        prior,
+        'reject',
+        [{ ...prior, status: 'pending', clip_path: null }],
+      )).rejects.toMatchObject({
+        code: 'INVALID_PROJECT_MEDIA_PATH',
+        phase: 'archive',
+      });
+
+      expect(await fs.readFile(statusPath)).toEqual(statusBefore);
+      expect(createHash('sha256').update(await fs.readFile(outsidePath)).digest('hex')).toBe(outsideHashBefore);
+      await expect(fs.stat(outsideArchivePath)).rejects.toMatchObject({ code: 'ENOENT' });
+    } finally {
+      await fs.rm(outsidePath, { force: true });
+      await fs.rm(outsideArchivePath, { force: true });
+    }
+  });
+});
+
+describe('resolveProjectMediaPath()', () => {
+  it.each([
+    '',
+    '.',
+    '../outside.mp4',
+    'video/../../outside.mp4',
+    'video\\..\\outside.mp4',
+    'video/..\\..\\outside.mp4',
+    'C:\\outside.mp4',
+    'C:outside.mp4',
+    '/outside.mp4',
+    '\\\\server\\share\\outside.mp4',
+  ])('rejects unsafe path syntax: %s', async mediaPath => {
+    await expect(resolveProjectMediaPath(tmpDir, mediaPath)).rejects.toMatchObject({
+      name: 'ProjectMediaPathError',
+      code: 'INVALID_PROJECT_MEDIA_PATH',
+    });
+  });
+
+  it('resolves a nested historical path with either separators and harmless dot segments', async () => {
+    const relativePath = path.join('video', 'clips', 'nested', 'legacy.mp4');
+    const absolutePath = path.join(tmpDir, relativePath);
+    await fs.mkdir(path.dirname(absolutePath), { recursive: true });
+    await fs.writeFile(absolutePath, 'legacy clip bytes', 'utf-8');
+
+    await expect(resolveProjectMediaPath(tmpDir, 'video\\clips\\.\\nested\\legacy.mp4'))
+      .resolves.toMatchObject({
+        kind: 'file',
+        absolutePath,
+        relativePath,
+      });
+  });
+
+  it('returns missing only for an absent project-relative file and rejects directories', async () => {
+    await expect(resolveProjectMediaPath(tmpDir, 'video/clips/missing.mp4'))
+      .resolves.toMatchObject({ kind: 'missing' });
+    await fs.mkdir(path.join(tmpDir, 'media-directory'));
+    await expect(resolveProjectMediaPath(tmpDir, 'media-directory')).rejects.toBeInstanceOf(ProjectMediaPathError);
+  });
+
+  it('rejects a symlink component and leaves its outside sentinel unchanged', async () => {
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fb-media-path-outside-'));
+    const outsidePath = path.join(outsideDir, 'sentinel.mp4');
+    const contents = 'temporary resolver sentinel';
+
+    try {
+      await fs.writeFile(outsidePath, contents, 'utf-8');
+      const clipsDir = path.join(tmpDir, 'video', 'clips');
+      await fs.mkdir(path.dirname(clipsDir), { recursive: true });
+      await fs.symlink(outsideDir, clipsDir, process.platform === 'win32' ? 'junction' : 'dir');
+      const outsideHashBefore = createHash('sha256').update(await fs.readFile(outsidePath)).digest('hex');
+
+      await expect(resolveProjectMediaPath(tmpDir, 'video/clips/sentinel.mp4')).rejects.toMatchObject({
+        code: 'INVALID_PROJECT_MEDIA_PATH',
+      });
+      expect(createHash('sha256').update(await fs.readFile(outsidePath)).digest('hex')).toBe(outsideHashBefore);
+    } finally {
+      await fs.rm(outsideDir, { recursive: true, force: true });
+    }
   });
 });
 

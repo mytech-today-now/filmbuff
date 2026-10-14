@@ -1,0 +1,121 @@
+{
+  "testRunId": "video-clip-path-containment-2026-10-14T00-30-22Z",
+  "generatedAt": "2026-10-14T00:30:22Z",
+  "feature": "Issue 02: Core Title Video status clip path containment",
+  "status": "passed",
+  "beadsTaskId": "bd-7l09",
+  "openSpecChange": "2026-10-13-video-clip-path-containment",
+  "environment": {
+    "platform": "win32",
+    "architecture": "x64",
+    "node": "v24.14.1",
+    "packageVersion": "2.5.6",
+    "testedBaseCommit": "eb77d1da514720b54b617098106b95156128fdee",
+    "configuration": "Local Windows test workspace; temporary project roots and sibling sentinel files; ffmpeg and ZIP behavior controlled by the existing test fixtures."
+  },
+  "initialConditions": [
+    "The status JSONL and media paths are treated as untrusted project-controlled input.",
+    "Tests create disposable temporary projects and outside-root sentinel files, then compare status bytes and SHA-256 hashes.",
+    "No production project, provider account, credential, or external service was used."
+  ],
+  "acceptanceAssertions": [
+    {
+      "id": "lifecycle-path-containment",
+      "expected": "Reject and reopen refuse escaped paths before status append or media movement.",
+      "observed": "Passed; both operation cases preserve status and outside sentinel bytes."
+    },
+    {
+      "id": "interrupted-recovery-path-containment",
+      "expected": "Recovery refuses an escaped persisted intent path without changing status or outside media, and omits the outside path from its diagnostic.",
+      "observed": "Passed."
+    },
+    {
+      "id": "compile-path-containment",
+      "expected": "Unsafe and symlinked clips fail before output creation, ffmpeg invocation, or ZIP clip entry creation.",
+      "observed": "Passed; missing valid paths report before outputs; ZIP input failures do not report success."
+    },
+    {
+      "id": "compatible-project-paths",
+      "expected": "Nested historical Windows-separator paths continue to resolve and compile; missing lifecycle clips keep their established result.",
+      "observed": "Passed."
+    },
+    {
+      "id": "path-syntax-and-filesystem-boundaries",
+      "expected": "Empty, drive, POSIX, UNC, traversal, symlink, directory, and non-regular targets are rejected; only ENOENT maps to missing.",
+      "observed": "Passed in the focused Jest suites."
+    }
+  ],
+  "commands": [
+    {
+      "command": "npm run test:jest -- --runInBand cli/src/__tests__/status-file-manager.test.ts cli/src/__tests__/video-compile.test.ts cli/src/__tests__/video-subcommands.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "summary": "Final run after the last source edit: 3 suites passed; 69 tests passed; 0 snapshots; 40.388 seconds."
+    },
+    {
+      "command": "node scripts/run-vitest.js run tests/unit/commands/video-lifecycle-recovery.test.ts",
+      "status": "passed",
+      "exitCode": 0,
+      "summary": "1 file passed; 22 tests passed; 7.21 seconds. The initial sandboxed attempt stopped before test execution with spawn EPERM; the same command passed after approval to spawn Vite's config resolver."
+    },
+    {
+      "command": "npm run build",
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "command": "npm run lint",
+      "status": "passed",
+      "exitCode": 0,
+      "summary": "0 errors; 170 repository-wide warnings."
+    },
+    {
+      "command": "node node_modules/eslint/bin/eslint.js cli/src/lib/project-media-path.ts cli/src/lib/status-file-manager.ts cli/src/commands/video/compile.ts cli/src/__tests__/status-file-manager.test.ts cli/src/__tests__/video-compile.test.ts cli/src/__tests__/video-subcommands.test.ts tests/unit/commands/video-lifecycle-recovery.test.ts",
+      "status": "passed_with_scope_warning",
+      "exitCode": 0,
+      "summary": "0 errors. ESLint reports that no matching configuration is supplied for the Vitest recovery file."
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed",
+      "exitCode": 0,
+      "summary": "No whitespace errors; Git printed line-ending conversion warnings for edited files."
+    },
+    {
+      "command": "openspec validate video-clip-path-containment --strict",
+      "status": "passed",
+      "exitCode": 0
+    },
+    {
+      "command": "openspec archive video-clip-path-containment --yes --json",
+      "status": "passed",
+      "exitCode": 0,
+      "summary": "Archived as 2026-10-13-video-clip-path-containment; updated 3 requirements."
+    },
+    {
+      "command": "openspec spec validate video-clip-path-safety",
+      "status": "passed",
+      "exitCode": 0,
+      "summary": "Source specification is valid. CLI emitted a deprecation notice recommending verb-first commands."
+    }
+  ],
+  "baselineReproduction": {
+    "status": "reproduced_before_fix",
+    "summary": "The focused new regression assertions failed before implementation: reject/reopen moved a sibling sentinel, and compile passed escaped or symlinked media to processing instead of failing before side effects."
+  },
+  "artifacts": [
+    "openspec/changes/archive/2026-10-13-video-clip-path-containment/",
+    "openspec/specs/video-clip-path-safety/spec.md",
+    "test-results/video-clip-path-containment-run.json"
+  ],
+  "unverified": [
+    "This local controlled test run does not establish behavior on deployed installations or against concurrent filesystem mutation between validation and file use."
+  ],
+  "failureCause": null,
+  "reproduction": [
+    "Run the focused Jest command above.",
+    "Run the Vitest command above in an environment where Vite may spawn its config resolver.",
+    "Fixtures create temporary project status data and sibling sentinel files; see the referenced test files for deterministic assertions."
+  ],
+  "recommendedNextAction": "Review and merge the pushed change; no known implementation follow-up remains."
+}

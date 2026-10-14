@@ -19,6 +19,7 @@
 import * as fs    from 'fs';
 import * as os    from 'os';
 import * as path  from 'path';
+import { createHash } from 'crypto';
 
 import type { VideoStatusRecord } from '../lib/shot-state-machine';
 
@@ -676,6 +677,53 @@ describe('[UT-ARC-02] video reopen reports missing source clips explicitly', () 
     expect(records[1].lifecycle_operation.kind).toBe('intent');
     expect(records[2].status).toBe('pending');
     expect(records[2].clip_path).toBeNull();
+  });
+});
+
+describe('[UT-ARC-11] reject and reopen reject escaped status clip paths', () => {
+  it.each(['reject', 'reopen'] as const)('leaves %s status and outside file unchanged', async operation => {
+    tmpDir = await makeTempProject([{ shot_id: 's001', scene: 'A', shot_type: 'Wide', duration_seconds: 5 }]);
+    const outsideDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'fb-status-outside-'));
+    const outsidePath = path.join(outsideDir, 'sentinel.mp4');
+    const contents = 'temporary outside media sentinel';
+
+    try {
+      await fs.promises.writeFile(outsidePath, contents, 'utf-8');
+      const status = operation === 'reject' ? 'complete' : 'approved';
+      await writeStatusFile(tmpDir, [makeStatusRecord({
+        shot_id: 's001',
+        status,
+        clip_path: path.relative(tmpDir, outsidePath),
+        attempt_count: 1,
+        approved_at: operation === 'reopen' ? STALE_UPDATED_AT : null,
+      })]);
+      const statusPath = path.join(tmpDir, '08-video-status.jsonl');
+      const statusBefore = await fs.promises.readFile(statusPath);
+      const outsideHashBefore = createHash('sha256').update(await fs.promises.readFile(outsidePath)).digest('hex');
+      const command = operation === 'reject' ? await rejectCmd() : await reopenCmd();
+      const capture = beginCapture();
+      try {
+        await command({ project: tmpDir, shotId: 's001', agent: true });
+      } catch (error) {
+        if (!(error instanceof ExitError)) throw error;
+      } finally {
+        capture.restore();
+      }
+
+      expect(capture.exitCode).toBe(1);
+      const envelope = JSON.parse(capture.stdout.trim());
+      expect(envelope).toMatchObject({ status: 'error', data: null, errorCode: 'GENERAL_ERROR', shotId: 's001' });
+      const stderrError = JSON.parse(capture.stderr.trim());
+      expect(stderrError.error.message).toContain('INVALID_PROJECT_MEDIA_PATH');
+      expect(stderrError.error.message).not.toContain(path.basename(outsideDir));
+      expect(await fs.promises.readFile(statusPath)).toEqual(statusBefore);
+      expect(createHash('sha256').update(await fs.promises.readFile(outsidePath)).digest('hex'))
+        .toBe(outsideHashBefore);
+      await expect(fs.promises.stat(path.join(outsideDir, 'sentinel_attempt1.mp4')))
+        .rejects.toMatchObject({ code: 'ENOENT' });
+    } finally {
+      await fs.promises.rm(outsideDir, { recursive: true, force: true });
+    }
   });
 });
 
