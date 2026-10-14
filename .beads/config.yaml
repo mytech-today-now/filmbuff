@@ -72,4 +72,6 @@
 # - github.token    → use GITHUB_TOKEN env var instead
 
 sync:
-    remote: "git+ssh://git@github.com/mytech-today-now/filmbuff.git"
+    remote: "git+https://github.com/mytech-today-now/filmbuff.git"
+
+# remote: "git+ssh://git@github.com/mytech-today-now/filmbuff.git"
