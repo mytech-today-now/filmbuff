@@ -194,7 +194,7 @@
   "testId": "issue-01-mcp-http-auth-loopback",
   "timestamp": "2026-10-13T23:56:19.407Z",
   "feature": "HTTP MCP token enforcement, loopback binding, and stdio compatibility",
-  "commit": "a82f1077457c51306892e346f4f8bfb4b21993cc",
+  "commit": "6e5f1f1fc4e94ad2862b14e71eb7b7751b294a8e",
   "environment": {
     "os": "win32 x64",
     "node": "v24.14.1",
@@ -290,5 +290,7 @@
   "reproduction": [
     "Run npm run test:jest -- --runInBand cli/src/__tests__/mcp-server.test.ts --json --outputFile=test-results/mcp-http-security-run.json from the repository root.",
     "The tests create and remove disposable temporary projects and use loopback-only child processes."
-  ]
+  ],
+  "baselineCommit": "a82f1077457c51306892e346f4f8bfb4b21993cc",
+  "testedCommit": "6e5f1f1fc4e94ad2862b14e71eb7b7751b294a8e"
 }
