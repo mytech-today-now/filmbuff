@@ -6,6 +6,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { normalizeAIProvider } from './ai-provider-config';
+import { parseAIPoweredEndpoint } from './ai-powered-client';
 
 const BUILTIN_PROMPT_NAMES = ['code-review', 'module-summary', 'optimization', 'refactoring'];
 
@@ -146,7 +147,7 @@ export interface AugmentConfig {
      * Default: false.
      */
     debug?: boolean;
-    /** Gateway base URL.  Default: http://localhost:3001 */
+    /** Gateway URL. Remote hosts require HTTPS; loopback HTTP is allowed. */
     url?: string;
     /** Model identifier forwarded to the gateway.  Default: gpt-4 */
     model?: string;
@@ -460,6 +461,15 @@ export class ConfigManager {
       const ap = config.aiPowered;
       if (ap.url !== undefined && typeof ap.url !== 'string') {
         errors.push('aiPowered.url must be a string');
+      } else if (typeof ap.url === 'string') {
+        try {
+          parseAIPoweredEndpoint(ap.url);
+        } catch (error: unknown) {
+          const detail = error instanceof Error
+            ? error.message
+            : 'The configured URL is invalid.';
+          errors.push(`aiPowered.url: ${detail}`);
+        }
       }
       if (ap.model !== undefined && typeof ap.model !== 'string') {
         errors.push('aiPowered.model must be a string');

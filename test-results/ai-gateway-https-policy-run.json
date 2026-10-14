@@ -1,0 +1,115 @@
+{
+  "testIdentifier": "bd-1jwa-ai-gateway-transport-security",
+  "timestamp": "2026-10-14T03:15:54Z",
+  "feature": "AI gateway endpoint transport validation and diagnostic redaction",
+  "environment": {
+    "platform": "Windows",
+    "shell": "PowerShell",
+    "node": "v24.14.1",
+    "npm": "11.11.0",
+    "packageVersion": "2.5.6",
+    "baselineCommit": "3a345952c9e334a8e6e9d48a659b822aaf37c14f",
+    "testedCommit": "3a345952c9e334a8e6e9d48a659b822aaf37c14f with uncommitted task changes"
+  },
+  "initialConditions": {
+    "configIsolation": "Temporary directory per configuration test; restored working directory and environment after each test.",
+    "network": "All fetch calls were mocked. No live gateway or provider traffic was sent.",
+    "preExistingUntrackedFiles": [
+      "ai-prompts/FilmBuff-repository-pre-mortem-2026-10-13-15-39-06.html",
+      "ai-prompts/pre-mortem-refactored-2026-10-04-18-07-30.html"
+    ],
+    "preExistingFilesModified": false
+  },
+  "controlledTestData": {
+    "endpointHosts": ["gateway.example", "localhost", "127.0.0.2", "127.255.4.8", "::1", "localhost.attacker.test"],
+    "secretValues": "Synthetic placeholders only; raw values are not recorded in this artifact.",
+    "configFile": "Disposable .augment/augment.json in the test temporary directory"
+  },
+  "validatedActions": [
+    {
+      "action": "Construct client or run health/completion with configured endpoint",
+      "validationDecision": "Parsed absolute HTTP(S) URL; reject credentials/fragments; require HTTPS unless hostname is parsed loopback."
+    },
+    {
+      "action": "Mocked fetch to test health and completion behavior",
+      "validationDecision": "Allowed only through Jest fetch stubs; no network endpoint was contacted."
+    },
+    {
+      "action": "Resolve URL through CLI override, environment, config, and built-in default",
+      "validationDecision": "Executed against disposable config and mocked fetch; precedence preserved."
+    }
+  ],
+  "assertions": [
+    {"id": "remote-http-before-fetch", "status": "passed", "observation": "Remote HTTP was rejected before health or completion fetch."},
+    {"id": "loopback-http-compatibility", "status": "passed", "observation": "localhost, IPv4 127/8, and IPv6 ::1 HTTP endpoints were accepted."},
+    {"id": "https-bearer-completion", "status": "passed", "observation": "Remote HTTPS completion retained the bearer header and prompt body at the parsed endpoint."},
+    {"id": "malformed-scheme-and-userinfo", "status": "passed", "observation": "Malformed/unsupported URLs, userinfo, and lookalike hosts were rejected without request or diagnostic disclosure."},
+    {"id": "request-error-redaction-and-timers", "status": "passed", "observation": "Unexpected fetch errors became controlled generic errors; health/completion timers were cleared."},
+    {"id": "http-response-error-redaction", "status": "passed", "observation": "HTTP failures exposed the status code only; response body and status text were omitted."},
+    {"id": "configuration-precedence", "status": "passed", "observation": "CLI override > environment > config > built-in loopback default remained intact."},
+    {"id": "cli-output-redaction", "status": "passed", "observation": "ai set and ai env did not print URL userinfo, paths, query values, or system-prompt content."}
+  ],
+  "commands": [
+    {
+      "command": "npm run test:jest -- --runInBand cli/src/__tests__/ai-powered-client.test.ts cli/src/__tests__/config-system.test.ts",
+      "result": "passed",
+      "summary": "2/2 suites, 73/73 tests",
+      "durationSeconds": 28.424
+    },
+    {
+      "command": "npm run test:jest -- --runInBand cli/src/__tests__/ai-providers.test.ts -t \"url L|aiSetCommand\"",
+      "result": "passed",
+      "summary": "10 passed, 51 unrelated tests skipped",
+      "durationSeconds": 10.201
+    },
+    {
+      "command": "npx tsc --noEmit -p cli/tsconfig.json",
+      "result": "passed"
+    },
+    {
+      "command": "npx eslint cli/src/utils/ai-powered-client.ts cli/src/utils/config-system.ts cli/src/commands/ai-set.ts cli/src/commands/ai-env.ts cli/src/__tests__/ai-powered-client.test.ts cli/src/__tests__/config-system.test.ts cli/src/__tests__/ai-providers.test.ts",
+      "result": "passed",
+      "summary": "0 errors, 0 warnings"
+    },
+    {
+      "command": "npm run test:jest -- --runInBand cli/src/__tests__/ai-providers.test.ts",
+      "result": "failed-unrelated",
+      "summary": "47 passed, 14 failed. Failures were existing Jest dynamic-import callback errors without --experimental-vm-modules and aiStatusCommand output expectations. The URL-resolution, aiSetCommand, and integration smoke tests passed.",
+      "durationSeconds": 47.769,
+      "followUp": "Relevant resolver and CLI-setting tests were rerun independently and passed.",
+      "followUpBead": "bd-9ix8"
+    },
+    {
+      "command": "git diff --check",
+      "result": "passed",
+      "summary": "No whitespace errors; Git reported existing LF-to-CRLF working-copy notices."
+    }
+  ],
+  "iterations": [
+    "An intermediate output assertion expected the full prompt-hidden label, while ai env correctly truncated it to its display width; the label was shortened and the final target run passed.",
+    "The full adjacent ai-providers suite had unrelated failures; its relevant URL-resolution and aiSetCommand cases were isolated and passed."
+  ],
+  "iterationCount": 3,
+  "execution": {
+    "tokenUsage": "Not available from the test runner.",
+    "modelCost": "Not available from the test runner.",
+    "screenshotsTracesAndBrowserChecks": "Not applicable to these CLI unit/integration tests.",
+    "retryAndTimeouts": {
+      "healthRetryDelaysMs": [0, 1000, 2000],
+      "healthRetryRegression": "Passed using mocked transient and persistent fetch failures.",
+      "completionTimeoutRegression": "Passed using a mocked AbortError; the controlled timeout message was preserved.",
+      "unexpectedFetchTimerCleanup": "Passed; timers were cleared for both mocked health and completion requests."
+    }
+  },
+  "finalStatus": "passed",
+  "broaderRegressionStatus": "inconclusive",
+  "remainingRisks": [
+    "HTTPS transport was verified with mocked fetch, not a live TLS handshake or deployed gateway.",
+    "The complete adjacent ai-providers suite remains non-green for unrelated dynamic-import and status-output failures."
+  ],
+  "reproduction": [
+    "Run npm run test:jest -- --runInBand cli/src/__tests__/ai-powered-client.test.ts cli/src/__tests__/config-system.test.ts from the repository root.",
+    "All endpoint cases use mocked fetch; configuration precedence cases create and remove a disposable temporary config directory."
+  ],
+  "recommendedNextAction": "Review and address the unrelated ai-providers Jest configuration/status expectations separately if a clean full adjacent suite is required."
+}

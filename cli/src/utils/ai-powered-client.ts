@@ -2,7 +2,8 @@
  * ai-powered-client.ts
  *
  * Single AI integration point for FilmBuff.
- * Communicates with a local ai-powered HTTP gateway via Node built-in fetch.
+ * Communicates with a configured ai-powered gateway via Node built-in fetch.
+ * Remote gateways must use HTTPS; HTTP is restricted to loopback development.
  * No AI vendor SDK is imported anywhere in this file.
  *
  * Implements:
@@ -22,6 +23,8 @@
  * Transport: Node.js built-in `fetch` (requires Node ≥ 18).
  */
 
+import { isIP } from 'node:net';
+
 // ---------------------------------------------------------------------------
 // Types & Interfaces  (bd-gbwj)
 // ---------------------------------------------------------------------------
@@ -35,7 +38,7 @@
  * secret, token, or password.  See spec requirement "No Secrets Stored".
  */
 export interface AIPoweredClientOptions {
-  /** Base URL of the ai-powered gateway. Default: http://localhost:3001 */
+  /** Gateway URL. Remote hosts require HTTPS; loopback HTTP is allowed. */
   url: string;
   /** Model identifier forwarded to the gateway. Default: gpt-4 */
   model: string;
@@ -73,22 +76,116 @@ export interface CompletionResult {
  * attempts are exhausted.
  */
 export class AIPoweredConnectionError extends Error {
-  /** The URL that was contacted during each health-check attempt. */
+  /** Sanitized origin that was contacted during each health-check attempt. */
   readonly attemptedUrl: string;
   /** Total number of attempts made before giving up. */
   readonly attemptCount: number;
 
   constructor(url: string, attemptCount: number) {
+    const safeOrigin = getSafeOrigin(url);
     super(
-      `Cannot reach ai-powered server at ${url} after ${attemptCount} attempt(s). ` +
-        `Verify that ai-powered is running and accessible at ${url}.`,
+      `Cannot reach ai-powered server at ${safeOrigin} after ${attemptCount} attempt(s). ` +
+        `Verify that the configured gateway is running and accessible.`,
     );
     this.name = 'AIPoweredConnectionError';
-    this.attemptedUrl = url;
+    this.attemptedUrl = safeOrigin;
     this.attemptCount = attemptCount;
     // Restore prototype chain for instanceof checks in transpiled output.
     Object.setPrototypeOf(this, AIPoweredConnectionError.prototype);
   }
+}
+
+/** Thrown when an AI gateway URL violates the transport or URL policy. */
+export class AIPoweredEndpointError extends Error {
+  constructor(detail: string) {
+    super(
+      `Remote AI gateways require HTTPS; HTTP is allowed only for loopback development. ${detail}`,
+    );
+    this.name = 'AIPoweredEndpointError';
+    Object.setPrototypeOf(this, AIPoweredEndpointError.prototype);
+  }
+}
+
+/**
+ * Parse and validate an AI gateway endpoint without including the supplied
+ * value in an error. The returned URL is the normalized endpoint used for
+ * health and completion requests.
+ */
+export function parseAIPoweredEndpoint(value: string): URL {
+  if (typeof value !== 'string' || value.length === 0 || value.trim() !== value) {
+    throw new AIPoweredEndpointError(
+      'Provide an absolute URL with an http:// or https:// scheme.',
+    );
+  }
+
+  const authorityMatch = /^https?:\/\/([^/?#]*)/i.exec(value);
+  if (!authorityMatch) {
+    throw new AIPoweredEndpointError(
+      'The URL must be an absolute http:// or https:// URL.',
+    );
+  }
+
+  let endpoint: URL;
+  try {
+    endpoint = new URL(value);
+  } catch {
+    throw new AIPoweredEndpointError('The URL is malformed.');
+  }
+
+  if (endpoint.protocol !== 'https:' && endpoint.protocol !== 'http:') {
+    throw new AIPoweredEndpointError(
+      'The URL must use HTTPS, or HTTP for a loopback development host.',
+    );
+  }
+
+  if (authorityMatch[1].includes('@') || endpoint.username || endpoint.password) {
+    throw new AIPoweredEndpointError('Embedded URL credentials are not permitted.');
+  }
+
+  if (!endpoint.hostname) {
+    throw new AIPoweredEndpointError('The URL must include a hostname.');
+  }
+
+  if (value.includes('#') || endpoint.hash) {
+    throw new AIPoweredEndpointError('The URL must not include a fragment.');
+  }
+
+  if (endpoint.protocol === 'http:' && !isLoopbackHostname(endpoint.hostname)) {
+    throw new AIPoweredEndpointError(
+      'Use HTTPS for any AI gateway that is not a loopback development host.',
+    );
+  }
+
+  return endpoint;
+}
+
+function isLoopbackHostname(hostname: string): boolean {
+  const unbracketed = hostname.startsWith('[') && hostname.endsWith(']')
+    ? hostname.slice(1, -1)
+    : hostname;
+  const normalized = unbracketed.toLowerCase().replace(/\.$/, '');
+
+  if (normalized === 'localhost') return true;
+
+  const ipVersion = isIP(normalized);
+  if (ipVersion === 4) return normalized.split('.')[0] === '127';
+  return ipVersion === 6 && normalized === '::1';
+}
+
+function getSafeOrigin(value: string | URL): string {
+  try {
+    const endpoint = value instanceof URL ? value : new URL(value);
+    return endpoint.origin === 'null' ? 'ai-powered gateway' : endpoint.origin;
+  } catch {
+    return 'ai-powered gateway';
+  }
+}
+
+function buildRequestUrl(endpoint: URL, route: 'health' | 'v1/chat/completions'): string {
+  const requestUrl = new URL(endpoint.toString());
+  const basePath = requestUrl.pathname.replace(/\/+$/, '');
+  requestUrl.pathname = `${basePath}/${route}`;
+  return requestUrl.toString();
 }
 
 /**
@@ -164,11 +261,13 @@ const HEALTH_CHECK_DELAYS = [0, 1_000, 2_000] as const;
  */
 export class AIPoweredClient {
   private readonly options: Required<AIPoweredClientOptions>;
-  /** Cached health-check result; true once a successful /health response is received. */
-  private _healthy = false;
+  private readonly endpoint: URL;
+  /** Endpoint whose health check most recently succeeded. */
+  private healthyEndpoint: string | undefined;
 
   constructor(options?: Partial<AIPoweredClientOptions>) {
     this.options = { ...AI_POWERED_DEFAULTS, ...options };
+    this.endpoint = parseAIPoweredEndpoint(this.options.url);
   }
 
   // -------------------------------------------------------------------------
@@ -185,11 +284,15 @@ export class AIPoweredClient {
    * @throws AIPoweredConnectionError if all three attempts fail.
    */
   async checkHealth(): Promise<void> {
-    if (this._healthy) return;
+    await this.checkHealthAt(this.endpoint);
+  }
 
-    const { url, timeoutMs } = this.options;
-    const healthUrl = `${url}/health`;
-    let lastError: unknown;
+  private async checkHealthAt(endpoint: URL): Promise<void> {
+    const endpointKey = endpoint.toString();
+    if (this.healthyEndpoint === endpointKey) return;
+
+    const { timeoutMs } = this.options;
+    const healthUrl = buildRequestUrl(endpoint, 'health');
 
     for (let attempt = 0; attempt < HEALTH_CHECK_DELAYS.length; attempt++) {
       const delay = HEALTH_CHECK_DELAYS[attempt];
@@ -197,32 +300,30 @@ export class AIPoweredClient {
         await sleep(delay);
       }
 
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      let response: Response;
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), timeoutMs);
-
-        const response = await fetch(healthUrl, {
+        response = await fetch(healthUrl, {
           method: 'GET',
           signal: controller.signal,
         });
-
+      } catch {
+        // Keep the underlying fetch error private: runtimes may include the
+        // request URL or other sensitive data in its message.
+        continue;
+      } finally {
         clearTimeout(timer);
+      }
 
-        if (response.ok) {
-          this._healthy = true;
-          return;
-        }
-
-        lastError = new Error(
-          `Health check returned HTTP ${response.status} for ${healthUrl}`,
-        );
-      } catch (err: unknown) {
-        lastError = err;
+      if (response.ok) {
+        this.healthyEndpoint = endpointKey;
+        return;
       }
     }
 
     // All attempts exhausted.
-    throw new AIPoweredConnectionError(url, HEALTH_CHECK_DELAYS.length);
+    throw new AIPoweredConnectionError(endpoint.origin, HEALTH_CHECK_DELAYS.length);
   }
 
   // -------------------------------------------------------------------------
@@ -256,9 +357,12 @@ export class AIPoweredClient {
       ...options,
     };
     const { url, model, systemPrompt, temperature, maxTokens, timeoutMs } = resolved;
+    const endpoint = url === this.options.url
+      ? this.endpoint
+      : parseAIPoweredEndpoint(url);
 
     // Ensure the gateway is healthy before sending any completion request.
-    await this.checkHealth();
+    await this.checkHealthAt(endpoint);
 
     // Optional gateway bearer token — read from env, never stored in options.
     const authToken = process.env['AI_POWERED_AUTH_TOKEN'];
@@ -284,31 +388,30 @@ export class AIPoweredClient {
 
     let response: Response;
     try {
-      response = await fetch(`${url}/v1/chat/completions`, {
+      response = await fetch(buildRequestUrl(endpoint, 'v1/chat/completions'), {
         method: 'POST',
         headers,
         body: JSON.stringify(requestBody),
         signal: controller.signal,
       });
     } catch (err: unknown) {
-      clearTimeout(timer);
       if (err instanceof Error && err.name === 'AbortError') {
         throw new Error(
           `Request to ai-powered timed out after ${timeoutMs} ms. ` +
             `Increase the limit with --timeout or run: filmbuff ai set timeoutMs <value>`,
         );
       }
-      throw err;
+      throw new Error(
+        'ai-powered request failed. Verify that the configured gateway is available and retry.',
+      );
+    } finally {
+      clearTimeout(timer);
     }
 
-    clearTimeout(timer);
-
-    // Surface 4xx/5xx as-is — the ai-powered gateway manages upstream retries.
+    // Surface status only. Response bodies and status text can echo sensitive
+    // request details supplied by a gateway.
     if (!response.ok) {
-      const body = await response.text().catch(() => '');
-      throw new Error(
-        `ai-powered returned HTTP ${response.status} ${response.statusText}: ${body}`,
-      );
+      throw new Error(`ai-powered returned HTTP ${response.status}.`);
     }
 
     // Parse response body.
@@ -321,14 +424,12 @@ export class AIPoweredClient {
     }
 
     // Extract choices[0].message.content.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const content = (parsed as any)?.choices?.[0]?.message?.content;
     if (typeof content !== 'string') {
       throw new AIPoweredParseError(rawBody);
     }
 
     // Extract optional metadata.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const responseData = parsed as any;
     const responseModel: unknown = responseData?.model;
     const usage: unknown = responseData?.usage;

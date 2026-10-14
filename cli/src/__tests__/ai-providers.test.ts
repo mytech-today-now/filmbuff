@@ -19,8 +19,6 @@
 // Module-level mocks (hoisted before imports by Jest)
 // ---------------------------------------------------------------------------
 
-/* eslint-disable @typescript-eslint/no-require-imports */
-
 // ai-powered uses a complex package.json `exports` map that Jest's CommonJS
 // resolver can't navigate without ESM support.  The `{ virtual: true }` flag
 // bypasses module-existence validation so the factory is used directly.
@@ -201,29 +199,29 @@ describe('resolveAIClient() — 4-level resolution hierarchy', () => {
   // --- URL (verified via health-check fetch URL) ---
 
   it('url L1: CLI override wins over env + config', async () => {
-    process.env[ENV_URL] = 'http://env-url:3001';
-    mockCfg({ url: 'http://config-url:3001' });
-    const client = resolveAIClient({ url: 'http://cli-url:3001' });
+    process.env[ENV_URL] = 'https://env-url:3001';
+    mockCfg({ url: 'https://config-url:3001' });
+    const client = resolveAIClient({ url: 'https://cli-url:3001' });
     const spy = mockFetchSeq(HEALTH_OK);
     await client.checkHealth();
-    expect(spy.mock.calls[0]?.[0]).toBe('http://cli-url:3001/health');
+    expect(spy.mock.calls[0]?.[0]).toBe('https://cli-url:3001/health');
   });
 
   it('url L2: env var wins over config + default when no CLI override', async () => {
-    process.env[ENV_URL] = 'http://env-url:3001';
-    mockCfg({ url: 'http://config-url:3001' });
+    process.env[ENV_URL] = 'https://env-url:3001';
+    mockCfg({ url: 'https://config-url:3001' });
     const client = resolveAIClient();
     const spy = mockFetchSeq(HEALTH_OK);
     await client.checkHealth();
-    expect(spy.mock.calls[0]?.[0]).toBe('http://env-url:3001/health');
+    expect(spy.mock.calls[0]?.[0]).toBe('https://env-url:3001/health');
   });
 
   it('url L3: config file wins over default when no env or CLI override', async () => {
-    mockCfg({ url: 'http://config-url:3001' });
+    mockCfg({ url: 'https://config-url:3001' });
     const client = resolveAIClient();
     const spy = mockFetchSeq(HEALTH_OK);
     await client.checkHealth();
-    expect(spy.mock.calls[0]?.[0]).toBe('http://config-url:3001/health');
+    expect(spy.mock.calls[0]?.[0]).toBe('https://config-url:3001/health');
   });
 
   it('url L4: built-in default used when nothing else is set', async () => {
@@ -666,8 +664,8 @@ describe('aiSetCommand', () => {
 
   it('valid string key: calls ConfigManager.set and save', async () => {
     const inst = mockCfg({});
-    await aiSetCommand('url', 'http://new-gateway:3001');
-    expect(inst.set).toHaveBeenCalledWith('aiPowered.url', 'http://new-gateway:3001');
+    await aiSetCommand('url', 'https://new-gateway:3001');
+    expect(inst.set).toHaveBeenCalledWith('aiPowered.url', 'https://new-gateway:3001');
     expect(inst.save).toHaveBeenCalled();
   });
 

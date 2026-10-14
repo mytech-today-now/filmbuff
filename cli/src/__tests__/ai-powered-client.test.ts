@@ -22,6 +22,7 @@ import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals
 import {
   AIPoweredClient,
   AIPoweredConnectionError,
+  AIPoweredEndpointError,
   AIPoweredParseError,
   AI_POWERED_DEFAULTS,
   type AIPoweredClientOptions,
@@ -138,6 +139,25 @@ describe('AIPoweredConnectionError', () => {
   it('includes the URL in the message', () => {
     const err = new AIPoweredConnectionError('http://localhost:9999', 3);
     expect(err.message).toContain('http://localhost:9999');
+  });
+
+  it('keeps userinfo, paths, and query values out of connection errors', () => {
+    const err = new AIPoweredConnectionError(
+      'https://synthetic-user:synthetic-password@gateway.example/private?api_key=synthetic-query',
+      3,
+    );
+
+    expect(err.attemptedUrl).toBe('https://gateway.example');
+    expect(err.message).toContain('https://gateway.example');
+    for (const secret of [
+      'synthetic-user',
+      'synthetic-password',
+      '/private',
+      'synthetic-query',
+    ]) {
+      expect(err.message).not.toContain(secret);
+      expect(err.attemptedUrl).not.toContain(secret);
+    }
   });
 });
 
@@ -336,6 +356,178 @@ describe('AIPoweredClient – CompletionResult optional fields', () => {
     const client = new AIPoweredClient();
     const result = await client.complete('Prompt.');
     expect(result.model).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Gateway URL transport and diagnostic security
+// ---------------------------------------------------------------------------
+
+describe('AIPoweredClient – gateway endpoint security', () => {
+  const originalAuthToken = process.env['AI_POWERED_AUTH_TOKEN'];
+
+  beforeEach(() => {
+    if (originalAuthToken === undefined) {
+      delete process.env['AI_POWERED_AUTH_TOKEN'];
+    } else {
+      process.env['AI_POWERED_AUTH_TOKEN'] = originalAuthToken;
+    }
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    if (originalAuthToken === undefined) {
+      delete process.env['AI_POWERED_AUTH_TOKEN'];
+    } else {
+      process.env['AI_POWERED_AUTH_TOKEN'] = originalAuthToken;
+    }
+  });
+
+  it('rejects remote HTTP before health or completion fetch', async () => {
+    const fetchSpy = mockFetch([OK_HEALTH, OK_COMPLETION]);
+
+    expect(() => new AIPoweredClient({ url: 'http://gateway.example:3001' }))
+      .toThrow(AIPoweredEndpointError);
+
+    const client = new AIPoweredClient();
+    await expect(
+      client.complete('synthetic prompt', { url: 'http://gateway.example:3001' }),
+    ).rejects.toBeInstanceOf(AIPoweredEndpointError);
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'http://localhost:3001',
+    'http://127.0.0.2:3001',
+    'http://127.255.4.8:3001',
+    'http://[::1]:3001',
+  ])('allows loopback HTTP endpoint %s', async (url) => {
+    const fetchSpy = mockFetch([OK_HEALTH]);
+    const client = new AIPoweredClient({ url });
+
+    await expect(client.checkHealth()).resolves.toBeUndefined();
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(`${url}/health`);
+  });
+
+  it.each([
+    'http://localhost.attacker.test:3001',
+    'http://127.0.0.1.attacker.test:3001',
+    'ftp://gateway.example',
+    'http:gateway.example',
+    'not-a-url',
+    'https://synthetic-user:synthetic-password@gateway.example?api_key=synthetic-query',
+    'https://@gateway.example',
+  ])('rejects unsafe or malformed endpoint %s without exposing its value', (url) => {
+    const fetchSpy = mockFetch([OK_HEALTH]);
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    let caught: unknown;
+
+    try {
+      new AIPoweredClient({ url });
+    } catch (error: unknown) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(AIPoweredEndpointError);
+    expect((caught as Error).message).toContain('Remote AI gateways require HTTPS');
+    expect((caught as Error).message).not.toContain('synthetic-user');
+    expect((caught as Error).message).not.toContain('synthetic-password');
+    expect((caught as Error).message).not.toContain('synthetic-query');
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(logSpy).not.toHaveBeenCalled();
+  });
+
+  it('sends remote HTTPS completion with the bearer token and prompt to the parsed origin', async () => {
+    process.env['AI_POWERED_AUTH_TOKEN'] = 'synthetic-bearer-token';
+    const prompt = 'synthetic creative prompt';
+    const fetchSpy = mockFetch([OK_HEALTH, OK_COMPLETION]);
+    const client = new AIPoweredClient({
+      url: 'https://gateway.example/api?api_key=synthetic-query-secret',
+    });
+
+    await client.complete(prompt);
+
+    expect(fetchSpy.mock.calls[0]?.[0])
+      .toBe('https://gateway.example/api/health?api_key=synthetic-query-secret');
+    const [completionUrl, init] = fetchSpy.mock.calls[1] ?? [];
+    expect(completionUrl)
+      .toBe('https://gateway.example/api/v1/chat/completions?api_key=synthetic-query-secret');
+    expect((init as RequestInit).headers).toMatchObject({
+      Authorization: 'Bearer synthetic-bearer-token',
+    });
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body.messages[1].content).toBe(prompt);
+  });
+
+  it('wraps unexpected fetch failures without leaking request secrets and clears timers', async () => {
+    const token = 'synthetic-bearer-token';
+    const prompt = 'synthetic creative prompt';
+    const querySecret = 'synthetic-query-secret';
+    process.env['AI_POWERED_AUTH_TOKEN'] = token;
+    const fetchSpy = jest.spyOn(global, 'fetch')
+      .mockImplementationOnce(async () => ({
+        ok: true,
+        status: 200,
+        text: async () => 'ok',
+      }) as unknown as Response)
+      .mockImplementationOnce(async () => {
+        throw new Error(
+          `fetch failed https://user:password@gateway.example?token=${querySecret} ${token} ${prompt}`,
+        );
+      });
+    const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+    const client = new AIPoweredClient({
+      url: `https://gateway.example/api?api_key=${querySecret}`,
+    });
+    let caught: unknown;
+
+    try {
+      await client.complete(prompt);
+    } catch (error: unknown) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(Error);
+    expect((caught as Error).message).toBe(
+      'ai-powered request failed. Verify that the configured gateway is available and retry.',
+    );
+    for (const secret of [token, prompt, querySecret, 'user:password']) {
+      expect((caught as Error).message).not.toContain(secret);
+    }
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(clearTimeoutSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not expose secrets echoed in an HTTP error response', async () => {
+    const token = 'synthetic-bearer-token';
+    const prompt = 'synthetic creative prompt';
+    const fetchSpy = mockFetch([
+      OK_HEALTH,
+      {
+        ok: false,
+        status: 502,
+        statusText: `${token} ${prompt}`,
+        body: `${token} ${prompt}`,
+      },
+    ]);
+    const client = new AIPoweredClient({ url: 'https://gateway.example' });
+    let caught: unknown;
+
+    try {
+      await client.complete(prompt);
+    } catch (error: unknown) {
+      caught = error;
+    }
+
+    expect((caught as Error).message).toBe('ai-powered returned HTTP 502.');
+    expect((caught as Error).message).not.toContain(token);
+    expect((caught as Error).message).not.toContain(prompt);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });
 

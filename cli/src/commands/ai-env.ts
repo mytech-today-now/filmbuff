@@ -4,7 +4,8 @@
  * `filmbuff ai env` — show AI-related environment variables and their sources.
  *
  * For each recognised AI variable, reports:
- *   • Its current value (API keys are masked: first 8 chars + "…" + last 4)
+ *   • Its current value (API keys are masked; prompts are hidden and
+ *     AI_POWERED_URL shows origin only)
  *   • Its source: [from .env] | [from shell] | (nothing if not set)
  *
  * Variables inspected:
@@ -70,6 +71,15 @@ function maskValue(val: string): string {
   return val.slice(0, 8) + '…' + val.slice(-4);
 }
 
+function summarizeEndpoint(value: string): string {
+  try {
+    const endpoint = new URL(value);
+    return endpoint.origin === 'null' ? '[configured endpoint]' : endpoint.origin;
+  } catch {
+    return '[configured endpoint]';
+  }
+}
+
 function sourceTag(varName: string, fromDotEnv: Set<string>): string {
   return fromDotEnv.has(varName)
     ? chalk.yellow('[from .env]')
@@ -104,7 +114,11 @@ export async function aiEnvCommand(): Promise<void> {
     if (!raw) continue;
     anySet = true;
 
-    const displayed = sensitive ? maskValue(raw) : raw;
+    const displayed = name === 'AI_POWERED_URL'
+      ? summarizeEndpoint(raw)
+      : name === 'AI_SYSTEM_PROMPT'
+        ? '[prompt content hidden]'
+        : sensitive ? maskValue(raw) : raw;
     const lbl = (label + ':').padEnd(LABEL_W);
     const val = displayed.length > VALUE_W - 2
       ? displayed.slice(0, VALUE_W - 3) + '…'

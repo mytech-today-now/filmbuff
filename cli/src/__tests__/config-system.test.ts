@@ -12,6 +12,9 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { ConfigManager, DEFAULT_CONFIG } from '../utils/config-system';
+import { resolveAIClient } from '../utils/runtime-resolver';
+import { aiSetCommand } from '../commands/ai-set';
+import { aiEnvCommand } from '../commands/ai-env';
 
 function makeTempDir(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'filmbuff-config-system-'));
@@ -170,6 +173,44 @@ describe('ConfigManager — Phase 7 aiPowered schema (bd-e8ad)', () => {
     expect(result.errors).toContain('aiPowered.plugins must be an array');
   });
 
+  it.each([
+    'https://gateway.example',
+    'https://gateway.example/v1?api_key=synthetic-query',
+    'http://localhost:3001',
+    'http://127.0.0.2:3001',
+    'http://[::1]:3001',
+  ])('ConfigManager.validate accepts secure endpoint %s', (url) => {
+    const manager = new ConfigManager();
+    const result = manager.validate({
+      ...DEFAULT_CONFIG,
+      aiPowered: { ...DEFAULT_CONFIG.aiPowered, url },
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it.each([
+    'http://gateway.example',
+    'http://localhost.attacker.test:3001',
+    'ftp://gateway.example',
+    'https:gateway.example',
+    'not-a-url',
+    'https://synthetic-user:synthetic-password@gateway.example?api_key=synthetic-query',
+  ])('ConfigManager.validate rejects unsafe endpoint %s without echoing it', (url) => {
+    const manager = new ConfigManager();
+    const result = manager.validate({
+      ...DEFAULT_CONFIG,
+      aiPowered: { ...DEFAULT_CONFIG.aiPowered, url },
+    });
+    const diagnostics = result.errors.join('\n');
+
+    expect(result.valid).toBe(false);
+    expect(diagnostics).toContain('Remote AI gateways require HTTPS');
+    for (const secret of ['synthetic-user', 'synthetic-password', 'synthetic-query']) {
+      expect(diagnostics).not.toContain(secret);
+    }
+  });
+
   it('deprecated ai.provider triggers no schema validation error', () => {
     // The schema marks ai.provider as deprecated but valid — presence alone
     // must not fail validation; only a runtime stderr warning is emitted.
@@ -181,5 +222,124 @@ describe('ConfigManager — Phase 7 aiPowered schema (bd-e8ad)', () => {
     expect(result.valid).toBe(true);
     expect(result.errors).toEqual([]);
     expect(result.warnings.some((warning) => warning.includes('ai.provider'))).toBe(true);
+  });
+});
+
+describe('AI gateway URL resolution and CLI output baseline', () => {
+  const originalCwd = process.cwd();
+  const originalAIUrl = process.env['AI_POWERED_URL'];
+  const originalSystemPrompt = process.env['AI_SYSTEM_PROMPT'];
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeTempDir();
+    process.chdir(tmpDir);
+    delete process.env['AI_POWERED_URL'];
+    delete process.env['AI_SYSTEM_PROMPT'];
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    process.chdir(originalCwd);
+    if (originalAIUrl === undefined) {
+      delete process.env['AI_POWERED_URL'];
+    } else {
+      process.env['AI_POWERED_URL'] = originalAIUrl;
+    }
+    if (originalSystemPrompt === undefined) {
+      delete process.env['AI_SYSTEM_PROMPT'];
+    } else {
+      process.env['AI_SYSTEM_PROMPT'] = originalSystemPrompt;
+    }
+    removeTempDir(tmpDir);
+  });
+
+  function writeConfigUrl(url: string): void {
+    const configDirectory = path.join(process.cwd(), '.augment');
+    fs.mkdirSync(configDirectory, { recursive: true });
+    fs.writeFileSync(
+      path.join(configDirectory, 'augment.json'),
+      JSON.stringify({
+        ...DEFAULT_CONFIG,
+        aiPowered: { ...DEFAULT_CONFIG.aiPowered, url },
+      }),
+    );
+  }
+
+  async function expectHealthRequestAt(url: string, overrides?: { url: string }): Promise<void> {
+    const fetchSpy = jest.spyOn(global, 'fetch').mockImplementation(async () => ({
+      ok: true,
+      status: 200,
+      text: async () => 'ok',
+    }) as unknown as Response);
+
+    await resolveAIClient(overrides).checkHealth();
+
+    expect(fetchSpy.mock.calls[0]?.[0]).toBe(`${url}/health`);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  }
+
+  it('keeps CLI overrides above environment and config URLs', async () => {
+    writeConfigUrl('https://config.example');
+    process.env['AI_POWERED_URL'] = 'https://env.example';
+
+    await expectHealthRequestAt('https://cli.example', { url: 'https://cli.example' });
+  });
+
+  it('keeps environment URLs above config URLs', async () => {
+    writeConfigUrl('https://config.example');
+    process.env['AI_POWERED_URL'] = 'https://env.example';
+
+    await expectHealthRequestAt('https://env.example');
+  });
+
+  it('uses config URLs when no environment or CLI override is set', async () => {
+    writeConfigUrl('https://config.example');
+
+    await expectHealthRequestAt('https://config.example');
+  });
+
+  it('uses the built-in loopback URL when no override or config is present', async () => {
+    await expectHealthRequestAt('http://localhost:3001');
+  });
+
+  it('does not print URL query values when setting an endpoint', async () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const querySecret = 'synthetic-query-secret';
+    const promptSecret = 'synthetic-system-prompt-secret';
+
+    await aiSetCommand('url', `https://gateway.example/v1?api_key=${querySecret}`);
+    await aiSetCommand('systemPrompt', promptSecret);
+
+    const output = logSpy.mock.calls.flat().join(' ');
+    expect(output).toContain('[configured endpoint]');
+    expect(output).toContain('[prompt content hidden]');
+    expect(output).not.toContain(querySecret);
+    expect(output).not.toContain('api_key=');
+    expect(output).not.toContain(promptSecret);
+  });
+
+  it('summarizes AI_POWERED_URL in environment output without userinfo or query values', async () => {
+    const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+    const querySecret = 'synthetic-query-secret';
+    const promptSecret = 'synthetic-system-prompt-secret';
+    process.env['AI_POWERED_URL'] =
+      `https://synthetic-user:synthetic-password@gateway.example/private?api_key=${querySecret}`;
+    process.env['AI_SYSTEM_PROMPT'] = promptSecret;
+
+    await aiEnvCommand();
+
+    const output = logSpy.mock.calls.flat().join(' ');
+    expect(output).toContain('https://gateway.example');
+    for (const secret of [
+      'synthetic-user',
+      'synthetic-password',
+      querySecret,
+      '/private',
+      promptSecret,
+    ]) {
+      expect(output).not.toContain(secret);
+    }
+    expect(output).toContain('[prompt content hidden]');
   });
 });

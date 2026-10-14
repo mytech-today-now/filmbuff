@@ -5,7 +5,7 @@
  * `aiPowered` block in .augment/augment.json.
  *
  * Valid keys and their types:
- *   url          string  — gateway base URL
+ *   url          string  — HTTPS gateway URL or loopback HTTP development URL
  *   model        string  — model identifier
  *   systemPrompt string  — system prompt injected into every completion
  *   temperature  number  — sampling temperature (0–2, parseFloat)
@@ -16,7 +16,9 @@
  *   CLI overrides > env vars > config file (THIS) > built-in defaults
  *
  * Gate (bd-6fw8): `filmbuff ai set url http://localhost:3001` writes the
- * value and prints a confirmation; invalid key → exit 1 with usage hint;
+ * local development URL and prints a redacted confirmation; remote HTTP URLs
+ * are rejected by configuration validation.
+ * Invalid key → exit 1 with usage hint;
  * npx tsc --noEmit clean.
  *
  * Spec: openspec/changes/ai-powered-not-local/specs/cli-surface/spec.md
@@ -126,9 +128,16 @@ export async function aiSetCommand(key: string, rawValue: string): Promise<void>
   manager.save();
 
   // Confirmation line — mirrors the display format of `filmbuff ai status`.
-  const valueDisplay = typeof coerced === 'string' && coerced.length > 50
-    ? coerced.slice(0, 47) + '…'
-    : String(coerced);
+  let valueDisplay: string;
+  if (key === 'url') {
+    valueDisplay = '[configured endpoint]';
+  } else if (key === 'systemPrompt') {
+    valueDisplay = '[prompt content hidden]';
+  } else if (typeof coerced === 'string' && coerced.length > 50) {
+    valueDisplay = coerced.slice(0, 47) + '…';
+  } else {
+    valueDisplay = String(coerced);
+  }
 
   console.log(
     `${chalk.green('✓')} aiPowered.${chalk.white(key)} ` +
