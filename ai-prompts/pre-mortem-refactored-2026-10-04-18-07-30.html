@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en" data-report-style="basic" data-color-mode="system">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FilmBuff pre-mortem comparison, 2026-10-04-18-07-30</title>
+  <meta name="author" content="Kyle Rode, myTech.Today">
+  <meta name="generator" content="myTech.Today prompt-refined report workflow">
+  <meta name="report-repository" content="FilmBuff">
+  <meta name="report-repository-url" content="https://github.com/mytech-today-now/filmbuff">
+  <meta name="report-repository-author" content="Augment Extensions">
+  <link rel="stylesheet" href="https://raw.githubusercontent.com/mytech-today-now/prompt-refined/refs/heads/main/css/style.css">
+  <script src="https://raw.githubusercontent.com/mytech-today-now/prompt-refined/refs/heads/main/js/code.js" defer></script>
+</head>
+<body>
+  <header class="report-header">
+    <p class="eyebrow">Repository comparison report</p>
+    <h1 class="report-title">FilmBuff pre-mortem comparison</h1>
+    <p>Generated 2026-10-04-18-07-30 local time. This report compares the supplied September 10 source report with the current working tree.</p>
+    <section class="report-meta" aria-label="Report and repository metadata">
+      <dl>
+        <div><dt>Reviewed repository</dt><dd>FilmBuff, <a href="https://github.com/mytech-today-now/filmbuff">github.com/mytech-today-now/filmbuff</a></dd></div>
+        <div><dt>Branch and revision</dt><dd>main at 68f3ccc</dd></div>
+        <div><dt>Working tree at inspection</dt><dd>Clean before this report was written</dd></div>
+        <div><dt>Package identity</dt><dd>@mytechtoday/filmbuff 2.5.6, package author field: Augment Extensions</dd></div>
+        <div><dt>Repository owner</dt><dd>mytech-today-now, from the origin remote. This is separate from the package author attribution.</dd></div>
+        <div><dt>Report author</dt><dd>Kyle Rode using myTech.Today's prompt-refined report workflow</dd></div>
+        <div><dt>Generated</dt><dd>2026-10-04-18-07-30, America/Chicago local time</dd></div>
+      </dl>
+    </section>
+    <section class="report-attribution" aria-labelledby="attribution-title">
+      <h2 id="attribution-title">Attribution</h2>
+      <p><strong>Reviewed project author evidence:</strong> the root package.json author field identifies Augment Extensions. The Git remote identifies repository owner mytech-today-now. A separate maintainer name is not stated in the inspected metadata. Recent commit authorship was not used as proof of project authorship.</p>
+      <p><strong>Report author:</strong> Kyle Rode, using myTech.Today's prompt-refined workflow.</p>
+    </section>
+    <section class="company-profile" aria-labelledby="company-profile-title">
+      <h2 id="company-profile-title">myTech.Today</h2>
+      <p>myTech.Today is a Midwestern technology company.</p>
+      <ul>
+        <li>Managed IT and remote support</li>
+        <li>Computer and network support</li>
+        <li>Backup and recovery</li>
+        <li>Web development and software services</li>
+      </ul>
+      <p><a href="https://mytech.today">mytech.today</a> | <a href="mailto:support@mytech.today">support@mytech.today</a></p>
+    </section>
+    <fieldset class="report-preferences" data-report-preferences disabled aria-describedby="report-preferences-status">
+      <legend>Appearance</legend>
+      <label for="report-style">Report style</label>
+      <select id="report-style" data-report-style-control disabled>
+        <option value="basic" selected>Basic</option>
+        <option value="minimal">Minimal</option>
+        <option value="full">Full &amp; complete style</option>
+      </select>
+      <label for="color-mode">Color mode</label>
+      <select id="color-mode" data-color-mode-control disabled>
+        <option value="system" selected>System</option>
+        <option value="light">Light</option>
+        <option value="dark">Dark</option>
+      </select>
+      <p class="preferences-status" id="report-preferences-status" data-preferences-status role="status" aria-live="polite">JavaScript has not initialized appearance controls. If this message remains, check that the shared script loaded and completed initialization.</p>
+    </fieldset>
+    <p class="issue-progress-storage-status" id="issue-progress-status" data-issue-progress-status role="status" aria-live="polite">JavaScript has not initialized issue progress controls. If this message remains, check that the shared script loaded and completed initialization.</p>
+    <noscript><p>This report uses Basic styling and follows your system color preference. Copy and issue progress controls require JavaScript; report text remains available and selectable without it.</p></noscript>
+  </header>
+  <main class="report-main">
+    <section class="report-summary" aria-labelledby="summary-title">
+      <h2 id="summary-title">Executive summary</h2>
+      <p>The September 10 source report listed 16 implementation findings. Current code evidence supports completion of 15. Source issue 14 is improved but retains a crash recovery window. This review also found a failing existing status-file test and a separate silent title-card omission path.</p>
+      <p><strong>Current actionable findings: 3.</strong> One targeted test command ran 100 assertions across nine files: 99 passed and one failed. The failure is an outdated string-path assertion against the current structured rename outcome. Compile and reject/reopen command-level tests were not found or run.</p>
+      <p>The surrounding request directs generation regardless of issue count. The cited review instructions normally require 20 articles and say to stop rather than pad unsupported findings. This report follows the user's explicit instruction and reports the three evidence-backed active findings without manufacturing a 20-item quota.</p>
+      <section class="completed-source-issues" aria-labelledby="completed-source-title">
+        <h3 id="completed-source-title">Completed source issues</h3>
+        <p>Fifteen source findings are supported as complete by current implementation evidence. Four compile fixes and the missing-clip messaging were verified by source tracing because no direct compile or reject/reopen command test was found. The focused Vitest run covered the other items; all selected test files passed except the separate status-file-manager test recorded below.</p>
+        <div class="risk-table-wrap" role="region" aria-label="Completed source issue evidence" tabindex="0">
+          <table class="risk-table">
+            <thead><tr><th scope="col">Source ID</th><th scope="col">Prior finding</th><th scope="col">Current implementation evidence</th><th scope="col">Verification and limitation</th></tr></thead>
+            <tbody><tr class="completed-row"><th scope="row">Source 01</th><td>Compile viewer points at the wrong clip path</td><td>The viewer source path is produced by packagedClipPath() as clips/&lt;basename&gt;, and the ZIP uses the same helper when adding each clip. Evidence: cli/src/commands/video/compile.ts:104, 231, 278.</td><td>Static source trace; no focused compile test exists in tests/ and none was run.</td></tr>
+<tr class="completed-row"><th scope="row">Source 02</th><td>Compile viewer writes unsanitized HTML</td><td>escapeHtml() encodes ampersands, angle brackets, quotes, and apostrophes; buildIndexHtml() applies it to shotId, scene, and clipFile. Evidence: cli/src/commands/video/compile.ts:82-93, 109-117.</td><td>Static source trace; no focused compile test exists in tests/ and none was run.</td></tr>
+<tr class="completed-row"><th scope="row">Source 03</th><td>Title-card ffmpeg command is shell-interpreted</td><td>The helper uses child_process.execFile with shell:false; scene text is written to a text file and drawtext disables text expansion. Evidence: cli/src/commands/video/compile.ts:54-78, 197-218.</td><td>Static source trace; no focused compile test exists in tests/ and none was run.</td></tr>
+<tr class="completed-row"><th scope="row">Source 04</th><td>Concat list paths are not escaped</td><td>quoteConcatPath() applies ffmpeg concat quoting and escapes apostrophes, and formatConcatEntry() is used for title and clip entries. Evidence: cli/src/commands/video/compile.ts:96-101, 207-235.</td><td>Static source trace; no focused compile test exists in tests/ and none was run.</td></tr>
+<tr class="completed-row"><th scope="row">Source 05</th><td>Project-agnostic validation misses source files</td><td>validateProjectAgnostic() scans .ts, .tsx, .mts, and .cts as well as authored Markdown and JSON. Evidence: cli/src/utils/module-system.ts:1231-1291; tests/unit/config/validation.test.ts:440-461.</td><td>Included in the targeted Vitest run; its test file passed.</td></tr>
+<tr class="completed-row"><th scope="row">Source 06</th><td>Malformed completed.jsonl causes false negatives</td><td>Single-record lookups use strict scanning and throw CompletedHistoryCorruptionError on malformed input. Evidence: cli/src/utils/beadsCompletedChecker.ts:169-240; tests/unit/utils/beads-completed-checker.test.ts:152-193.</td><td>Included in the targeted Vitest run; its test file passed.</td></tr>
+<tr class="completed-row"><th scope="row">Source 07</th><td>Completed task lists silently truncate on bad JSON</td><td>The history API exposes a corruption signal, getAllCompletedTasks() throws on corruption, and showCompleted prints a warning while retaining valid records. Evidence: cli/src/utils/beadsCompletedChecker.ts:249-280; cli/src/commands/showCompleted.ts:184-207.</td><td>Included in the targeted Vitest run; its test file passed.</td></tr>
+<tr class="completed-row"><th scope="row">Source 08</th><td>Date filters accept invalid or timezone-shifted input</td><td>parseCompletedDateRange() validates input and normalizes bare dates to UTC day boundaries; filterTasksByDateRange() uses it. Evidence: cli/src/utils/beadsCompletedChecker.ts:90-164, 283-288; tests/unit/utils/beads-completed-checker.test.ts:200-267.</td><td>Included in the targeted Vitest run; its test file passed.</td></tr>
+<tr class="completed-row"><th scope="row">Source 09</th><td>Hyphenated subcommands are omitted from help</td><td>The parser now accepts hyphenated names in command sections and usage forms. Evidence: cli/src/utils/extractCommandHelp.ts:46-49, 113-126; tests/unit/utils/extractCommandHelp.test.ts:114-156.</td><td>Included in the targeted Vitest run; its test file passed.</td></tr>
+<tr class="completed-row"><th scope="row">Source 10</th><td>Update skips legacy linked modules</td><td>updateCommand() resolves the requested module to a canonical name and resolveLinkedModule() maps legacy entries before matching and rewriting config. Evidence: cli/src/commands/update.ts:60-79, 246-257; tests/unit/commands/update.test.ts:204-265.</td><td>Included in the targeted Vitest run; its test file passed.</td></tr>
+<tr class="completed-row"><th scope="row">Source 11</th><td>Pin preserves alias names instead of normalizing</td><td>pinCommand() rewrites string and object alias entries to module.fullName. Evidence: cli/src/commands/pin.ts:70-116; tests/integration/cli/pin-command.test.ts:190-250.</td><td>Included in the targeted Vitest run; its test file passed.</td></tr>
+<tr class="completed-row"><th scope="row">Source 12</th><td>Upgrade only rewrites exact canonical names</td><td>upgradeCommand() resolves configured aliases before selecting the config entry and writes the canonical module name. Evidence: cli/src/commands/upgrade.ts:152-162, 222-231; tests/unit/commands/upgrade.test.ts:191-223.</td><td>Included in the targeted Vitest run; its test file passed.</td></tr>
+<tr class="completed-row"><th scope="row">Source 13</th><td>Reject and reopen report archive success on missing clips</td><td>Both commands branch on the structured rename outcome and explicitly report missing source files instead of claiming an archive occurred. Evidence: cli/src/commands/video/reject.ts:74-107; cli/src/commands/video/reopen.ts:84-117.</td><td>Static source trace; no reject/reopen command test was found or run.</td></tr>
+<tr class="completed-row"><th scope="row">Source 15</th><td>VS Code helper shells out with a concatenated command string</td><td>The editor helper now passes argv directly to execFileSync(&#39;code&#39;, args). Evidence: cli/src/utils/vscode-editor.ts:57-78; tests/unit/utils/vscode-editor.test.ts:60-103.</td><td>Included in the targeted Vitest run; its test file passed.</td></tr>
+<tr class="completed-row"><th scope="row">Source 16</th><td>Version info JSON emits the requested alias instead of the canonical id</td><td>The JSON response uses module.fullName. Evidence: cli/src/commands/version-info.ts:60-74; tests/unit/commands/version-info.test.ts:143-195.</td><td>Included in the targeted Vitest run; its test file passed.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+    <section class="scope-notes" aria-labelledby="scope-title">
+      <h2 id="scope-title">Review scope and methodology</h2>
+      <p><strong>Source:</strong> ./ai-prompts/pre-mortem-2026-09-10-18-27-25.html, confirmed readable at 70,360 bytes with 16 article identifiers. The input path was used as supplied; no other prior report was substituted.</p>
+      <p><strong>Repository:</strong> FilmBuff is a Node.js and TypeScript package centered on a command-line application in cli/. The root package is @mytechtoday/filmbuff version 2.5.6, with package-lock.json, a TypeScript build, Vitest unit and integration lanes, and Jest compatibility tests. Relevant persistence includes JSONL completed-task and video-status records, .augment/extensions.json, and SQL migration files. This review is focused on the CLI workflows named in the source report, not a full audit of every provider, GUI, or screenplay module.</p>
+      <p><strong>Instructions:</strong> Root AGENTS.md was supplied in the request, and cli/AGENTS.md was read. The checkout does not contain pre-mortem-with-prompts.md, so its canonical copy was read from the prompt-refined repository. The supplied dated source report was inspected as the primary content and visual reference; other dated report filenames were enumerated.</p>
+      <p><strong>Current-state rule:</strong> The working tree was clean before analysis. Source report statuses were treated as historical claims. Each item was checked against current source, tests, and the relevant OpenSpec lifecycle documents.</p>
+      <p><strong>Input resolution:</strong> The source report itself contains 16 named findings, and the wrapper instructions prescribe a 20-article output. The user's final instruction explicitly says to create the report regardless of the issue total or an arbitrary standard. Three current active findings are therefore reported; the remaining 15 source findings appear in the completed table. No generic findings were added to fill the quota.</p>
+      <p><strong>Limitations:</strong> The targeted tests did not exercise video compile rendering or reject/reopen command-level recovery. No full test suite, build, deployment, or browser test was run. The HTTP fetches for the exact shared CSS and JavaScript assets returned 200; browser execution and interactive behavior remain unverified.</p>
+    </section>
+    <nav class="issue-toc" aria-label="Table of contents">
+      <h2>Current issue contents</h2>
+      <a class="issue-toc-link" href="#issue-01"><span class="issue-toc-title">Issue 01: Status-file-manager test still expects a string path</span><span class="issue-toc-status" data-issue-progress-indicator="issue-01" data-progress="incomplete">Incomplete</span></a>
+<a class="issue-toc-link" href="#issue-02"><span class="issue-toc-title">Issue 02: Reject and reopen still have a crash recovery window</span><span class="issue-toc-status" data-issue-progress-indicator="issue-02" data-progress="incomplete">Incomplete</span></a>
+<a class="issue-toc-link" href="#issue-03"><span class="issue-toc-title">Issue 03: Requested title-card failures are silently omitted</span><span class="issue-toc-status" data-issue-progress-indicator="issue-03" data-progress="incomplete">Incomplete</span></a>
+    </nav>
+    <section class="risk-register" aria-labelledby="risk-register-title">
+      <h2 id="risk-register-title">Risk register</h2>
+      <div class="risk-table-wrap" role="region" aria-label="Risk register" tabindex="0">
+        <table class="risk-table">
+          <thead><tr><th scope="col">ID</th><th scope="col">Current finding</th><th scope="col">Kind</th><th scope="col">Priority</th><th scope="col">Severity</th><th scope="col">Likelihood</th><th scope="col">Impacted area</th></tr></thead>
+          <tbody><tr class="risk-row"><th scope="row"><a href="#issue-01">Issue 01</a></th><td>Status-file-manager test still expects a string path</td><td>Core</td><td>P1</td><td>Severity 2 (High)</td><td>Almost certain</td><td>Automated validation and video lifecycle reliability</td></tr>
+<tr class="risk-row"><th scope="row"><a href="#issue-02">Issue 02</a></th><td>Reject and reopen still have a crash recovery window</td><td>Additional</td><td>P2</td><td>Severity 2 (High)</td><td>Rare</td><td>Video lifecycle data integrity and recovery</td></tr>
+<tr class="risk-row"><th scope="row"><a href="#issue-03">Issue 03</a></th><td>Requested title-card failures are silently omitted</td><td>Additional</td><td>P3</td><td>Severity 3 (Medium)</td><td>Possible</td><td>Video compile correctness and user feedback</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+    <section class="issue-list" aria-labelledby="issue-list-title">
+      <h2 id="issue-list-title">Actionable current findings</h2>
+      <article class="issue" id="issue-01" data-issue-kind="core" data-progress="incomplete">
+  <header class="issue-header">
+    <p class="issue-number">Issue 01 of 3</p>
+    <h3 class="issue-title">Status-file-manager test still expects a string path</h3>
+    <p class="issue-kind">Core</p>
+  </header>
+  <dl class="issue-fields">
+    <div><dt>Title</dt><dd>Status-file-manager test still expects a string path</dd></div>
+    <div><dt>Kind</dt><dd>Core</dd></div>
+    <div><dt>Priority</dt><dd><span class="priority-label" data-priority="p1">P1</span></dd></div>
+    <div><dt>Severity</dt><dd><span class="severity-label" data-severity="2">Severity 2 (High)</span></dd></div>
+    <div><dt>Likelihood</dt><dd>Almost certain</dd></div>
+    <div><dt>Impacted area</dt><dd>Automated validation and video lifecycle reliability</dd></div>
+  </dl>
+  <section class="issue-detail"><h4>Failure mode</h4><p>The existing unit test treats renameClipForRetry() as returning a destination string. The current implementation returns a structured RenameClipForRetryOutcome, so the targeted test suite fails before it can validate the move.</p></section>
+  <section class="issue-detail"><h4>Evidence or rationale</h4><p>Observed failure: node scripts/run-vitest.js run with the nine selected files completed with 8 files passed, 1 file failed, 99 tests passed, and 1 test failed. The failing test is tests/unit/lib/status-file-manager.test.ts:173-182. Its expect(dest).toMatch(...) and fs.stat(dest) calls receive the outcome object. cli/src/lib/status-file-manager.ts:300-337 defines the structured return and returns { kind: &#39;moved&#39;, sourcePath, destinationPath }. The production callers in cli/src/commands/video/reject.ts:74-119 and cli/src/commands/video/reopen.ts:84-128 consume the structured fields.</p></section>
+  <section class="issue-detail"><h4>Why this matters</h4><p>The test lane remains red on the status-file-manager contract. A red test suite blocks reliable validation of clip archival and makes later regressions harder to separate from the stale expectation.</p></section>
+  <section class="issue-detail"><h4>Recommended mitigation</h4><p>Update the test to assert the discriminated outcome and use destinationPath for filesystem checks. Preserve the structured production contract used by reject and reopen unless the documented API contract proves that contract itself is wrong. Add assertions for moved, missing, and failed outcomes without weakening the preservation check.</p></section>
+  <section class="issue-detail"><h4>Implementation prompt</h4>
+    <pre class="implementation-prompt" data-copy-target><code>Work in the current FilmBuff repository and resolve the project root yourself. Inspect AGENTS.md, cli/AGENTS.md, cli/src/lib/status-file-manager.ts, cli/src/commands/video/reject.ts, cli/src/commands/video/reopen.ts, and tests/unit/lib/status-file-manager.test.ts first. The current function returns a RenameClipForRetryOutcome object, while the existing test at lines 173-182 matches the returned value as a string and passes it directly to fs.stat(). A focused Vitest run reproduced the mismatch: the test fails because toMatch() received an object.
+
+Correct the test contract with the smallest change. Assert kind === &#39;moved&#39;, inspect destinationPath, verify the source path is absent, and verify the archived destination exists. Keep the production structured result because the reject and reopen commands inspect kind, sourcePath, destinationPath, and error. Do not change the production API solely to satisfy a stale test, weaken the archive preservation assertion, or refactor unrelated lifecycle code.
+
+Add focused coverage for missing-source and filesystem-failure outcomes using the existing test setup and cleanup conventions. Expected missing-file behavior must return kind === &#39;missing&#39;; unexpected filesystem errors must return kind === &#39;failed&#39; with an error and must not create a false success. Keep temporary files isolated and remove them in test cleanup.
+
+Run the supported targeted command: node scripts/run-vitest.js run tests/unit/lib/status-file-manager.test.ts. Assert the file passes, the moved result points to the expected attempt filename, the original clip is preserved as the renamed file, and missing and failed outcomes are distinguishable. Then run the focused lifecycle-related test set and npm run test:unit if practical. Report changed files, exact test results, and any remaining failure. Do not expose private chain-of-thought.</code></pre>
+  </section>
+  <section class="issue-detail"><h4>Regression tests</h4><p>Unit regression: create a temporary source clip, call renameClipForRetry(), assert kind is moved, assert destinationPath ends in the expected attempt filename, assert the original path is absent, and assert the destination exists. Run node scripts/run-vitest.js run tests/unit/lib/status-file-manager.test.ts and require exit code 0.</p></section>
+  <section class="issue-detail"><h4>Additional baseline tests</h4><p>Unit baseline: call the helper with a missing source and assert kind is missing without a destination file; make a destination conflict or controlled filesystem error and assert kind is failed with its error; verify ordinary appendRecords() ordering remains unchanged.</p></section>
+  <section class="issue-detail"><h4>Acceptance criteria</h4><p>The named test passes using the structured result. All three outcome kinds have explicit assertions. The existing clip preservation behavior remains covered. The targeted Vitest command exits 0.</p></section>
+  <section class="issue-detail"><h4>Confidence</h4><p>High</p></section>
+  <div class="issue-actions">
+    <label class="issue-progress-control"><span>Progress</span>
+      <select data-issue-progress-control disabled aria-label="Progress for issue 01">
+        <option value="incomplete" selected>Incomplete</option>
+        <option value="in-progress">In progress</option>
+        <option value="complete">Complete</option>
+      </select>
+    </label>
+    <span class="issue-progress-state" data-issue-progress-state data-progress="incomplete">Incomplete</span>
+  </div>
+</article>
+<article class="issue" id="issue-02" data-issue-kind="additional" data-progress="incomplete">
+  <header class="issue-header">
+    <p class="issue-number">Issue 02 of 3</p>
+    <h3 class="issue-title">Reject and reopen still have a crash recovery window</h3>
+    <p class="issue-kind">Additional</p>
+  </header>
+  <dl class="issue-fields">
+    <div><dt>Title</dt><dd>Reject and reopen still have a crash recovery window</dd></div>
+    <div><dt>Kind</dt><dd>Additional</dd></div>
+    <div><dt>Priority</dt><dd><span class="priority-label" data-priority="p2">P2</span></dd></div>
+    <div><dt>Severity</dt><dd><span class="severity-label" data-severity="2">Severity 2 (High)</span></dd></div>
+    <div><dt>Likelihood</dt><dd>Rare</dd></div>
+    <div><dt>Impacted area</dt><dd>Video lifecycle data integrity and recovery</dd></div>
+  </dl>
+  <section class="issue-detail"><h4>Failure mode</h4><p>The handlers move a clip file and then append the state transition to an append-only JSONL log. Their catch blocks roll the move back if appendRecords() returns an error, but process termination between the successful rename and the append bypasses that rollback.</p></section>
+  <section class="issue-detail"><h4>Evidence or rationale</h4><p>Testable assumption: a process stop between the awaited filesystem rename and the awaited append leaves the previous status as complete or approved while the file is at its _attemptN path. Evidence: cli/src/commands/video/reject.ts:74-93 and cli/src/commands/video/reopen.ts:84-104 order renameClipForRetry() before appendRecords(); rollback exists only in the catch path. cli/src/lib/status-file-manager.ts:274-298 appends to the JSONL file under a lock. openspec/changes/filmb-ai-p/specs/video-status-file/spec.md defines the status log as append-only and the clip naming convention. Confirm with fault injection after rename and before append, then inspect both the latest status record and clip paths.</p></section>
+  <section class="issue-detail"><h4>Why this matters</h4><p>After an abrupt process stop, the append-only status record and the clip location can describe different lifecycle states. Operators may retry, approve, reject, or generate against a path that no longer contains the current clip.</p></section>
+  <section class="issue-detail"><h4>Recommended mitigation</h4><p>Close the crash window with the smallest recoverable protocol that respects the append-only status log and preserves attempt clips. Inspect the shot state machine and current status contract before choosing an approach. Make each intermediate step detectable and idempotently reconcilable after restart; do not claim filesystem and JSONL writes are atomic together.</p></section>
+  <section class="issue-detail"><h4>Implementation prompt</h4>
+    <pre class="implementation-prompt" data-copy-target><code>Work in the current FilmBuff repository and resolve the project root yourself. Inspect AGENTS.md, cli/AGENTS.md, openspec/changes/filmb-ai-p/specs/shot-state-machine/spec.md, openspec/changes/filmb-ai-p/specs/video-status-file/spec.md, cli/src/commands/video/reject.ts, cli/src/commands/video/reopen.ts, and cli/src/lib/status-file-manager.ts. Source issue 14 was improved by moving the clip before appending status and rolling the clip back on an append error. The remaining testable risk is a process interruption after renameClipForRetry() succeeds and before appendRecords() begins.
+
+Design the smallest repository-consistent recovery protocol for this two-resource update. Preserve the append-only status log, existing rejected and reopened transitions, cumulative attempt_count and credits_spent, archived attempt clips, and the current user-facing commands. Make recovery deterministic and idempotent so a retry or the next relevant lifecycle command can reconcile an interrupted operation without deleting a preserved clip or duplicating state transitions. Do not add a general transaction framework or claim that a filesystem rename and JSONL append form one atomic transaction. If a durable intent record or new persisted state is required, update the relevant OpenSpec contract and keep the record schema compatible with existing readers.
+
+Handle expected rename and append failures distinctly. Retain current rollback behavior where it is safe, report when rollback fails, and ensure recovery does not overwrite an existing attempt clip. On unexpected restart state, fail closed with a concise message that identifies the shot and the state requiring recovery.
+
+Add fault-injection tests for interruption after intent, after rename, and after status append, using the existing CLI test conventions. Each test must restart or re-enter the recovery path and assert that the status record and clip location converge, no clip is deleted, no duplicate transition is appended, and credits and attempt_count remain correct. Add baseline tests for a normal reject, normal reopen, missing source clip, rename failure, append failure with rollback, and a pre-existing archive destination. Run the exact relevant Vitest command for the tests changed, then npm run test:unit if practical. Report the chosen recovery invariant, changed files, test results, and any unresolved crash boundary.</code></pre>
+  </section>
+  <section class="issue-detail"><h4>Regression tests</h4><p>Fault-injection integration tests: set up a completed clip and status log, interrupt reject after the archive rename but before append, restart the command recovery path, and assert one consistent terminal state plus the preserved attempt clip. Repeat for reopen and for interruptions after any new intent/finalization record. Assert no duplicate transition and no lost clip.</p></section>
+  <section class="issue-detail"><h4>Additional baseline tests</h4><p>State-transition baseline: normal reject and reopen, missing source, rename failure, append failure followed by rollback, and an existing _attemptN destination. Assert status log, source path, destination path, attempt count, and cumulative credits after each case.</p></section>
+  <section class="issue-detail"><h4>Acceptance criteria</h4><p>A controlled stop at every persistence boundary is recoverable on restart. Status records and clip paths converge to the same lifecycle outcome. Existing attempt clips are never deleted or overwritten. Repeated recovery does not append duplicate transitions. Any unrecoverable condition is reported with a clear shot identifier and recovery action.</p></section>
+  <section class="issue-detail"><h4>Confidence</h4><p>Medium</p></section>
+  <div class="issue-actions">
+    <label class="issue-progress-control"><span>Progress</span>
+      <select data-issue-progress-control disabled aria-label="Progress for issue 02">
+        <option value="incomplete" selected>Incomplete</option>
+        <option value="in-progress">In progress</option>
+        <option value="complete">Complete</option>
+      </select>
+    </label>
+    <span class="issue-progress-state" data-issue-progress-state data-progress="incomplete">Incomplete</span>
+  </div>
+</article>
+<article class="issue" id="issue-03" data-issue-kind="additional" data-progress="incomplete">
+  <header class="issue-header">
+    <p class="issue-number">Issue 03 of 3</p>
+    <h3 class="issue-title">Requested title-card failures are silently omitted</h3>
+    <p class="issue-kind">Additional</p>
+  </header>
+  <dl class="issue-fields">
+    <div><dt>Title</dt><dd>Requested title-card failures are silently omitted</dd></div>
+    <div><dt>Kind</dt><dd>Additional</dd></div>
+    <div><dt>Priority</dt><dd><span class="priority-label" data-priority="p3">P3</span></dd></div>
+    <div><dt>Severity</dt><dd><span class="severity-label" data-severity="3">Severity 3 (Medium)</span></dd></div>
+    <div><dt>Likelihood</dt><dd>Possible</dd></div>
+    <div><dt>Impacted area</dt><dd>Video compile correctness and user feedback</dd></div>
+  </dl>
+  <section class="issue-detail"><h4>Failure mode</h4><p>Title cards are enabled by default. When an individual title-card ffmpeg command fails, compile.ts catches every error, emits no warning, advances lastScene, and continues. The combined video can therefore be reported as complete without a requested scene title card.</p></section>
+  <section class="issue-detail"><h4>Evidence or rationale</h4><p>Testable assumption: a drawtext, codec, font, or title-card rendering failure reaches the empty catch and yields a successful combined output missing that card. Evidence: cli/src/commands/video/compile.ts:143 enables title cards unless explicitly disabled; lines 193-224 catch render errors without reporting them and then set lastScene; lines 240-263 proceed to assembly and viewer output. Confirm with a controlled ffmpeg stub that fails only the title-card invocation and succeeds for concat.</p></section>
+  <section class="issue-detail"><h4>Why this matters</h4><p>A successful compile message can conceal missing scene separators. Reviewers may receive an output that differs from the requested compile options without knowing why.</p></section>
+  <section class="issue-detail"><h4>Recommended mitigation</h4><p>Keep the existing no-title-cards option and avoid turning an expected optional failure into a silent success. On a failed requested card, either stop the compile with an actionable error or preserve the skip fallback while emitting a warning that names the scene and confirms the card was omitted. Make agent-mode output equally explicit.</p></section>
+  <section class="issue-detail"><h4>Implementation prompt</h4>
+    <pre class="implementation-prompt" data-copy-target><code>Work in the current FilmBuff repository and resolve the project root yourself. Inspect AGENTS.md, cli/AGENTS.md, cli/src/commands/video/compile.ts, the video compile option parsing, existing tests/unit/commands/ test conventions, and the shared humanLog or agent output helpers. Title cards default on at compile.ts:143. If runFfmpeg() fails for a title card, the catch at line 219 suppresses the error, lastScene advances, and later assembly can still report completion.
+
+Make failed requested title-card rendering observable. Preserve the default title-card behavior, the explicit no-title-cards option, clip concatenation, archive layout, and successful compile output. Prefer the smallest change: either return an actionable compile error when a requested card cannot be rendered, or retain the documented skip fallback while emitting a warning that identifies the scene and says its title card was omitted. Use the repository&#39;s existing human and agent output conventions. Do not log sensitive environment values, swallow an unexpected error, or add a new logging abstraction.
+
+Add a focused test with controlled process behavior: make the title-card ffmpeg invocation fail and the concat invocation succeed. Assert the command does not report an unqualified full success; it either returns the documented non-zero error or emits a visible structured warning naming the omitted scene. Add baseline cases for successful title cards, multiple scene boundaries, and explicit --no-title-cards behavior. Keep test files isolated and restore process mocks after each test.
+
+Run a supported targeted Vitest command using the repository&#39;s scripts/run-vitest.js entry point and the actual test path. Assert both the error or warning and the final compile state. Then run the relevant video command tests if available. Report changed files, exact test outcomes, the chosen fallback behavior, and any remaining limitations. Do not expose private chain-of-thought.</code></pre>
+  </section>
+  <section class="issue-detail"><h4>Regression tests</h4><p>Controlled integration regression: stub ffmpeg so title-card rendering fails for one scene but the concat call succeeds. Assert the command returns a documented failure or emits a visible warning naming the omitted scene; it must not claim an unqualified successful compile.</p></section>
+  <section class="issue-detail"><h4>Additional baseline tests</h4><p>Acceptance baseline: successful title-card render includes each scene boundary card; multiple shots within one scene create one card; explicit --no-title-cards creates no card and does not emit a failure warning.</p></section>
+  <section class="issue-detail"><h4>Acceptance criteria</h4><p>When a requested title card fails, users and agent-mode callers receive an explicit scene-specific failure or warning. No requested card is silently omitted while the command reports unqualified success. Successful render and explicit opt-out behavior remain unchanged.</p></section>
+  <section class="issue-detail"><h4>Confidence</h4><p>Medium</p></section>
+  <div class="issue-actions">
+    <label class="issue-progress-control"><span>Progress</span>
+      <select data-issue-progress-control disabled aria-label="Progress for issue 03">
+        <option value="incomplete" selected>Incomplete</option>
+        <option value="in-progress">In progress</option>
+        <option value="complete">Complete</option>
+      </select>
+    </label>
+    <span class="issue-progress-state" data-issue-progress-state data-progress="incomplete">Incomplete</span>
+  </div>
+</article>
+    </section>
+    <section class="scope-notes" aria-labelledby="verification-title">
+      <h2 id="verification-title">Verification record</h2>
+      <ul>
+        <li>git status --short before analysis: clean.</li>
+        <li>Actual command: <code>node .\scripts\run-vitest.js run .\tests\unit\utils\beads-completed-checker.test.ts .\tests\unit\utils\extractCommandHelp.test.ts .\tests\unit\config\validation.test.ts .\tests\unit\commands\update.test.ts .\tests\unit\commands\upgrade.test.ts .\tests\unit\commands\version-info.test.ts .\tests\unit\utils\vscode-editor.test.ts .\tests\unit\lib\status-file-manager.test.ts .\tests\integration\cli\pin-command.test.ts</code>. Outcome: 8 files passed, 1 file failed; 99 tests passed and 1 failed.</li>
+        <li>The failing test was tests/unit/lib/status-file-manager.test.ts, test name: renames clip files for retry without deleting the preserved clip. Failure: expect(dest).toMatch() received an object instead of a string.</li>
+        <li>The first sandboxed Vitest startup was blocked before test collection by spawn EPERM while Vite loaded its config. The same command was retried with process permission and produced the test result above.</li>
+        <li>The exact shared stylesheet and script URLs each returned HTTP 200 in read-only GET requests. No browser verification was performed.</li>
+        <li>No compile-specific or reject/reopen command test file was found in tests/. Their completion and remaining behavior are based on source inspection only.</li>
+        <li>No application code, test, configuration, or existing report was edited. Only this new HTML report is authorized for creation.</li>
+      </ul>
+    </section>
+  </main>
+  <footer class="report-footer">
+    <p>FilmBuff repository comparison report, generated 2026-10-04-18-07-30 local time.</p>
+    <p>Reviewed repository: <a href="https://github.com/mytech-today-now/filmbuff">mytech-today-now/filmbuff</a>, branch main, revision 68f3ccc. Package author evidence: root package.json author field, Augment Extensions.</p>
+    <p>Report author: Kyle Rode using myTech.Today's prompt-refined report workflow.</p>
+    <p>Output: ./ai-prompts/pre-mortem-refactored-2026-10-04-18-07-30.html. Scope: comparison of the supplied 16-item source report with the current FilmBuff working tree.</p>
+  </footer>
+</body>
+</html>

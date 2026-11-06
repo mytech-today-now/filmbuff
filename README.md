@@ -83,6 +83,12 @@ Module-maintenance commands are also available for linked modules: `filmbuff upd
 
 When you use `filmbuff version-info --json`, alias lookups resolve to the canonical module id in the JSON payload so machine-readable output stays stable.
 
+### Per-Shot Video Workflow
+
+Use `filmbuff video --help` to see the per-shot generation commands: `init`, `next`, `generate`, `retry`, `approve`, `reject`, `status`, `compile`, `reopen`, and `generate-all`. Rejected clips are archived before their shots return to pending, and approved shots can be reopened for regeneration. Run `filmbuff video <command> --help` for command options.
+
+Remote AI gateways must use HTTPS. HTTP is allowed only for loopback development. The MCP server's HTTP transport binds to loopback and requires `FILMBUFF_MCP_TOKEN`.
+
 ---
 
 ## 🎬 Starting a New Project

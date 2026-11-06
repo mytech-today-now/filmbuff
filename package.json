@@ -15,8 +15,7 @@
         "filmbuff/workflows/beads/",
         "README.md",
         "LICENSE",
-        "AGENTS.md",
-        "modules.md"
+        "AGENTS.md"
     ],
     "scripts": {
         "build": "cd cli && tsc && node -e \"const fs=require('fs'),path=require('path');const src=path.join('src','db','migrations'),dst=path.join('dist','db','migrations');fs.mkdirSync(dst,{recursive:true});fs.readdirSync(src).filter(f=>f.endsWith('.sql')).forEach(f=>fs.copyFileSync(path.join(src,f),path.join(dst,f)));\"",

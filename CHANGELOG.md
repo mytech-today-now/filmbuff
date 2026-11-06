@@ -8,9 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.5.6] - 2026-09-16
+## [2.5.6] - 2026-11-05
+
+### Added
+- **Video review recovery** - `filmbuff video reject` archives rejected clips and returns shots to pending, while `reopen` makes approved shots available for regeneration. Interrupted lifecycle changes can be recovered.
+
+### Changed
+- **Remote gateway transport** - Remote AI gateways require HTTPS, with HTTP allowed only for loopback development. The MCP server's HTTP transport requires a configured token and binds to loopback.
+- **MCP runtime packaging** - Declared the runtime dependencies required by the MCP server.
 
 ### Fixed
+- **Video asset handling** - Clip paths stay within the project root, and title-card rendering failures are reported.
 - **Version info JSON** - Alias lookups now serialize the resolved canonical module id in JSON while preserving the requested alias in human-readable output. Not-found JSON responses keep the existing error envelope.
 
 ## [2.5.5] - 2026-09-15
