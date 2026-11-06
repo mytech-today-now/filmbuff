@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "test_id": "filmbuff-npm-release-2.5.6-2026-11-05",
+  "timestamp": "2026-11-05T23:08:53-06:00",
+  "feature": "FilmBuff 2.5.6 release commit and npm package readiness",
+  "environment": {
+    "platform": "Windows",
+    "branch": "main",
+    "commit": "5dc64ff1b775a5396d72dba9808b2078323e1d4b",
+    "remote": "origin",
+    "remote_branch": "main",
+    "package_name": "@mytechtoday/filmbuff",
+    "package_version": "2.5.6",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "initial_conditions": {
+    "working_tree_before_release": "Two untracked HTML reports; no staged or tracked changes",
+    "npm_latest_before_publish": "2.5.5",
+    "version_records": {
+      "VERSION": "2.5.6",
+      "package_json": "2.5.6",
+      "package_lock": "2.5.6"
+    },
+    "remote_before_commit": "origin/main matched the local main branch"
+  },
+  "validated_actions": [
+    {
+      "command": "npm run build",
+      "status": "passed",
+      "exit_code": 0,
+      "observation": "TypeScript compilation and migration copy completed."
+    },
+    {
+      "command": "npm test",
+      "status": "passed",
+      "exit_code": 0,
+      "assertions": {
+        "suites_passed": 1,
+        "tests_passed": 9,
+        "tests_failed": 0
+      },
+      "warnings": [
+        "The compatibility suite logged expected spawn EPERM warnings while probing unavailable external workflow commands."
+      ]
+    },
+    {
+      "command": "npm run verify:dist",
+      "status": "passed_on_retry",
+      "first_attempt": "Failed in the restricted sandbox when a child process returned spawn EPERM.",
+      "retry": "Passed outside the sandbox; launcher, help, and temporary init checks passed."
+    },
+    {
+      "command": "node bin/filmbuff.js --version and help commands",
+      "status": "passed",
+      "observations": [
+        "Launcher reported version 2.5.6.",
+        "Root, video, and MCP server help commands exited successfully."
+      ]
+    },
+    {
+      "command": "npm pack --dry-run --json --ignore-scripts --logs-max=0",
+      "status": "passed",
+      "assertions": {
+        "package_name": "@mytechtoday/filmbuff",
+        "package_version": "2.5.6",
+        "file_count": 1440,
+        "unpacked_size_bytes": 8784726,
+        "required_runtime_files_present": true,
+        "environment_files_or_local_reports_included": false,
+        "obsolete_modules_markdown_entry_included": false
+      },
+      "note": "Build and verify:dist ran separately before this script-free tarball preview."
+    },
+    {
+      "command": "Static HTML report and credential-pattern review",
+      "status": "passed",
+      "assertions": {
+        "october_13_report_issue_count": 20,
+        "october_13_core_issue_count": 15,
+        "october_13_additional_issue_count": 5,
+        "duplicate_html_ids": 0,
+        "each_report_has_one_shared_stylesheet_and_script": true,
+        "inline_scripts_or_styles": false,
+        "high_confidence_credential_patterns_found": 0
+      }
+    },
+    {
+      "command": "git pull --rebase origin main and git push origin main",
+      "status": "passed",
+      "commit": "5dc64ff1b775a5396d72dba9808b2078323e1d4b",
+      "remote_verification": "HEAD and origin/main matched after push; worktree clean."
+    },
+    {
+      "command": "npm login --auth-type=web --registry=https://registry.npmjs.org/",
+      "status": "blocked_pending_user_authentication",
+      "observation": "Browser login was started, but npm whoami remained unauthenticated. No credentials or one-time codes were captured."
+    }
+  ],
+  "assertions": [
+    {
+      "id": "canonical-version",
+      "expected": "All maintained version records equal 2.5.6.",
+      "actual": "VERSION, package.json, and package-lock.json equal 2.5.6; VERSIONS and VERSIONING.md are absent.",
+      "status": "passed"
+    },
+    {
+      "id": "public-package-target",
+      "expected": "Publish @mytechtoday/filmbuff 2.5.6 to the public npm registry.",
+      "actual": "Registry reports 2.5.5 as latest; package manifest targets the public npm registry.",
+      "status": "passed"
+    },
+    {
+      "id": "npm-publication",
+      "expected": "Version 2.5.6 is published and its registry metadata is verified.",
+      "actual": "Publication was not attempted because browser authentication is still pending.",
+      "status": "blocked"
+    }
+  ],
+  "not_run": [
+    {
+      "check": "npm publish and post-publish install or metadata verification",
+      "reason": "Requires maintainer npm browser sign-in with the authenticator app."
+    },
+    {
+      "check": "README rendered preview",
+      "reason": "No Markdown renderer was run."
+    },
+    {
+      "check": "Live delivery of the HTML reports' external raw CSS and JavaScript assets",
+      "reason": "The reports are historical files and their external asset URLs were not fetched."
+    }
+  ],
+  "final_status": "blocked",
+  "failure_cause": "Interactive npm sign-in has not completed; npm publish was not run.",
+  "next_action": "Complete the active npm browser sign-in using the authenticator app, then publish version 2.5.6 and verify the latest dist-tag."
+}
